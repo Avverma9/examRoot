@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Algebra Practice Set 1",
+    "subject": "Mathematics",
+    "topic": "Algebra",
+    "level": "easy",
+    "questions": [
+      {
+        "question": "Solve: 2x + 3 = 7",
+        "options": ["x = 1", "x = 2", "x = 3", "x = 4"],
+        "correctAnswer": "x = 2"
+      },
+      {
+        "question": "Simplify: 3a + 2a",
+        "options": ["5a", "6a", "a", "a^2"],
+        "correctAnswer": "5a"
+      }
+    ],
+    "totalQuestions": 2
+  }
+]
+

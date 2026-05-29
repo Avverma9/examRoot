@@ -1,0 +1,25 @@
+[
+  {
+    "title": "Math Mock Test - 1",
+    "description": "Basic algebra and arithmetic",
+    "category": "Mathematics",
+    "duration": 60,
+    "isPublished": true,
+    "questions": [
+      {
+        "question": "What is 15% of 200?",
+        "options": ["20", "30", "40", "50"],
+        "correctAnswer": "30",
+        "explanation": "15% of 200 = 0.15 × 200 = 30"
+      },
+      {
+        "question": "Solve: x^2 = 49",
+        "options": ["x = 6", "x = 7", "x = 8", "x = 9"],
+        "correctAnswer": "x = 7",
+        "explanation": ""
+      }
+    ],
+    "totalQuestions": 2
+  }
+]
+
