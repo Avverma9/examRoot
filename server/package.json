@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.mjs",
     "dev": "nodemon index.mjs",
+    "seed": "node seed.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

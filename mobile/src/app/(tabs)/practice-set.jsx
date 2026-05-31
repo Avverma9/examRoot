@@ -1,29 +1,91 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { useEffect } from 'react'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { Feather } from '@expo/vector-icons'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchPracticeSets } from '../../store/slices/practiceSetSlice'
 
-const subjects = [
-  { id: 1, name: 'Quantitative Aptitude', topics: 24, icon: 'pie-chart', color: 'text-purple-500', bg: 'bg-purple-100' },
-  { id: 2, name: 'General Intelligence', topics: 18, icon: 'cpu', color: 'text-orange-500', bg: 'bg-orange-100' },
-  { id: 3, name: 'English Language', topics: 15, icon: 'book', color: 'text-teal-500', bg: 'bg-teal-100' },
-  { id: 4, name: 'General Awareness', topics: 30, icon: 'globe', color: 'text-pink-500', bg: 'bg-pink-100' },
-];
+const LEVEL_COLORS = {
+  easy: { bg: 'bg-green-100', text: 'text-green-700' },
+  medium: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+  hard: { bg: 'bg-red-100', text: 'text-red-700' },
+}
 
 export default function PracticeSetScreen() {
-  return (
-    <ScrollView className="flex-1 bg-gray-50 p-4">
-      <Text className="text-lg font-bold text-gray-800 mb-4">Choose a Subject</Text>
-      
-      <View className="flex-row flex-wrap justify-between">
-        {subjects.map((sub) => (
-          <TouchableOpacity key={sub.id} className="bg-white w-[48%] p-4 rounded-xl mb-4 shadow-sm border border-gray-100 items-center text-center">
-            <View className={`${sub.bg} p-4 rounded-full mb-3`}>
-              <Feather name={sub.icon} size={28} className={sub.color} />
-            </View>
-            <Text className="text-base font-bold text-gray-800 text-center">{sub.name}</Text>
-            <Text className="text-gray-500 text-xs mt-1">{sub.topics} Topics</Text>
-          </TouchableOpacity>
-        ))}
+  const dispatch = useDispatch()
+  const { items: practiceSets, status, error } = useSelector((state) => state.practiceSet)
+
+  useEffect(() => {
+    dispatch(fetchPracticeSets())
+  }, [dispatch])
+
+  if (status === 'loading') {
+    return (
+      <View className="flex-1 bg-gray-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#2563EB" />
       </View>
-    </ScrollView>
-  );
+    )
+  }
+
+  if (status === 'failed') {
+    return (
+      <View className="flex-1 bg-gray-50 items-center justify-center px-6">
+        <Feather name="wifi-off" size={40} color="#EF4444" />
+        <Text className="text-red-500 font-bold text-lg mt-3">Failed to load practice sets</Text>
+        <TouchableOpacity onPress={() => dispatch(fetchPracticeSets())} className="mt-4 bg-blue-600 px-6 py-2 rounded-lg">
+          <Text className="text-white font-bold">Retry</Text>
+        </TouchableOpacity>
+        {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
+      </View>
+    )
+  }
+
+  const renderItem = ({ item }) => {
+    const level = item.level || 'easy'
+    const colors = LEVEL_COLORS[level] || LEVEL_COLORS.easy
+
+    return (
+      <TouchableOpacity className="bg-white p-4 rounded-xl mb-4 shadow-sm border border-gray-100">
+        <View className="flex-row justify-between items-start mb-2">
+          <Text className="text-base font-bold text-gray-800 flex-1" numberOfLines={2}>
+            {item.title}
+          </Text>
+          <View className={`${colors.bg} px-2 py-1 rounded-md ml-2`}>
+            <Text className={`${colors.text} text-xs font-bold capitalize`}>{level}</Text>
+          </View>
+        </View>
+
+        <Text className="text-gray-500 text-sm mb-3">
+          {item.subject} {item.topic ? `• ${item.topic}` : ''}
+        </Text>
+
+        <View className="flex-row items-center justify-between border-t border-gray-100 pt-3">
+          <View className="flex-row items-center">
+            <Feather name="help-circle" size={14} color="#6B7280" />
+            <Text className="text-gray-500 text-sm ml-1">{item.totalQuestions || 0} Questions</Text>
+          </View>
+          <TouchableOpacity className="bg-blue-600 px-4 py-1.5 rounded-lg">
+            <Text className="text-white text-xs font-bold">Practice</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    )
+  }
+
+  return (
+    <View className="flex-1 bg-gray-50 p-4">
+      {practiceSets.length === 0 ? (
+        <View className="flex-1 items-center justify-center">
+          <Feather name="book" size={40} color="#9CA3AF" />
+          <Text className="text-gray-400 mt-3 font-semibold">No practice sets available</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={practiceSets}
+          keyExtractor={(item) => item._id}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
+  )
 }

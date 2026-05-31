@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { Provider } from 'react-redux';
-import { store } from './store/store'; // Store import kiya
+import { store } from '../store/store'; // Store import kiya
 import "../global.css"; // NativeWind CSS
 
 export default function RootLayout() {

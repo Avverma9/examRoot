@@ -1,8 +1,11 @@
 import { Tabs } from 'expo-router';
-import { Feather } from '@expo/vector-icons'; 
-import { View, Text } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
+  const router = useRouter();
+  
   return (
     <Tabs 
       screenOptions={{ 
@@ -53,13 +56,14 @@ export default function TabLayout() {
             </View>
           ),
           headerTitleAlign: 'left', // Logo left side acha lagta hai
-          // Header ke right side me notification bell add karna
+          // Header ke right side me profile icon add karna
           headerRight: () => (
-            <View className="mr-4">
-              <Feather name="bell" size={22} color="#ffffff" />
-              {/* Red dot for notification */}
-              <View className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border border-blue-600" />
-            </View>
+            <TouchableOpacity 
+              onPress={() => router.push('/profile')}
+              className="mr-4 bg-white/20 p-2 rounded-full"
+            >
+              <Feather name="user" size={22} color="#ffffff" />
+            </TouchableOpacity>
           ),
         }}
       />
@@ -94,7 +98,17 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 5. PROFILE TAB */}
+      {/* 5. REELS TAB */}
+      <Tabs.Screen
+        name="reels"
+        options={{
+          title: 'Shorts',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Feather name="smartphone" size={24} color={color} />,
+        }}
+      />
+
+      {/* 6. PROFILE TAB */}
       <Tabs.Screen
         name="profile"
         options={{
