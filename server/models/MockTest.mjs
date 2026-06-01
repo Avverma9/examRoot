@@ -2,32 +2,18 @@ import mongoose from "mongoose";
 
 const questionSchema = new mongoose.Schema(
   {
-    question: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
+    question: { type: String, required: true, trim: true },
+    questionHi: { type: String, default: "" },
     options: {
       type: [String],
       required: true,
-      validate: {
-        validator: function (value) {
-          return value.length >= 2;
-        },
-        message: "At least 2 options are required",
-      },
+      validate: { validator: (v) => v.length >= 2, message: "At least 2 options required" },
     },
-
-    correctAnswer: {
-      type: String,
-      required: true,
-    },
-
-    explanation: {
-      type: String,
-      default: "",
-    },
+    optionsHi: { type: [String], default: [] },
+    correctAnswer: { type: String, required: true },
+    correctAnswerHi: { type: String, default: "" },
+    explanation: { type: String, default: "" },
+    explanationHi: { type: String, default: "" },
   },
   { _id: false }
 );

@@ -11,6 +11,7 @@ export default function RootLayout() {
         {/* Aapka Tabs group */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="mock-test-player" options={{ headerShown: false }} />
+        <Stack.Screen name="practice-set-player" options={{ headerShown: false }} />
         <Stack.Screen name="video-player" options={{ headerShown: false }} />
       </Stack>
     </Provider>

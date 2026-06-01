@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react
 import { Feather } from '@expo/vector-icons'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchPracticeSets } from '../../store/slices/practiceSetSlice'
+import { useRouter } from 'expo-router'
 
 const LEVEL_COLORS = {
   easy: { bg: 'bg-green-100', text: 'text-green-700' },
@@ -12,6 +13,7 @@ const LEVEL_COLORS = {
 
 export default function PracticeSetScreen() {
   const dispatch = useDispatch()
+  const router = useRouter()
   const { items: practiceSets, status, error } = useSelector((state) => state.practiceSet)
 
   useEffect(() => {
@@ -44,7 +46,10 @@ export default function PracticeSetScreen() {
     const colors = LEVEL_COLORS[level] || LEVEL_COLORS.easy
 
     return (
-      <TouchableOpacity className="bg-white p-4 rounded-xl mb-4 shadow-sm border border-gray-100">
+      <TouchableOpacity 
+        onPress={() => router.push({ pathname: '/practice-set-player', params: { practice: JSON.stringify(item) } })}
+        className="bg-white p-4 rounded-xl mb-4 shadow-sm border border-gray-100"
+      >
         <View className="flex-row justify-between items-start mb-2">
           <Text className="text-base font-bold text-gray-800 flex-1" numberOfLines={2}>
             {item.title}
@@ -63,9 +68,9 @@ export default function PracticeSetScreen() {
             <Feather name="help-circle" size={14} color="#6B7280" />
             <Text className="text-gray-500 text-sm ml-1">{item.totalQuestions || 0} Questions</Text>
           </View>
-          <TouchableOpacity className="bg-blue-600 px-4 py-1.5 rounded-lg">
+          <View className="bg-blue-600 px-4 py-1.5 rounded-lg">
             <Text className="text-white text-xs font-bold">Practice</Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     )

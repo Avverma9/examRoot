@@ -1,0 +1,72 @@
+[
+  {
+    "title": "UPSC Prelims — GS Paper I",
+    "description": "General Studies Paper I with Hindi translations",
+    "category": "UPSC",
+    "duration": 120,
+    "isPublished": true,
+    "questions": [
+      {
+        "question": "Which article of the Indian Constitution abolishes untouchability?",
+        "questionHi": "भारतीय संविधान का कौन सा अनुच्छेद अस्पृश्यता को समाप्त करता है?",
+        "options": ["Article 14", "Article 15", "Article 17", "Article 21"],
+        "optionsHi": ["अनुच्छेद 14", "अनुच्छेद 15", "अनुच्छेद 17", "अनुच्छेद 21"],
+        "correctAnswer": "Article 17",
+        "correctAnswerHi": "अनुच्छेद 17",
+        "explanation": "Article 17 abolishes untouchability in any form and forbids its practice.",
+        "explanationHi": "अनुच्छेद 17 किसी भी रूप में अस्पृश्यता को समाप्त करता है और इसके अभ्यास को प्रतिबंधित करता है।"
+      },
+      {
+        "question": "Who was the first President of India?",
+        "questionHi": "भारत के प्रथम राष्ट्रपति कौन थे?",
+        "options": ["Dr. Rajendra Prasad", "Dr. S. Radhakrishnan", "Dr. Zakir Hussain", "V. V. Giri"],
+        "optionsHi": ["डॉ. राजेंद्र प्रसाद", "डॉ. एस. राधाकृष्णन", "डॉ. जाकिर हुसैन", "वी. वी. गिरि"],
+        "correctAnswer": "Dr. Rajendra Prasad",
+        "correctAnswerHi": "डॉ. राजेंद्र प्रसाद",
+        "explanation": "Dr. Rajendra Prasad served as the first President of India from 1950 to 1962.",
+        "explanationHi": "डॉ. राजेंद्र प्रसाद ने 1950 से 1962 तक भारत के प्रथम राष्ट्रपति के रूप में कार्य किया।"
+      },
+      {
+        "question": "In which year did India gain independence?",
+        "questionHi": "भारत को किस वर्ष स्वतंत्रता मिली?",
+        "options": ["1945", "1946", "1947", "1948"],
+        "optionsHi": ["1945", "1946", "1947", "1948"],
+        "correctAnswer": "1947",
+        "correctAnswerHi": "1947",
+        "explanation": "India gained independence from British rule on August 15, 1947.",
+        "explanationHi": "भारत को 15 अगस्त 1947 को ब्रिटिश शासन से स्वतंत्रता मिली।"
+      }
+    ],
+    "totalQuestions": 3
+  },
+  {
+    "title": "Math Mock Test - 1",
+    "description": "Basic algebra and arithmetic with Hindi",
+    "category": "Mathematics",
+    "duration": 60,
+    "isPublished": true,
+    "questions": [
+      {
+        "question": "What is 15% of 200?",
+        "questionHi": "200 का 15% क्या है?",
+        "options": ["20", "30", "40", "50"],
+        "optionsHi": ["20", "30", "40", "50"],
+        "correctAnswer": "30",
+        "correctAnswerHi": "30",
+        "explanation": "15% of 200 = 0.15 × 200 = 30",
+        "explanationHi": "200 का 15% = 0.15 × 200 = 30"
+      },
+      {
+        "question": "Solve: x² = 49",
+        "questionHi": "हल करें: x² = 49",
+        "options": ["x = 6", "x = 7", "x = 8", "x = 9"],
+        "optionsHi": ["x = 6", "x = 7", "x = 8", "x = 9"],
+        "correctAnswer": "x = 7",
+        "correctAnswerHi": "x = 7",
+        "explanation": "The square root of 49 is 7, so x = ±7",
+        "explanationHi": "49 का वर्गमूल 7 है, इसलिए x = ±7"
+      }
+    ],
+    "totalQuestions": 2
+  }
+]
