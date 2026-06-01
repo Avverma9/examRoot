@@ -372,8 +372,16 @@ async function seedDatabase() {
     let uri = process.env.MONGO_URI;
 
     if (uri) {
-      await mongoose.connect(uri);
-      console.log("✅ Connected to MongoDB Atlas");
+      try {
+        await mongoose.connect(uri);
+        console.log("✅ Connected to MongoDB Atlas");
+      } catch (err) {
+        console.log("⚠️ Atlas failed, falling back to in-memory MongoDB...");
+        const mongod = await MongoMemoryServer.create();
+        uri = mongod.getUri() + "examRoot";
+        await mongoose.connect(uri);
+        console.log("🧠 Connected to in-memory MongoDB");
+      }
     } else {
       const mongod = await MongoMemoryServer.create();
       uri = mongod.getUri() + "examRoot";

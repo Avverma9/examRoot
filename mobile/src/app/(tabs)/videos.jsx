@@ -1,11 +1,14 @@
 import { useEffect } from 'react'
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { Image } from 'expo-image'
 import { Feather } from '@expo/vector-icons'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchVideos } from '../../store/slices/videoSlice'
+import { useRouter } from 'expo-router'
 
 export default function VideosScreen() {
   const dispatch = useDispatch()
+  const router = useRouter()
   const { items: videos, status, error } = useSelector((state) => state.video)
 
   useEffect(() => {
@@ -34,9 +37,22 @@ export default function VideosScreen() {
   }
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity className="mb-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
-      <View className="h-48 bg-gray-200 items-center justify-center relative">
-        <Feather name="play-circle" size={48} color="white" />
+    <TouchableOpacity
+      onPress={() => router.push({ pathname: '/video-player', params: { video: JSON.stringify(item) } })}
+      className="mb-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100"
+    >
+      <View className="h-48 bg-gray-200 relative">
+        <Image
+          source={{ uri: item.thumbnail }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          transition={300}
+        />
+        <View className="absolute inset-0 items-center justify-center">
+          <View className="bg-black/40 rounded-full p-3">
+            <Feather name="play" size={28} color="white" />
+          </View>
+        </View>
         {item.duration && (
           <View className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded">
             <Text className="text-white text-xs font-bold">{item.duration}</Text>

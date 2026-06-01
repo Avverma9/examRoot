@@ -38,7 +38,8 @@
     "react-redux": "^9.3.0"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.10"
+    "tailwindcss": "^3.4.10",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "prestart": "node -e \"const [maj,min]=process.versions.node.split('.').map(Number); if(maj<20 || (maj===20 && min<19)){console.error('ERROR: Node '+process.versions.node+' is not supported. Use Node >=20.19.4 (recommended: nvm use 24.16.0).'); process.exit(1)}\"",

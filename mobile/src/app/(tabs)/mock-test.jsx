@@ -3,9 +3,11 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react
 import { Feather } from '@expo/vector-icons'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMockTests } from '../../store/slices/mockTestSlice'
+import { useRouter } from 'expo-router'
 
 export default function MockTestScreen() {
   const dispatch = useDispatch()
+  const router = useRouter()
   const { items: mockTests, status, error } = useSelector((state) => state.mockTest)
 
   useEffect(() => {
@@ -48,7 +50,9 @@ export default function MockTestScreen() {
         <Text className="text-gray-500 text-sm ml-1">{item.totalQuestions || 0} Qs</Text>
       </View>
 
-      <TouchableOpacity className="bg-blue-600 py-3 rounded-lg items-center">
+      <TouchableOpacity
+        onPress={() => router.push({ pathname: '/mock-test-player', params: { test: JSON.stringify(item) } })}
+        className="bg-blue-600 py-3 rounded-lg items-center">
         <Text className="text-white font-bold">Start Test</Text>
       </TouchableOpacity>
     </View>
