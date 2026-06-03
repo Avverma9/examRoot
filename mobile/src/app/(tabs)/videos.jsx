@@ -1,58 +1,35 @@
-import { useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { Image } from 'expo-image'
-import { Feather } from '@expo/vector-icons'
-import { useDispatch, useSelector } from 'react-redux'
-import { fetchVideos } from '../../store/slices/videoSlice'
-import { useRouter } from 'expo-router'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useGetAllVideosQuery } from '../../services/videoApi';
 
 export default function VideosScreen() {
-  const dispatch = useDispatch()
-  const router = useRouter()
-  const { items: videos, status, error } = useSelector((state) => state.video)
+  const { data, isLoading, isError, refetch } = useGetAllVideosQuery();
+  const videos = data?.data || [];
 
-  useEffect(() => {
-    dispatch(fetchVideos())
-  }, [dispatch])
-
-  if (status === 'loading') {
+  if (isLoading) {
     return (
       <View className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#F59E0B" />
       </View>
-    )
+    );
   }
 
-  if (status === 'failed') {
+  if (isError) {
     return (
       <View className="flex-1 bg-gray-50 items-center justify-center px-6">
         <Feather name="wifi-off" size={40} color="#EF4444" />
         <Text className="text-red-500 font-bold text-lg mt-3">Failed to load videos</Text>
-        <TouchableOpacity onPress={() => dispatch(fetchVideos())} className="mt-4 bg-blue-600 px-6 py-2 rounded-lg">
+        <TouchableOpacity onPress={refetch} className="mt-4 bg-amber-600 px-6 py-2 rounded-lg">
           <Text className="text-white font-bold">Retry</Text>
         </TouchableOpacity>
-        {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
       </View>
-    )
+    );
   }
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => router.push({ pathname: '/video-player', params: { video: JSON.stringify(item) } })}
-      className="mb-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100"
-    >
-      <View className="h-48 bg-gray-200 relative">
-        <Image
-          source={{ uri: item.thumbnail }}
-          style={{ width: '100%', height: '100%' }}
-          contentFit="cover"
-          transition={300}
-        />
-        <View className="absolute inset-0 items-center justify-center">
-          <View className="bg-black/40 rounded-full p-3">
-            <Feather name="play" size={28} color="white" />
-          </View>
-        </View>
+    <TouchableOpacity className="mb-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+      <View className="h-48 bg-gray-200 items-center justify-center relative">
+        <Feather name="play-circle" size={48} color="white" />
         {item.duration && (
           <View className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded">
             <Text className="text-white text-xs font-bold">{item.duration}</Text>
@@ -68,7 +45,7 @@ export default function VideosScreen() {
         </Text>
       </View>
     </TouchableOpacity>
-  )
+  );
 
   return (
     <View className="flex-1 bg-gray-50 p-4">
@@ -86,5 +63,5 @@ export default function VideosScreen() {
         />
       )}
     </View>
-  )
+  );
 }

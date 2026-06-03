@@ -1,45 +1,37 @@
-import { useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { Feather } from '@expo/vector-icons'
-import { useDispatch, useSelector } from 'react-redux'
-import { fetchMockTests } from '../../store/slices/mockTestSlice'
-import { useRouter } from 'expo-router'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
 
 export default function MockTestScreen() {
-  const dispatch = useDispatch()
-  const router = useRouter()
-  const { items: mockTests, status, error } = useSelector((state) => state.mockTest)
+  const { data, isLoading, isError, refetch } = useGetAllMockTestsQuery();
+  const mockTests = data?.data || [];
 
-  useEffect(() => {
-    dispatch(fetchMockTests())
-  }, [dispatch])
-
-  if (status === 'loading') {
+  if (isLoading) {
     return (
       <View className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#F59E0B" />
       </View>
-    )
+    );
   }
 
-  if (status === 'failed') {
+  if (isError) {
     return (
       <View className="flex-1 bg-gray-50 items-center justify-center px-6">
         <Feather name="wifi-off" size={40} color="#EF4444" />
         <Text className="text-red-500 font-bold text-lg mt-3">Failed to load tests</Text>
-        <TouchableOpacity onPress={() => dispatch(fetchMockTests())} className="mt-4 bg-blue-600 px-6 py-2 rounded-lg">
+        <TouchableOpacity onPress={refetch} className="mt-4 bg-amber-600 px-6 py-2 rounded-lg">
           <Text className="text-white font-bold">Retry</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
 
   const renderItem = ({ item }) => (
     <View className="bg-white p-4 rounded-xl mb-4 shadow-sm border border-gray-100">
       <View className="flex-row justify-between items-start mb-2">
         <Text className="text-lg font-bold text-gray-800 flex-1">{item.title}</Text>
-        <View className="bg-blue-50 px-2 py-1 rounded-md">
-          <Text className="text-blue-600 text-xs font-bold">{item.category}</Text>
+        <View className="bg-amber-50 px-2 py-1 rounded-md">
+          <Text className="text-amber-600 text-xs font-bold">{item.category}</Text>
         </View>
       </View>
 
@@ -50,13 +42,11 @@ export default function MockTestScreen() {
         <Text className="text-gray-500 text-sm ml-1">{item.totalQuestions || 0} Qs</Text>
       </View>
 
-      <TouchableOpacity
-        onPress={() => router.push({ pathname: '/mock-test-player', params: { test: JSON.stringify(item) } })}
-        className="bg-blue-600 py-3 rounded-lg items-center">
+      <TouchableOpacity className="bg-amber-600 py-3 rounded-lg items-center">
         <Text className="text-white font-bold">Start Test</Text>
       </TouchableOpacity>
     </View>
-  )
+  );
 
   return (
     <View className="flex-1 bg-gray-50 p-4">
@@ -64,7 +54,6 @@ export default function MockTestScreen() {
         <View className="flex-1 items-center justify-center">
           <Feather name="clipboard" size={40} color="#9CA3AF" />
           <Text className="text-gray-400 mt-3 font-semibold">No mock tests available</Text>
-          {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
         </View>
       ) : (
         <FlatList
@@ -75,5 +64,5 @@ export default function MockTestScreen() {
         />
       )}
     </View>
-  )
+  );
 }

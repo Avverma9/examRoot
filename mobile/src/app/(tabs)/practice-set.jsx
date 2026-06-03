@@ -23,7 +23,7 @@ export default function PracticeSetScreen() {
   if (status === 'loading') {
     return (
       <View className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#F59E0B" />
       </View>
     )
   }
@@ -33,7 +33,7 @@ export default function PracticeSetScreen() {
       <View className="flex-1 bg-gray-50 items-center justify-center px-6">
         <Feather name="wifi-off" size={40} color="#EF4444" />
         <Text className="text-red-500 font-bold text-lg mt-3">Failed to load practice sets</Text>
-        <TouchableOpacity onPress={() => dispatch(fetchPracticeSets())} className="mt-4 bg-blue-600 px-6 py-2 rounded-lg">
+        <TouchableOpacity onPress={() => dispatch(fetchPracticeSets())} className="mt-4 bg-amber-600 px-6 py-2 rounded-lg">
           <Text className="text-white font-bold">Retry</Text>
         </TouchableOpacity>
         {error ? <Text className="text-red-500 mt-2">{error}</Text> : null}
@@ -68,7 +68,7 @@ export default function PracticeSetScreen() {
             <Feather name="help-circle" size={14} color="#6B7280" />
             <Text className="text-gray-500 text-sm ml-1">{item.totalQuestions || 0} Questions</Text>
           </View>
-          <View className="bg-blue-600 px-4 py-1.5 rounded-lg">
+          <View className="bg-amber-600 px-4 py-1.5 rounded-lg">
             <Text className="text-white text-xs font-bold">Practice</Text>
           </View>
         </View>

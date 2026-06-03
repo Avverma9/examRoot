@@ -12,9 +12,9 @@ export default function HomeScreen() {
   const recommendedTests = (mockData?.data || []).slice(0, 5);
 
   const quickLinks = [
-    { id: 1, name: 'Mock Tests', icon: 'file-text', color: '#3B82F6', bg: 'bg-blue-100', route: '/mock-test' },
+    { id: 1, name: 'Mock Tests', icon: 'file-text', color: '#F59E0B', bg: 'bg-amber-100', route: '/mock-test' },
     { id: 2, name: 'Practice', icon: 'book-open', color: '#10B981', bg: 'bg-green-100', route: '/practice-set' },
-    { id: 3, name: 'Video Class', icon: 'play-circle', color: '#F59E0B', bg: 'bg-yellow-100', route: '/videos' },
+    { id: 3, name: 'Video Class', icon: 'play-circle', color: '#F97316', bg: 'bg-orange-100', route: '/videos' },
     { id: 4, name: 'PYQ Papers', icon: 'clock', color: '#8B5CF6', bg: 'bg-purple-100', route: '/mock-test' },
   ];
 
@@ -29,10 +29,10 @@ export default function HomeScreen() {
     <ScrollView className="flex-1 bg-gray-50" showsVerticalScrollIndicator={false}>
       
       {/* 1. TOP GREETING & STATS CARD */}
-      <View className="bg-blue-600 rounded-b-[30px] px-5 pt-4 pb-8 mb-4 shadow-sm">
+      <View className="bg-amber-600 rounded-b-[30px] px-5 pt-4 pb-8 mb-4 shadow-sm">
         <View className="flex-row justify-between items-center mb-6">
           <View>
-            <Text className="text-blue-100 text-sm font-medium">Welcome back,</Text>
+            <Text className="text-amber-100 text-sm font-medium">Welcome back,</Text>
             <Text className="text-white text-2xl font-extrabold tracking-wide mt-1">
               {user.name.split(' ')[0]} 👋
             </Text>
@@ -43,7 +43,7 @@ export default function HomeScreen() {
         <View className="bg-white rounded-2xl p-4 flex-row justify-between items-center shadow-lg">
           <View className="items-center flex-1 border-r border-gray-200">
             <Text className="text-gray-500 text-xs font-semibold mb-1">TESTS TAKEN</Text>
-            <Text className="text-2xl font-black text-blue-600">{user.testsTaken}</Text>
+            <Text className="text-2xl font-black text-amber-600">{user.testsTaken}</Text>
           </View>
           <View className="items-center flex-1">
             <Text className="text-gray-500 text-xs font-semibold mb-1">ACCURACY</Text>
@@ -77,7 +77,7 @@ export default function HomeScreen() {
         <View className="flex-row justify-between items-end mb-4 mt-2">
           <Text className="text-lg font-bold text-gray-800">Continue Learning</Text>
           <TouchableOpacity onPress={() => router.push('/videos')}>
-            <Text className="text-blue-600 font-semibold text-sm">See All</Text>
+            <Text className="text-amber-600 font-semibold text-sm">See All</Text>
           </TouchableOpacity>
         </View>
         
@@ -111,7 +111,7 @@ export default function HomeScreen() {
         <View className="flex-row justify-between items-end mb-4">
           <Text className="text-lg font-bold text-gray-800">Recommended Tests</Text>
           <TouchableOpacity onPress={() => router.push('/mock-test')}>
-            <Text className="text-blue-600 font-semibold text-sm">View All</Text>
+            <Text className="text-amber-600 font-semibold text-sm">View All</Text>
           </TouchableOpacity>
         </View>
 
@@ -135,8 +135,8 @@ export default function HomeScreen() {
                   <Text className="text-base font-bold text-gray-800 flex-1 leading-snug" numberOfLines={2}>
                     {test.title}
                   </Text>
-                  <View className="bg-blue-50 px-2 py-1 rounded ml-2">
-                    <Text className="text-blue-600 text-[10px] font-bold">{test.category || 'LIVE'}</Text>
+                  <View className="bg-amber-50 px-2 py-1 rounded ml-2">
+                    <Text className="text-amber-600 text-[10px] font-bold">{test.category || 'LIVE'}</Text>
                   </View>
                 </View>
 
@@ -151,7 +151,7 @@ export default function HomeScreen() {
                 <View className="flex-row justify-between items-center mt-auto border-t border-gray-100 pt-3">
                   <TouchableOpacity
                     onPress={() => router.push('/mock-test')}
-                    className="bg-blue-600 px-4 py-1.5 rounded-lg"
+                    className="bg-amber-600 px-4 py-1.5 rounded-lg"
                   >
                     <Text className="text-white text-xs font-bold">Start</Text>
                   </TouchableOpacity>

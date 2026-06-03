@@ -1,14 +1,14 @@
 import { Stack } from 'expo-router';
 import { Provider } from 'react-redux';
-import { store } from '../store/store'; // Store import kiya
-import "../global.css"; // NativeWind CSS
+import { store } from '../store/store';
+import "../global.css";
 
 export default function RootLayout() {
   return (
-    // Provider se pure app ko wrap kar diya
     <Provider store={store}>
       <Stack>
-        {/* Aapka Tabs group */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="intro" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="mock-test-player" options={{ headerShown: false }} />
         <Stack.Screen name="practice-set-player" options={{ headerShown: false }} />

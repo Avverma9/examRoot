@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
@@ -9,33 +9,32 @@ export default function TabLayout() {
   return (
     <Tabs 
       screenOptions={{ 
-        tabBarActiveTintColor: '#2563EB', // Tailwind blue-600
-        tabBarInactiveTintColor: '#9CA3AF', // Tailwind gray-400
+        tabBarActiveTintColor: '#F59E0B',
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
             paddingBottom: 5,
             paddingTop: 5,
             height: 60,
             backgroundColor: '#ffffff',
             borderTopWidth: 1,
-            borderTopColor: '#F3F4F6', // Very light gray border
+            borderTopColor: '#F3F4F6',
         },
         tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '600',
         },
-        // 👇 HEADER KI GLOBAL STYLING YAHAN HAI 👇
         headerStyle: {
-          backgroundColor: '#2563EB', // Blue background for headers
-          elevation: 0, // Android pe shadow hatane ke liye
-          shadowOpacity: 0, // iOS pe shadow hatane ke liye
+          backgroundColor: '#F59E0B',
+          elevation: 0,
+          shadowOpacity: 0,
           borderBottomWidth: 0,
         },
-        headerTintColor: '#ffffff', // Header text aur icons ka color (White)
+        headerTintColor: '#ffffff',
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,
         },
-        headerTitleAlign: 'center', // Center align titles
+        headerTitleAlign: 'center',
       }}
     >
       {/* 1. HOME TAB - CUSTOM EXAMROOT HEADER */}
@@ -47,11 +46,13 @@ export default function TabLayout() {
           // Home screen ke liye custom header
           headerTitle: () => (
             <View className="flex-row items-center">
-              <View className="bg-white p-1.5 rounded-lg mr-2">
-                <Feather name="book-open" size={18} color="#2563EB" />
-              </View>
-              <Text className="text-white text-xl font-extrabold tracking-wide">
-                Exam<Text className="text-yellow-400">Root</Text>
+              <Image 
+                source={require('../../../assets/app-logo.jpeg')}
+                style={{ width: 32, height: 32, borderRadius: 6 }}
+                resizeMode="cover"
+              />
+              <Text className="text-white text-xl font-extrabold tracking-wide ml-2">
+                Exam<Text className="text-white">Root</Text>
               </Text>
             </View>
           ),
