@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { preloadTranslations } from '../utils/translator';
+import { BASE_URL } from '../utils/baseUrl';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const LABELS = ['A', 'B', 'C', 'D', 'E'];
@@ -30,13 +32,23 @@ const FALLBACK_PRACTICE = {
   ]
 };
 
+const safeParsePractice = value => {
+  if (!value) return FALLBACK_PRACTICE;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.error('Failed to parse practice set:', error);
+    return FALLBACK_PRACTICE;
+  }
+};
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function PracticeSetPlayer() {
   const insets = useSafeAreaInsets();
   const { practice } = useLocalSearchParams();
   const router = useRouter();
-  
-  const parsedPractice = practice ? JSON.parse(practice) : FALLBACK_PRACTICE;
+
+  const [parsedPractice, setParsedPractice] = useState(() => safeParsePractice(practice));
   const questions = parsedPractice.questions || [];
 
   const [current, setCurrent] = useState(0);
@@ -46,13 +58,32 @@ export default function PracticeSetPlayer() {
   const [lang, setLang] = useState('EN');
   const [translatedQuestions, setTranslatedQuestions] = useState(questions);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isLoadingPractice, setIsLoadingPractice] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
-  const translationLoadedRef = useRef(false);
+  useEffect(() => {
+    const shouldFetchDetails = parsedPractice?._id && questions.length === 0;
+    if (!shouldFetchDetails) return;
+
+    setIsLoadingPractice(true);
+    setLoadError('');
+
+    fetch(`${BASE_URL}/practice/${parsedPractice._id}`)
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.message || 'Failed to load practice set');
+        setParsedPractice(data?.data || parsedPractice);
+      })
+      .catch(error => {
+        console.error('Practice detail load failed:', error);
+        setLoadError(error.message || 'Failed to load practice set');
+      })
+      .finally(() => setIsLoadingPractice(false));
+  }, [parsedPractice?._id, questions.length]);
 
   // ─── PRELOAD TRANSLATIONS ───
   useEffect(() => {
-    if (!translationLoadedRef.current && questions.length > 0) {
-      translationLoadedRef.current = true;
+    if (questions.length > 0) {
       setIsTranslating(true);
       
       preloadTranslations(questions, false)
@@ -65,7 +96,7 @@ export default function PracticeSetPlayer() {
           setIsTranslating(false);
         });
     }
-  }, [questions]);
+  }, [parsedPractice?._id, questions.length]);
 
   // ─── NAVIGATION ───
   useEffect(() => {
@@ -76,11 +107,12 @@ export default function PracticeSetPlayer() {
     return () => sub.remove();
   }, []);
 
-  const confirmExit = () =>
+  function confirmExit() {
     Alert.alert('Exit Practice', 'Are you sure you want to exit?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Exit', style: 'destructive', onPress: () => router.back() },
     ]);
+  }
 
   // ─── HELPERS ───
   const getCorrectIdx = q => {
@@ -95,10 +127,7 @@ export default function PracticeSetPlayer() {
   const qText = q => (lang === 'HI' && q.questionHi) ? q.questionHi : q.question;
   const opts = q => (lang === 'HI' && q.optionsHi?.length) ? q.optionsHi : q.options;
   const expText = q => (lang === 'HI' && q.explanationHi) ? q.explanationHi : (q.explanation || '');
-  const corrText = q => (lang === 'HI' && q.correctAnswerHi) ? q.correctAnswerHi : q.correctAnswer;
-
-  // ─── SUB-COMPONENTS ───
-  const LangToggle = () => (
+  const renderLangToggle = () => (
     <View style={styles.langToggleWrap}>
       {['EN', 'HI'].map(l => (
         <TouchableOpacity
@@ -115,7 +144,28 @@ export default function PracticeSetPlayer() {
 
   // ─── MAIN PLAYER ─────────────────────────────────────────────────────────────
   const q = translatedQuestions[current];
-  if (!q) return null;
+  if (isLoadingPractice) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={{ marginTop: 12, color: '#64748B', fontSize: 13 }}>Loading practice questions...</Text>
+      </View>
+    );
+  }
+
+  if (!q) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Feather name="alert-circle" size={32} color="#EF4444" />
+        <Text style={{ marginTop: 12, color: '#0F172A', fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+          {loadError || 'No questions found in this practice set'}
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16, backgroundColor: '#3B82F6', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 }}>
+          <Text style={{ color: '#fff', fontWeight: '800' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (isTranslating && lang === 'HI') {
     return (
@@ -153,7 +203,7 @@ export default function PracticeSetPlayer() {
               </Text>
             )}
           </View>
-          <LangToggle />
+          {renderLangToggle()}
           <View style={styles.statsPill}>
             <Text style={styles.statsText}>{getAttempted()}/{questions.length}</Text>
           </View>

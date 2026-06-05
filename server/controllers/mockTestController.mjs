@@ -1,122 +1,87 @@
 import MockTest from "../models/MockTest.mjs";
 import { formatBulkError, normalizeBulkItems } from "../utils/bulk.mjs";
 
-
-// Create Mock Test
+// ─── CREATE ──────────────────────────────────────────────────────────────────
 export const createMockTest = async (req, res) => {
   try {
-    const mockTest = await MockTest.create(req.body);
+    const body = req.body;
+    if (body.questions?.length) body.totalQuestions = body.questions.length;
 
-    res.status(201).json({
-      success: true,
-      data: mockTest,
-    });
+    const mockTest = await MockTest.create(body);
+    res.status(201).json({ success: true, data: mockTest });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-
-// Bulk Insert Mock Tests
+// ─── BULK CREATE ─────────────────────────────────────────────────────────────
 export const bulkCreateMockTests = async (req, res) => {
   try {
     const items = normalizeBulkItems(req.body);
-    if (!items) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payload. Send an array, or { items: [...] } / { data: [...] }",
-      });
-    }
+    if (!items || items.length === 0)
+      return res.status(400).json({ success: false, message: "No items provided" });
 
-    if (items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No items provided for bulk import",
-      });
-    }
+    const normalized = items.map(i => ({ ...i, totalQuestions: i.questions?.length || i.totalQuestions || 0 }));
+    const tests = await MockTest.insertMany(normalized, { ordered: false });
 
-    const tests = await MockTest.insertMany(items, { ordered: false });
-
-    res.status(201).json({
-      success: true,
-      totalInserted: tests.length,
-      totalReceived: items.length,
-      data: tests,
-    });
+    res.status(201).json({ success: true, totalInserted: tests.length, totalReceived: items.length, data: tests });
   } catch (error) {
     const inserted = error?.insertedDocs || [];
     const formatted = formatBulkError(error);
-
-    if (inserted.length > 0) {
-      return res.status(201).json({
-        success: true,
-        message: "Bulk import partially succeeded",
-        totalInserted: inserted.length,
-        totalFailed:
-          (formatted?.validationErrors?.length || 0) + (formatted?.bulkWriteErrors?.length || 0),
-        errors: formatted,
-        data: inserted,
-      });
-    }
-
-    res.status(error?.name === "ValidationError" ? 400 : 500).json({
-      success: false,
-      message: formatted.message || "Bulk import failed",
-      errors: formatted,
-    });
+    if (inserted.length > 0)
+      return res.status(201).json({ success: true, message: "Partially succeeded", totalInserted: inserted.length, errors: formatted, data: inserted });
+    res.status(500).json({ success: false, message: formatted.message || "Bulk import failed", errors: formatted });
   }
 };
 
-
-// Get All Mock Tests
+// ─── GET ALL (list — no questions for performance) ────────────────────────────
 export const getAllMockTests = async (req, res) => {
   try {
-    const tests = await MockTest.find();
+    const { category, search } = req.query;
+    const filter = { isPublished: true };
 
-    res.status(200).json({
-      success: true,
-      data: tests,
-    });
+    if (category) filter.category = new RegExp(category, "i");
+    if (search)   filter.$or = [{ title: new RegExp(search, "i") }, { category: new RegExp(search, "i") }];
+
+    const tests = await MockTest.find(filter).select("-questions").sort({ createdAt: -1 });
+    res.status(200).json({ success: true, total: tests.length, data: tests });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Update Mock Test
+// ─── GET SINGLE (with questions for player) ───────────────────────────────────
+export const getMockTestById = async (req, res) => {
+  try {
+    const test = await MockTest.findById(req.params.id);
+    if (!test) return res.status(404).json({ success: false, message: "Mock test not found" });
+    res.status(200).json({ success: true, data: test });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── UPDATE ──────────────────────────────────────────────────────────────────
 export const updateMockTest = async (req, res) => {
   try {
-    const updated = await MockTest.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.status(200).json({
-      success: true,
-      message: "Mock test updated successfully",
-      data: updated,
-    });
+    const body = req.body;
+    if (body.questions?.length) body.totalQuestions = body.questions.length;
+
+    const updated = await MockTest.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+    if (!updated) return res.status(404).json({ success: false, message: "Mock test not found" });
+    res.status(200).json({ success: true, message: "Updated successfully", data: updated });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// Delete Mock Test
+// ─── DELETE ──────────────────────────────────────────────────────────────────
 export const deleteMockTest = async (req, res) => {
   try {
-    await MockTest.findByIdAndDelete(req.params.id);
-    res.status(200).json({
-      success: true,
-      message: "Mock test deleted successfully",
-    });
+    const deleted = await MockTest.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: "Mock test not found" });
+    res.status(200).json({ success: true, message: "Deleted successfully" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

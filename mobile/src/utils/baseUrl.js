@@ -20,3 +20,5 @@ export const BASE_URL = (() => {
   if (Platform.OS === 'android') return ANDROID_EMULATOR_URL
   return `http://${PHYSICAL_DEVICE_IP}:3000/api`
 })()
+
+export const API_BASE_URL = BASE_URL

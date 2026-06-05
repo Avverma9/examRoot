@@ -1,160 +1,92 @@
 import Video from "../models/Video.mjs";
 import { formatBulkError, normalizeBulkItems } from "../utils/bulk.mjs";
 
-
-// Create Single Video
+// ─── CREATE ──────────────────────────────────────────────────────────────────
 export const createVideo = async (req, res) => {
   try {
     const video = await Video.create(req.body);
-
-    res.status(201).json({
-      success: true,
-      message: "Video created successfully",
-      data: video,
-    });
+    res.status(201).json({ success: true, message: "Video created successfully", data: video });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-
-// Bulk Insert Videos
+// ─── BULK CREATE ─────────────────────────────────────────────────────────────
 export const bulkCreateVideos = async (req, res) => {
   try {
     const items = normalizeBulkItems(req.body);
-    if (!items) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payload. Send an array, or { items: [...] } / { data: [...] }",
-      });
-    }
-
-    if (items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No items provided for bulk import",
-      });
-    }
+    if (!items || items.length === 0)
+      return res.status(400).json({ success: false, message: "No items provided" });
 
     const videos = await Video.insertMany(items, { ordered: false });
-
-    res.status(201).json({
-      success: true,
-      message: "Bulk videos added successfully",
-      totalInserted: videos.length,
-      totalReceived: items.length,
-      data: videos,
-    });
+    res.status(201).json({ success: true, totalInserted: videos.length, totalReceived: items.length, data: videos });
   } catch (error) {
     const inserted = error?.insertedDocs || [];
     const formatted = formatBulkError(error);
-
-    if (inserted.length > 0) {
-      return res.status(201).json({
-        success: true,
-        message: "Bulk import partially succeeded",
-        totalInserted: inserted.length,
-        totalFailed:
-          (formatted?.validationErrors?.length || 0) + (formatted?.bulkWriteErrors?.length || 0),
-        errors: formatted,
-        data: inserted,
-      });
-    }
-
-    res.status(error?.name === "ValidationError" ? 400 : 500).json({
-      success: false,
-      message: formatted.message || "Bulk import failed",
-      errors: formatted,
-    });
+    if (inserted.length > 0)
+      return res.status(201).json({ success: true, message: "Partially succeeded", totalInserted: inserted.length, errors: formatted, data: inserted });
+    res.status(500).json({ success: false, message: formatted.message || "Bulk import failed", errors: formatted });
   }
 };
 
-
-// Get All Videos
+// ─── GET ALL (with filters + search) ─────────────────────────────────────────
 export const getAllVideos = async (req, res) => {
   try {
-    const videos = await Video.find().sort({ createdAt: -1 });
+    const { category, subject, search, isPremium } = req.query;
+    const filter = { isPublished: true };
 
-    res.status(200).json({
-      success: true,
-      total: videos.length,
-      data: videos,
-    });
+    if (category)  filter.category  = new RegExp(category, "i");
+    if (subject)   filter.subject   = new RegExp(subject, "i");
+    if (isPremium !== undefined) filter.isPremium = isPremium === "true";
+    if (search)    filter.$or = [{ videoTitle: new RegExp(search, "i") }, { description: new RegExp(search, "i") }, { instructor: new RegExp(search, "i") }];
+
+    const videos = await Video.find(filter).sort({ order: 1, createdAt: -1 });
+    res.status(200).json({ success: true, total: videos.length, data: videos });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-// Get Single Video
+// ─── GET SINGLE ───────────────────────────────────────────────────────────────
 export const getVideoById = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
-
-    if (!video) {
-      return res.status(404).json({
-        success: false,
-        message: "Video not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: video,
-    });
+    if (!video) return res.status(404).json({ success: false, message: "Video not found" });
+    res.status(200).json({ success: true, data: video });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// ─── INCREMENT VIEW COUNT ─────────────────────────────────────────────────────
+export const incrementView = async (req, res) => {
+  try {
+    const video = await Video.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true });
+    if (!video) return res.status(404).json({ success: false, message: "Video not found" });
+    res.status(200).json({ success: true, views: video.views });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-// Update Video
+// ─── UPDATE ──────────────────────────────────────────────────────────────────
 export const updateVideo = async (req, res) => {
   try {
-    const updatedVideo = await Video.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Video updated successfully",
-      data: updatedVideo,
-    });
+    const updated = await Video.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!updated) return res.status(404).json({ success: false, message: "Video not found" });
+    res.status(200).json({ success: true, message: "Video updated successfully", data: updated });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-
-// Delete Video
+// ─── DELETE ──────────────────────────────────────────────────────────────────
 export const deleteVideo = async (req, res) => {
   try {
-    await Video.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({
-      success: true,
-      message: "Video deleted successfully",
-    });
+    const deleted = await Video.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: "Video not found" });
+    res.status(200).json({ success: true, message: "Video deleted successfully" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -2,9 +2,11 @@ import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   
   return (
     <Tabs 
@@ -12,9 +14,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#F59E0B',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
-            paddingBottom: 5,
+            paddingBottom: Math.max(5, insets.bottom),
             paddingTop: 5,
-            height: 60,
+            height: 60 + Math.max(0, insets.bottom),
             backgroundColor: '#ffffff',
             borderTopWidth: 1,
             borderTopColor: '#F3F4F6',
@@ -34,16 +36,15 @@ export default function TabLayout() {
           fontWeight: 'bold',
           fontSize: 18,
         },
-        headerTitleAlign: 'center',
+        headerTitleAlign: 'left',
       }}
     >
-      {/* 1. HOME TAB - CUSTOM EXAMROOT HEADER */}
+      {/* 1. HOME TAB */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Feather name="home" size={24} color={color} />,
-          // Home screen ke liye custom header
           headerTitle: () => (
             <View className="flex-row items-center">
               <Image 
@@ -56,16 +57,7 @@ export default function TabLayout() {
               </Text>
             </View>
           ),
-          headerTitleAlign: 'left', // Logo left side acha lagta hai
-          // Header ke right side me profile icon add karna
-          headerRight: () => (
-            <TouchableOpacity 
-              onPress={() => router.push('/profile')}
-              className="mr-4 bg-white/20 p-2 rounded-full"
-            >
-              <Feather name="user" size={22} color="#ffffff" />
-            </TouchableOpacity>
-          ),
+          headerTitleAlign: 'left',
         }}
       />
 
@@ -99,25 +91,32 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 5. REELS TAB */}
+      {/* 5. TEST SERIES TAB */}
+      <Tabs.Screen
+        name="test-series"
+        options={{
+          title: 'Tests',
+          headerTitle: 'Book Test Series',
+          tabBarIcon: ({ color }) => <Feather name="book" size={24} color={color} />,
+        }}
+      />
+
+      {/* 6. REELS TAB - hidden from tab bar */}
       <Tabs.Screen
         name="reels"
         options={{
           title: 'Shorts',
           headerShown: false,
-          tabBarIcon: ({ color }) => <Feather name="smartphone" size={24} color={color} />,
+          tabBarItemStyle: { display: 'none' },
         }}
       />
 
-      {/* 6. PROFILE TAB */}
+      {/* PROFILE TAB - hidden from tab bar */}
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          // Profile me header hide kar dete hain kyunki wahan 
-          // humne screen ke andar khud blue header design kiya hai
-          headerShown: false, 
-          tabBarIcon: ({ color }) => <Feather name="user" size={24} color={color} />,
+          headerShown: false,
+          tabBarItemStyle: { display: 'none' },
         }}
       />
     </Tabs>

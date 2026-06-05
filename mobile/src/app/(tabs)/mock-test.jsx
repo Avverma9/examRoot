@@ -1,8 +1,10 @@
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
+import { useRouter } from 'expo-router';
 
 export default function MockTestScreen() {
+  const router = useRouter();
   const { data, isLoading, isError, refetch } = useGetAllMockTestsQuery();
   const mockTests = data?.data || [];
 
@@ -42,7 +44,10 @@ export default function MockTestScreen() {
         <Text className="text-gray-500 text-sm ml-1">{item.totalQuestions || 0} Qs</Text>
       </View>
 
-      <TouchableOpacity className="bg-amber-600 py-3 rounded-lg items-center">
+      <TouchableOpacity
+        onPress={() => router.push({ pathname: '/mock-test-player', params: { test: JSON.stringify(item) } })}
+        className="bg-amber-600 py-3 rounded-lg items-center"
+      >
         <Text className="text-white font-bold">Start Test</Text>
       </TouchableOpacity>
     </View>

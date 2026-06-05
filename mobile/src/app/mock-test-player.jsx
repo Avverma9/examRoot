@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { preloadTranslations } from '../utils/translator';
+import { BASE_URL } from '../utils/baseUrl';
 
 // ─── CONSTANTS & FALLBACK DATA ───────────────────────────────────────────────
 const LABELS = ['A', 'B', 'C', 'D', 'E'];
@@ -45,13 +47,23 @@ const FALLBACK_TEST = {
   ]
 };
 
+const safeParseTest = value => {
+  if (!value) return FALLBACK_TEST;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.error('Failed to parse mock test:', error);
+    return FALLBACK_TEST;
+  }
+};
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function MockTestPlayer() {
   const insets = useSafeAreaInsets();
   const { test } = useLocalSearchParams();
   const router = useRouter();
 
-  const parsedTest = test ? JSON.parse(test) : FALLBACK_TEST;
+  const [parsedTest, setParsedTest] = useState(() => safeParseTest(test));
   const questions = parsedTest.questions || [];
 
   const [current, setCurrent] = useState(0);
@@ -63,15 +75,35 @@ export default function MockTestPlayer() {
   const [submitted, setSubmitted] = useState(false);
   const [translatedQuestions, setTranslatedQuestions] = useState(questions);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isLoadingTest, setIsLoadingTest] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const timerRef = useRef(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const translationLoadedRef = useRef(false);
+  const pulseAnim = useMemo(() => new Animated.Value(1), []);
+
+  useEffect(() => {
+    const shouldFetchDetails = parsedTest?._id && questions.length === 0;
+    if (!shouldFetchDetails) return;
+
+    setIsLoadingTest(true);
+    setLoadError('');
+
+    fetch(`${BASE_URL}/mock/${parsedTest._id}`)
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.message || 'Failed to load mock test');
+        setParsedTest(data?.data || parsedTest);
+      })
+      .catch(error => {
+        console.error('Mock test detail load failed:', error);
+        setLoadError(error.message || 'Failed to load mock test');
+      })
+      .finally(() => setIsLoadingTest(false));
+  }, [parsedTest?._id, questions.length]);
 
   // ─── PRELOAD TRANSLATIONS ───
   useEffect(() => {
-    if (!translationLoadedRef.current && questions.length > 0) {
-      translationLoadedRef.current = true;
+    if (questions.length > 0) {
       setIsTranslating(true);
       
       preloadTranslations(questions, true)
@@ -84,7 +116,7 @@ export default function MockTestPlayer() {
           setIsTranslating(false);
         });
     }
-  }, [questions]);
+  }, [parsedTest?._id, questions.length]);
 
   // ─── TIMER & ANIMATIONS ───
   useEffect(() => {
@@ -120,11 +152,12 @@ export default function MockTestPlayer() {
     return () => sub.remove();
   }, [submitted]);
 
-  const confirmExit = () =>
+  function confirmExit() {
     Alert.alert('Exit Test', 'Your progress will be lost. Exit anyway?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Exit', style: 'destructive', onPress: () => { clearInterval(timerRef.current); router.back(); } },
     ]);
+  }
 
   const handleSubmit = () => {
     const unanswered = questions.length - Object.keys(answers).length;
@@ -155,8 +188,9 @@ export default function MockTestPlayer() {
   const getSkipped = () => questions.length - Object.keys(answers).length;
 
   const getQStatus = i => {
-    if (answers[i] && marked[i]) return 'answered-marked';
-    if (answers[i]) return 'answered';
+    const hasAnswer = answers[i] !== undefined;
+    if (hasAnswer && marked[i]) return 'answered-marked';
+    if (hasAnswer) return 'answered';
     if (marked[i]) return 'marked';
     if (i < current) return 'visited';
     if (i === current) return 'current';
@@ -169,8 +203,7 @@ export default function MockTestPlayer() {
   const expText = q => (lang === 'HI' && q.explanationHi) ? q.explanationHi : (q.explanation || '');
   const corrText = q => (lang === 'HI' && q.correctAnswerHi) ? q.correctAnswerHi : q.correctAnswer;
 
-  // ─── SUB-COMPONENTS ───
-  const LangToggle = () => (
+  const renderLangToggle = () => (
     <View style={styles.langToggleWrap}>
       {['EN', 'HI'].map(l => (
         <TouchableOpacity
@@ -201,7 +234,7 @@ export default function MockTestPlayer() {
             <Feather name="arrow-left" size={22} color="#374151" />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>Test Result</Text>
-          <LangToggle />
+          {renderLangToggle()}
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -306,7 +339,28 @@ export default function MockTestPlayer() {
 
   // ─── MAIN TEST PLAYER ──────────────────────────────────────────────────────
   const q = translatedQuestions[current];
-  if (!q) return null;
+  if (isLoadingTest) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={{ marginTop: 12, color: '#6B7280', fontSize: 14 }}>Loading test questions...</Text>
+      </View>
+    );
+  }
+
+  if (!q) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Feather name="alert-circle" size={32} color="#EF4444" />
+        <Text style={{ marginTop: 12, color: '#0F172A', fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+          {loadError || 'No questions found in this mock test'}
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16, backgroundColor: '#2563EB', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 }}>
+          <Text style={{ color: '#fff', fontWeight: '800' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Show loading indicator while translating
   if (isTranslating && lang === 'HI') {
@@ -332,7 +386,7 @@ export default function MockTestPlayer() {
             <Feather name="x" size={20} color="#374151" />
           </TouchableOpacity>
           <Text style={styles.headerTitleMain} numberOfLines={1}>{parsedTest.title}</Text>
-          <LangToggle />
+          {renderLangToggle()}
           <Animated.View style={[styles.timerPill, { backgroundColor: timerBg, transform: [{ scale: pulseAnim }] }]}>
             <Feather name="clock" size={11} color="#fff" />
             <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>

@@ -1,13 +1,52 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../context/AuthContext';
+import { useSelector } from 'react-redux';
 
 export default function ProfileScreen() {
+  const router = useRouter();
+  const { logout } = useAuth();
+  const user = useSelector((state) => state.auth.user);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
   const menuItems: { icon: keyof typeof Feather.glyphMap; title: string }[] = [
     { icon: 'bookmark', title: 'Saved Questions' },
     { icon: 'pie-chart', title: 'My Performance' },
     { icon: 'settings', title: 'Settings' },
     { icon: 'help-circle', title: 'Help & Support' },
   ];
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          onPress: () => {},
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          onPress: async () => {
+            try {
+              setLogoutLoading(true);
+              await logout();
+              router.replace('/login');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            } finally {
+              setLogoutLoading(false);
+            }
+          },
+          style: 'destructive',
+        },
+      ],
+      { cancelable: false }
+    );
+  };
 
   return (
     <ScrollView className="flex-1 bg-gray-50">
@@ -16,8 +55,8 @@ export default function ProfileScreen() {
         <View className="w-24 h-24 bg-white rounded-full items-center justify-center mb-3">
           <Feather name="user" size={40} color="#2563EB" />
         </View>
-        <Text className="text-2xl font-bold text-white">Rahul Kumar</Text>
-        <Text className="text-blue-200 text-sm">rahul.kumar@example.com</Text>
+        <Text className="text-2xl font-bold text-white">{user?.name || 'Student'}</Text>
+        <Text className="text-blue-200 text-sm">{user?.email || 'email@example.com'}</Text>
       </View>
 
       {/* Menu List */}
@@ -36,9 +75,22 @@ export default function ProfileScreen() {
         ))}
 
         {/* Logout Button */}
-        <TouchableOpacity className="flex-row items-center bg-red-50 p-4 rounded-xl mt-4 border border-red-100">
-          <Feather name="log-out" size={20} color="#DC2626" className="mr-4" />
-          <Text className="text-base font-bold text-red-600 ml-4">Logout</Text>
+        <TouchableOpacity 
+          onPress={handleLogout}
+          disabled={logoutLoading}
+          className="flex-row items-center bg-red-50 p-4 rounded-xl mt-4 border border-red-100"
+        >
+          {logoutLoading ? (
+            <>
+              <ActivityIndicator color="#DC2626" style={{ marginRight: 8 }} />
+              <Text className="text-base font-bold text-red-600 ml-4">Logging out...</Text>
+            </>
+          ) : (
+            <>
+              <Feather name="log-out" size={20} color="#DC2626" style={{ marginRight: 8 }} />
+              <Text className="text-base font-bold text-red-600 ml-4">Logout</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
