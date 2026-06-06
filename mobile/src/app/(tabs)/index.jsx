@@ -1,16 +1,36 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
 import AdBannerSlider from '../../components/AdBannerSlider';
+import { getCurrentUser } from '../../services/authApi';
+import { setUser } from '../../store/slices/authSlice';
 
 export default function HomeScreen() {
-  const user = useSelector((state) => state.user);
+  const user = useSelector((state) => state.auth.user);
+  const token = useSelector((state) => state.auth.token);
+  const dispatch = useDispatch();
   const router = useRouter();
   const { data: mockData } = useGetAllMockTestsQuery();
   const recommendedTests = (mockData?.data || []).slice(0, 5);
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      if (token) {
+        try {
+          const data = await getCurrentUser(token);
+          if (data.success && data.user) {
+            dispatch(setUser(data.user));
+          }
+        } catch (error) {
+          console.error('Error fetching user stats:', error);
+        }
+      }
+    };
+    fetchUserStats();
+  }, [token, dispatch]);
 
   const quickLinks = [
     { id: 1, name: 'Mock Tests', icon: 'file-text', color: '#D97706', bg: 'bg-amber-100', route: '/mock-test' },
@@ -47,7 +67,8 @@ export default function HomeScreen() {
             </View>
             <View className="items-center flex-1">
               <Text className="text-gray-400 text-[11px] font-bold tracking-widest mb-1">STREAK</Text>
-              <Text className="text-3xl font-black text-orange-500">3🔥</Text>
+              {/* Changed hardcoded streak to dynamic streak */}
+              <Text className="text-3xl font-black text-orange-500">{user?.streak || 0}🔥</Text>
             </View>
           </View>
         </View>

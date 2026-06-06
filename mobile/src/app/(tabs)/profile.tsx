@@ -55,8 +55,8 @@ export default function ProfileScreen() {
         <View className="w-24 h-24 bg-white rounded-full items-center justify-center mb-3">
           <Feather name="user" size={40} color="#2563EB" />
         </View>
-        <Text className="text-2xl font-bold text-white">{user?.name || 'Student'}</Text>
-        <Text className="text-blue-200 text-sm">{user?.email || 'email@example.com'}</Text>
+        <Text className="text-2xl font-bold text-white">{user?.name || 'Guest User'}</Text>
+        <Text className="text-blue-200 text-sm">{user?.email || 'Please login to access all features'}</Text>
       </View>
 
       {/* Menu List */}
@@ -74,24 +74,34 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* Logout Button */}
-        <TouchableOpacity 
-          onPress={handleLogout}
-          disabled={logoutLoading}
-          className="flex-row items-center bg-red-50 p-4 rounded-xl mt-4 border border-red-100"
-        >
-          {logoutLoading ? (
-            <>
-              <ActivityIndicator color="#DC2626" style={{ marginRight: 8 }} />
-              <Text className="text-base font-bold text-red-600 ml-4">Logging out...</Text>
-            </>
-          ) : (
-            <>
-              <Feather name="log-out" size={20} color="#DC2626" style={{ marginRight: 8 }} />
-              <Text className="text-base font-bold text-red-600 ml-4">Logout</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* Auth Button */}
+        {user ? (
+          <TouchableOpacity 
+            onPress={handleLogout}
+            disabled={logoutLoading}
+            className="flex-row items-center bg-red-50 p-4 rounded-xl mt-4 border border-red-100"
+          >
+            {logoutLoading ? (
+              <>
+                <ActivityIndicator color="#DC2626" style={{ marginRight: 8 }} />
+                <Text className="text-base font-bold text-red-600 ml-4">Logging out...</Text>
+              </>
+            ) : (
+              <>
+                <Feather name="log-out" size={20} color="#DC2626" style={{ marginRight: 8 }} />
+                <Text className="text-base font-bold text-red-600 ml-4">Logout</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            onPress={() => router.push('/login')}
+            className="flex-row items-center bg-amber-50 p-4 rounded-xl mt-4 border border-amber-100"
+          >
+            <Feather name="log-in" size={20} color="#D97706" style={{ marginRight: 8 }} />
+            <Text className="text-base font-bold text-amber-600 ml-4">Login / Sign Up</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );

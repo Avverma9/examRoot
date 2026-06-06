@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react-native';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, TouchableOpacity, Image, Text, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');

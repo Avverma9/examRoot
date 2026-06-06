@@ -149,6 +149,7 @@ export const verifyOTPAndLogin = async (req, res) => {
         isVerified: user.isVerified,
         testsTaken: user.totalMockTestsTaken,
         accuracy: user.accuracy,
+        streak: user.streak,
       },
     });
   } catch (error) {
@@ -187,6 +188,7 @@ export const getCurrentUser = async (req, res) => {
         isVerified: user.isVerified,
         testsTaken: user.totalMockTestsTaken,
         accuracy: user.accuracy,
+        streak: user.streak,
         lastLogin: user.lastLogin,
         preferredLanguage: user.preferredLanguage,
       },

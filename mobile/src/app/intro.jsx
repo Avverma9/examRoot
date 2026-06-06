@@ -93,9 +93,7 @@ export default function IntroScreen() {
           style={{ width: 90, height: 90, borderRadius: 18 }}
           resizeMode="cover"
         />
-        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 14, letterSpacing: 1 }}>
-          Exam<Text style={{ color: '#F59E0B' }}>Root</Text>
-        </Text>
+        
         <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 6, fontWeight: '500' }}>
           Your Success, Our Mission
         </Text>
@@ -111,17 +109,7 @@ export default function IntroScreen() {
         }}
         pointerEvents="box-none"
       >
-        <TouchableOpacity
-          onPress={handleFinish}
-          activeOpacity={0.8}
-          style={{
-            backgroundColor: '#F59E0B',
-            paddingHorizontal: 40, paddingVertical: 12,
-            borderRadius: 50,
-          }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Skip Intro</Text>
-        </TouchableOpacity>
+       
       </LinearGradient>
     </View>
   );

@@ -48,8 +48,8 @@
     "prestart": "node -e \"const [maj,min]=process.versions.node.split('.').map(Number); if(maj<20 || (maj===20 && min<19)){console.error('ERROR: Node '+process.versions.node+' is not supported. Use Node >=20.19.4 (recommended: nvm use 24.16.0).'); process.exit(1)}\"",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },

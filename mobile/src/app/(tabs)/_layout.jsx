@@ -37,6 +37,13 @@ export default function TabLayout() {
           fontSize: 18,
         },
         headerTitleAlign: 'left',
+          headerRight: () => (
+            <TouchableOpacity onPress={() => router.push('/profile')} className="mr-4">
+              <View className="bg-white/20 p-2 rounded-full">
+                <Feather name="user" size={20} color="white" />
+              </View>
+            </TouchableOpacity>
+          ),
       }}
     >
       {/* 1. HOME TAB */}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { requestOTP } from '../services/authApi';
+// import { requestOTP } from '../services/authApi';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,7 +19,6 @@ export default function LoginScreen() {
   const handleRequestOTP = async () => {
     setError('');
 
-    // Validation
     if (!email.trim()) {
       setError('Please enter your email');
       return;
@@ -32,14 +31,16 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      const response = await requestOTP(email);
+      // const response = await requestOTP(email);
       
-      // Navigate to OTP screen with email and requiresName flag
+      // Simulate API Call
+      await new Promise(resolve => setTimeout(resolve, 1500)); 
+
       router.push({
         pathname: '/otp-verify',
         params: {
           email,
-          requiresName: response.requiresName ? 'true' : 'false',
+          requiresName: 'false', // Replace with response.requiresName
         },
       });
     } catch (err) {
@@ -52,60 +53,58 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-white"
     >
       <ScrollView 
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View className="bg-gradient-to-b from-amber-600 to-amber-500 px-6 pt-20 pb-12 rounded-b-[40px]">
-          <View className="items-center mb-4">
-            <View className="bg-white/20 p-4 rounded-2xl mb-4">
-              <Feather name="mail" size={40} color="white" />
-            </View>
-            <Text className="text-white text-3xl font-extrabold tracking-tight mb-2">
-              ExamRoot
-            </Text>
-            <Text className="text-amber-100 text-base font-semibold">
-              Your Path to Success
-            </Text>
+        {/* Header Section - Modern & Clean */}
+        <View className="px-6 pt-24 pb-6 items-center">
+          <View className="bg-amber-50 p-5 rounded-full mb-5 border border-amber-100">
+            <Feather name="book-open" size={42} color="#D97706" />
           </View>
+          <Text className="text-slate-900 text-4xl font-extrabold tracking-tight mb-2">
+            ExamRoot
+          </Text>
+          <Text className="text-slate-500 text-base font-medium">
+            Your Path to Success
+          </Text>
         </View>
 
         {/* Form Container */}
-        <View className="px-6 pt-12 pb-8 flex-1">
-          <View className="mb-8">
-            <Text className="text-2xl font-extrabold text-gray-900 mb-2">
+        <View className="px-6 pt-4 pb-8 flex-1">
+          <View className="mb-8 items-center">
+            <Text className="text-2xl font-bold text-slate-900 mb-2">
               Welcome Back
             </Text>
-            <Text className="text-gray-600 text-base font-medium">
-              Sign in with your email to continue
+            <Text className="text-slate-500 text-base text-center">
+              Sign in with your email to continue your preparation
             </Text>
           </View>
 
           {/* Email Input */}
           <View className="mb-6">
-            <Text className="text-gray-700 font-bold text-sm mb-3 uppercase tracking-wider">
+            <Text className="text-slate-700 font-semibold text-sm mb-2 ml-1">
               Email Address
             </Text>
             <View
-              className={`flex-row items-center px-4 py-3.5 rounded-2xl border-2 transition-colors ${
+              className={`flex-row items-center px-4 py-4 rounded-2xl border-2 transition-all ${
                 emailFocused
                   ? 'bg-white border-amber-500'
-                  : 'bg-white border-gray-200'
+                  : 'bg-slate-50 border-slate-200'
               }`}
             >
               <Feather 
                 name="mail" 
                 size={20} 
-                color={emailFocused ? '#F59E0B' : '#D1D5DB'}
+                color={emailFocused ? '#D97706' : '#94A3B8'}
                 style={{ marginRight: 12 }}
               />
               <TextInput
-                style={{ flex: 1, fontSize: 16 }}
+                style={{ flex: 1, fontSize: 16, color: '#0F172A' }}
                 placeholder="you@example.com"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#94A3B8"
                 value={email}
                 onChangeText={setEmail}
                 onFocus={() => setEmailFocused(true)}
@@ -118,51 +117,52 @@ export default function LoginScreen() {
           </View>
 
           {/* Error Message */}
-          {error && (
-            <View className="bg-red-50 px-4 py-3 rounded-xl mb-6 flex-row items-center">
+          {error ? (
+            <View className="bg-red-50 px-4 py-3 rounded-2xl mb-6 flex-row items-center border border-red-100">
               <Feather name="alert-circle" size={18} color="#EF4444" style={{ marginRight: 8 }} />
-              <Text className="text-red-600 font-medium flex-1">{error}</Text>
+              <Text className="text-red-600 font-medium flex-1 text-sm">{error}</Text>
             </View>
-          )}
+          ) : null}
 
           {/* Continue Button */}
           <TouchableOpacity
             onPress={handleRequestOTP}
             disabled={loading}
-            className={`py-4 rounded-2xl items-center justify-center flex-row ${
+            activeOpacity={0.8}
+            className={`py-4 rounded-2xl items-center justify-center flex-row shadow-sm ${
               loading ? 'bg-amber-400' : 'bg-amber-600'
             }`}
           >
             {loading ? (
               <>
                 <ActivityIndicator color="white" style={{ marginRight: 8 }} />
-                <Text className="text-white font-bold text-base">Sending OTP...</Text>
+                <Text className="text-white font-bold text-lg">Sending OTP...</Text>
               </>
             ) : (
               <>
-                <Feather name="arrow-right" size={20} color="white" style={{ marginRight: 8 }} />
-                <Text className="text-white font-bold text-base">Send OTP</Text>
+                <Text className="text-white font-bold text-lg mr-2">Send OTP</Text>
+                <Feather name="arrow-right" size={20} color="white" />
               </>
             )}
           </TouchableOpacity>
 
-          {/* Info Box */}
-          <View className="mt-8 bg-blue-50 px-4 py-4 rounded-2xl border border-blue-200">
-            <View className="flex-row items-flex-start">
-              <Feather name="info" size={18} color="#3B82F6" style={{ marginRight: 8, marginTop: 2 }} />
-              <Text className="text-blue-700 font-medium flex-1 text-sm leading-5">
-                We'll send a one-time password to verify your email
-              </Text>
+          {/* Secure Info Box */}
+          <View className="mt-8 bg-slate-50 px-5 py-4 rounded-2xl border border-slate-200 flex-row items-center">
+            <View className="bg-white p-2 rounded-full shadow-sm mr-3">
+              <Feather name="shield" size={18} color="#D97706" />
             </View>
+            <Text className="text-slate-600 font-medium flex-1 text-sm leading-5">
+              We'll send a secure one-time password to verify your email.
+            </Text>
           </View>
         </View>
 
         {/* Footer */}
-        <View className="px-6 pb-8 items-center">
-          <Text className="text-gray-600 text-xs text-center leading-5 mb-3">
+        <View className="px-6 pb-10 items-center">
+          <Text className="text-slate-400 text-xs text-center leading-5 mb-4">
             By continuing, you agree to our Terms of Service and Privacy Policy
           </Text>
-          <View className="h-0.5 bg-gray-200 w-16" />
+          <View className="h-1 bg-slate-200 w-12 rounded-full" />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
