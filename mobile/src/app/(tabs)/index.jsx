@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
 import AdBannerSlider from '../../components/AdBannerSlider';
+import AdMobBanner from '../../components/AdMobBanner';
 import { getCurrentUser } from '../../services/authApi';
 import { setUser } from '../../store/slices/authSlice';
 
@@ -52,6 +53,9 @@ export default function HomeScreen() {
         {/* 1. AD BANNER SLIDER */}
         <View className="px-5 pt-6">
           <AdBannerSlider />
+          <View className="mt-4">
+            <AdMobBanner />
+          </View>
         </View>
 
         {/* 2. STATS CARD */}
