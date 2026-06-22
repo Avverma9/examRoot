@@ -8,7 +8,7 @@ import { useSelector } from 'react-redux';
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout } = useAuth();
-  const user = useSelector((state) => state.auth.user);
+  const user = useSelector((state: any) => state.auth.user);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   const menuItems: { icon: keyof typeof Feather.glyphMap; title: string }[] = [
