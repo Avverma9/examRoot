@@ -1,290 +1,303 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, TouchableOpacity, TextInput,
+  ActivityIndicator, KeyboardAvoidingView,
+  ScrollView, Platform, StyleSheet,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { verifyOTPAndLogin, requestOTP } from '../services/authApi';
-import { loginSuccess, setError } from '../store/slices/authSlice';
+import { verifyOTPAndLogin, resendOTP } from '../services/authApi';
+import { loginSuccess } from '../store/slices/authSlice';
+
+const OTP_EXPIRY_SECS = 600; // 10 min
 
 export default function OTPVerifyScreen() {
-  const router = useRouter();
+  const router   = useRouter();
   const dispatch = useDispatch();
-  const params = useLocalSearchParams();
-  const { email, requiresName } = params;
 
-  const [otp, setOtp] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [timer, setTimer] = useState(0);
-  const [showNameInput, setShowNameInput] = useState(requiresName === 'true');
-  const [nameFocused, setNameFocused] = useState(false);
-  const [otpFocused, setOtpFocused] = useState(false);
+  // Params from login.jsx
+  const { channel, identifier, requiresName } = useLocalSearchParams();
+  // channel: 'email' | 'phone'
+  // identifier: actual email or phone string
 
+  const isEmail = channel === 'email';
+
+  const [otp,          setOtp]          = useState('');
+  const [name,         setName]         = useState('');
+  const [loading,      setLoading]      = useState(false);
+  const [resending,    setResending]    = useState(false);
+  const [message,      setMessage]      = useState({ text: '', type: '' }); // type: 'error' | 'success'
+  const [timer,        setTimer]        = useState(OTP_EXPIRY_SECS);
+  const [showName,     setShowName]     = useState(requiresName === 'true');
+
+  // ── Countdown timer ─────────────────────────────────────────────────────────
   useEffect(() => {
-    // Start timer for OTP expiry
-    setTimer(600); // 10 minutes in seconds
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
+    if (timer <= 0) return;
+    const id = setInterval(() => setTimer(t => t - 1), 1000);
+    return () => clearInterval(id);
   }, [timer]);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  const fmtTimer = (s) => {
+    const m = Math.floor(s / 60), sec = s % 60;
+    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  const handleResendOTP = async () => {
-    try {
-      setError('');
-      setLoading(true);
-      await requestOTP(email);
-      setTimer(600); // Reset timer
-      setOtp('');
-      // Show success message
-      setError('✓ OTP resent successfully');
-      setTimeout(() => setError(''), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to resend OTP');
-    } finally {
-      setLoading(false);
-    }
+  const showMsg = (text, type = 'error') => {
+    setMessage({ text, type });
+    if (type === 'success') setTimeout(() => setMessage({ text: '', type: '' }), 3000);
   };
 
-  const handleVerifyOTP = async () => {
-    setError('');
-
-    // Validation
-    if (!otp.trim()) {
-      setError('Please enter the OTP');
-      return;
-    }
-
-    if (otp.length !== 6) {
-      setError('OTP must be 6 digits');
-      return;
-    }
-
-    if (showNameInput && !name.trim()) {
-      setError('Please enter your name');
-      return;
-    }
+  // ── Verify OTP ───────────────────────────────────────────────────────────────
+  const handleVerify = async () => {
+    setMessage({ text: '', type: '' });
+    if (!otp.trim())       return showMsg('Please enter the OTP');
+    if (otp.length !== 6)  return showMsg('OTP must be 6 digits');
+    if (showName && !name.trim()) return showMsg('Please enter your full name');
 
     try {
       setLoading(true);
-      
       const payload = {
-        email,
         otp,
+        ...(isEmail ? { email: identifier } : { phone: identifier }),
+        ...(showName ? { name: name.trim() } : {}),
       };
 
-      if (showNameInput) {
-        payload.name = name;
-      }
+      const response = await verifyOTPAndLogin(payload);
 
-      const response = await verifyOTPAndLogin(email, otp, showNameInput ? name : null);
-
-      // Save token and user to storage
+      // Persist auth
       await AsyncStorage.setItem('authToken', response.token);
       await AsyncStorage.setItem('user', JSON.stringify(response.user));
 
-      // Update Redux
-      dispatch(loginSuccess({
-        user: response.user,
-        token: response.token,
-      }));
-
-      // Navigate to home
+      dispatch(loginSuccess({ user: response.user, token: response.token }));
       router.replace('/(tabs)');
     } catch (err) {
-      setError(err.message || 'Failed to verify OTP');
+      showMsg(err.message || 'Failed to verify OTP');
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Resend OTP ───────────────────────────────────────────────────────────────
+  const handleResend = async () => {
+    if (timer > 0) return;
+    try {
+      setResending(true);
+      setMessage({ text: '', type: '' });
+      const payload = isEmail ? { email: identifier } : { phone: identifier };
+      await resendOTP(payload);
+      setTimer(OTP_EXPIRY_SECS);
+      setOtp('');
+      showMsg('OTP resent successfully', 'success');
+    } catch (err) {
+      showMsg(err.message || 'Failed to resend OTP');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const maskedIdentifier = isEmail
+    ? identifier?.replace(/(.{2})(.*)(?=@)/, (_, a, b) => a + '*'.repeat(b.length))
+    : identifier?.replace(/(\d{2})\d{6}(\d{2})/, '$1******$2');
+
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-gray-50"
+      style={styles.flex}
     >
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View className="bg-gradient-to-b from-amber-600 to-amber-500 px-6 pt-12 pb-12 rounded-b-[40px]">
-          <TouchableOpacity onPress={() => router.back()} className="mb-6">
-            <Feather name="arrow-left" size={24} color="white" />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* Header banner */}
+        <View style={styles.banner}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          
-          <View className="items-center">
-            <View className="bg-white/20 p-4 rounded-2xl mb-4">
-              <Feather name="shield-check" size={40} color="white" />
+          <View style={styles.bannerContent}>
+            <View style={styles.shieldWrap}>
+              <Feather name="shield-check" size={36} color="#fff" />
             </View>
-            <Text className="text-white text-3xl font-extrabold tracking-tight mb-2">
-              Verify Email
+            <Text style={styles.bannerTitle}>
+              {isEmail ? 'Verify Email' : 'Verify Mobile'}
             </Text>
-            <Text className="text-amber-100 text-sm font-semibold">
-              {email}
-            </Text>
+            <Text style={styles.bannerSub}>{maskedIdentifier}</Text>
           </View>
         </View>
 
-        {/* Form Container */}
-        <View className="px-6 pt-8 pb-8 flex-1">
-          <Text className="text-gray-700 text-base font-medium mb-6">
-            We've sent a 6-digit code to your email. Enter it below to continue.
+        {/* Form */}
+        <View style={styles.form}>
+          <Text style={styles.hint}>
+            We've sent a 6-digit OTP to your {isEmail ? 'email' : 'mobile number'}.
+            Enter it below to continue.
           </Text>
 
-          {/* OTP Input */}
-          <View className="mb-6">
-            <Text className="text-gray-700 font-bold text-sm mb-3 uppercase tracking-wider">
-              Enter OTP
-            </Text>
-            <View
-              className={`flex-row items-center px-4 py-3.5 rounded-2xl border-2 transition-colors ${
-                otpFocused
-                  ? 'bg-white border-amber-500'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <Feather 
-                name="lock" 
-                size={20} 
-                color={otpFocused ? '#F59E0B' : '#D1D5DB'}
-                style={{ marginRight: 12 }}
-              />
+          {/* OTP input */}
+          <View style={styles.fieldWrap}>
+            <Text style={styles.label}>Enter OTP</Text>
+            <View style={styles.inputRow}>
+              <Feather name="lock" size={18} color="#94A3B8" style={styles.icon} />
               <TextInput
-                style={{ flex: 1, fontSize: 20, letterSpacing: 4, fontWeight: 'bold' }}
-                placeholder="000000"
-                placeholderTextColor="#D1D5DB"
+                style={styles.otpInput}
+                placeholder="• • • • • •"
+                placeholderTextColor="#CBD5E1"
                 value={otp}
-                onChangeText={(value) => {
-                  if (/^\d*$/.test(value) && value.length <= 6) {
-                    setOtp(value);
-                  }
+                onChangeText={(v) => {
+                  if (/^\d*$/.test(v) && v.length <= 6) setOtp(v);
                 }}
-                onFocus={() => setOtpFocused(true)}
-                onBlur={() => setOtpFocused(false)}
                 keyboardType="number-pad"
                 maxLength={6}
                 editable={!loading}
               />
+              {otp.length === 6 && (
+                <Feather name="check-circle" size={18} color="#10B981" />
+              )}
             </View>
-            <Text className="text-gray-400 text-xs mt-2">
-              OTP expires in {formatTime(timer)}
-            </Text>
+            {/* Timer */}
+            <View style={styles.timerRow}>
+              <Feather name="clock" size={12} color={timer < 60 ? '#EF4444' : '#94A3B8'} />
+              <Text style={[styles.timerText, timer < 60 && styles.timerRed]}>
+                {timer > 0 ? `OTP expires in ${fmtTimer(timer)}` : 'OTP expired'}
+              </Text>
+            </View>
           </View>
 
-          {/* Name Input (if new user) */}
-          {showNameInput && (
-            <View className="mb-6">
-              <Text className="text-gray-700 font-bold text-sm mb-3 uppercase tracking-wider">
-                Full Name
-              </Text>
-              <View
-                className={`flex-row items-center px-4 py-3.5 rounded-2xl border-2 transition-colors ${
-                  nameFocused
-                    ? 'bg-white border-amber-500'
-                    : 'bg-white border-gray-200'
-                }`}
-              >
-                <Feather 
-                  name="user" 
-                  size={20} 
-                  color={nameFocused ? '#F59E0B' : '#D1D5DB'}
-                  style={{ marginRight: 12 }}
-                />
+          {/* Name input — only for new users */}
+          {showName && (
+            <View style={styles.fieldWrap}>
+              <Text style={styles.label}>Your Full Name</Text>
+              <View style={styles.inputRow}>
+                <Feather name="user" size={18} color="#94A3B8" style={styles.icon} />
                 <TextInput
-                  style={{ flex: 1, fontSize: 16 }}
-                  placeholder="John Doe"
-                  placeholderTextColor="#9CA3AF"
+                  style={styles.textInput}
+                  placeholder="e.g. Rahul Sharma"
+                  placeholderTextColor="#94A3B8"
                   value={name}
                   onChangeText={setName}
-                  onFocus={() => setNameFocused(true)}
-                  onBlur={() => setNameFocused(false)}
                   editable={!loading}
                 />
               </View>
             </View>
           )}
 
-          {/* Error Message */}
-          {error && (
-            <View className={`${error.includes('✓') ? 'bg-green-50 border border-green-200' : 'bg-red-50'} px-4 py-3 rounded-xl mb-6 flex-row items-center`}>
-              <Feather 
-                name={error.includes('✓') ? 'check-circle' : 'alert-circle'} 
-                size={18} 
-                color={error.includes('✓') ? '#10B981' : '#EF4444'} 
-                style={{ marginRight: 8 }} 
+          {/* Message */}
+          {!!message.text && (
+            <View style={[styles.msgBox, message.type === 'success' ? styles.msgSuccess : styles.msgError]}>
+              <Feather
+                name={message.type === 'success' ? 'check-circle' : 'alert-circle'}
+                size={15}
+                color={message.type === 'success' ? '#065F46' : '#DC2626'}
+                style={{ marginRight: 8 }}
               />
-              <Text className={error.includes('✓') ? 'text-green-600' : 'text-red-600'} style={{ fontWeight: '500', flex: 1 }}>
-                {error}
+              <Text style={[styles.msgText, message.type === 'success' ? styles.msgTextSuccess : styles.msgTextError]}>
+                {message.text}
               </Text>
             </View>
           )}
 
-          {/* Verify Button */}
+          {/* Verify button */}
           <TouchableOpacity
-            onPress={handleVerifyOTP}
-            disabled={loading || !otp || otp.length !== 6 || (showNameInput && !name)}
-            className={`py-4 rounded-2xl items-center justify-center flex-row ${
-              loading || !otp || otp.length !== 6 || (showNameInput && !name)
-                ? 'bg-gray-300'
-                : 'bg-amber-600'
-            }`}
+            onPress={handleVerify}
+            disabled={loading || otp.length !== 6 || (showName && !name.trim())}
+            activeOpacity={0.85}
+            style={[
+              styles.btn,
+              (loading || otp.length !== 6 || (showName && !name.trim())) && styles.btnDisabled,
+            ]}
           >
             {loading ? (
               <>
-                <ActivityIndicator color="white" style={{ marginRight: 8 }} />
-                <Text className="text-white font-bold text-base">Verifying...</Text>
+                <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.btnText}>Verifying…</Text>
               </>
             ) : (
               <>
-                <Feather name="check" size={20} color="white" style={{ marginRight: 8 }} />
-                <Text className="text-white font-bold text-base">Verify & Login</Text>
+                <Feather name="check" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.btnText}>Verify & Continue</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Resend OTP */}
-          <View className="mt-6 items-center">
-            <Text className="text-gray-600 text-sm mb-3">Didn't receive the code?</Text>
-            <TouchableOpacity 
-              onPress={handleResendOTP}
-              disabled={loading || timer > 0}
-              className="flex-row items-center"
+          {/* Resend */}
+          <View style={styles.resendRow}>
+            <Text style={styles.resendLabel}>Didn't receive the OTP?</Text>
+            <TouchableOpacity
+              onPress={handleResend}
+              disabled={timer > 0 || resending}
+              style={styles.resendBtn}
             >
-              <Feather 
-                name="send" 
-                size={16} 
-                color={loading || timer > 0 ? '#9CA3AF' : '#F59E0B'} 
-                style={{ marginRight: 6 }}
-              />
-              <Text className={`font-bold text-base ${loading || timer > 0 ? 'text-gray-400' : 'text-amber-600'}`}>
-                {timer > 0 ? `Resend in ${Math.ceil(timer / 60)}m` : 'Resend OTP'}
-              </Text>
+              {resending ? (
+                <ActivityIndicator size="small" color="#D97706" />
+              ) : (
+                <>
+                  <Feather
+                    name="refresh-cw"
+                    size={13}
+                    color={timer > 0 ? '#CBD5E1' : '#D97706'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[styles.resendText, timer > 0 && styles.resendTextDisabled]}>
+                    {timer > 0 ? `Resend in ${fmtTimer(timer)}` : 'Resend OTP'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Footer */}
-        <View className="px-6 pb-8 items-center">
-          <Text className="text-gray-500 text-xs text-center leading-5">
-            For security, never share your OTP with anyone
-          </Text>
-        </View>
+        <Text style={styles.footer}>
+          For your security, never share this OTP with anyone
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  flex:   { flex: 1, backgroundColor: '#F8FAFC' },
+  scroll: { flexGrow: 1, paddingBottom: 32 },
+
+  // Banner
+  banner: { backgroundColor: '#D97706', paddingTop: 52, paddingBottom: 36, paddingHorizontal: 20, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
+  backBtn: { marginBottom: 16 },
+  bannerContent: { alignItems: 'center' },
+  shieldWrap: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 14, borderRadius: 16, marginBottom: 10 },
+  bannerTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  bannerSub: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+
+  // Form
+  form: { margin: 20, backgroundColor: '#fff', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
+  hint: { fontSize: 13, color: '#64748B', lineHeight: 20, marginBottom: 20 },
+
+  // Fields
+  fieldWrap: { marginBottom: 18 },
+  label: { fontSize: 11, fontWeight: '700', color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, backgroundColor: '#F9FAFB' },
+  icon: { marginRight: 10 },
+  otpInput: { flex: 1, fontSize: 22, fontWeight: '800', letterSpacing: 6, color: '#0F172A', padding: 0 },
+  textInput: { flex: 1, fontSize: 15, color: '#0F172A', padding: 0 },
+  timerRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  timerText: { fontSize: 11, color: '#94A3B8', fontWeight: '600' },
+  timerRed: { color: '#EF4444' },
+
+  // Messages
+  msgBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, padding: 12, marginBottom: 14 },
+  msgSuccess: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
+  msgError:   { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
+  msgText: { flex: 1, fontSize: 13, fontWeight: '500' },
+  msgTextSuccess: { color: '#065F46' },
+  msgTextError:   { color: '#DC2626' },
+
+  // Button
+  btn: { backgroundColor: '#D97706', borderRadius: 14, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: '#D97706', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 },
+  btnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0 },
+  btnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+
+  // Resend
+  resendRow: { alignItems: 'center', marginTop: 20, gap: 8 },
+  resendLabel: { fontSize: 13, color: '#64748B' },
+  resendBtn: { flexDirection: 'row', alignItems: 'center' },
+  resendText: { fontSize: 14, fontWeight: '700', color: '#D97706' },
+  resendTextDisabled: { color: '#CBD5E1' },
+
+  footer: { textAlign: 'center', color: '#94A3B8', fontSize: 11, paddingHorizontal: 32, marginTop: 8 },
+});

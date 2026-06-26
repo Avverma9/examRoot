@@ -3,10 +3,13 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import {
   useGetAllTestSeriesQuery,
+  useGetTestsMetaQuery,
   useCreateTestSeriesMutation,
   useBulkCreateTestSeriesMutation,
   useUpdateTestSeriesMutation,
   useDeleteTestSeriesMutation,
+  useGenerateMockTestMutation,
+  useGeneratePracticeSetMutation,
 } from '../services/testSeriesApi'
 import { parseBulkJson } from '../utils/bulkImport'
 
@@ -58,6 +61,8 @@ export default function TestSeries() {
   const [bulkCreateTestSeries, { isLoading: isBulkLoading }] = useBulkCreateTestSeriesMutation()
   const [updateTestSeries] = useUpdateTestSeriesMutation()
   const [deleteTestSeries] = useDeleteTestSeriesMutation()
+  const [generateMockTest, { isLoading: isMockGenerating }] = useGenerateMockTestMutation()
+  const [generatePracticeSet, { isLoading: isPracticeGenerating }] = useGeneratePracticeSetMutation()
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -69,37 +74,207 @@ export default function TestSeries() {
   const [bulkError, setBulkError] = useState('')
   const [bulkInfo, setBulkInfo] = useState('')
 
+  // ─── Generate modal state ─────────────────────────────────────────────────
+  const [generateModal, setGenerateModal] = useState(null) // { seriesId, seriesTitle, type: 'mock'|'practice' }
+  const [genForm, setGenForm] = useState({
+    title: '', description: '', duration: 60,
+    category: '', subject: '', topic: '',
+    level: 'medium', language: 'English',
+    maxQuestions: '', shuffle: true,
+    selectedTestIds: [],   // [] = all tests
+    tags: '',
+  })
+  const [genResult, setGenResult] = useState(null)
+  const [genError, setGenError] = useState('')
+
   const seriesList = data?.data || []
+
+  // ─── Generate modal helpers ───────────────────────────────────────────────
+  const openGenerateModal = (series, type) => {
+    setGenForm({
+      title: `${series.title} — ${type === 'mock' ? 'Mock Test' : 'Practice Set'}`,
+      description: `Generated from ${series.bookName}`,
+      duration: 60,
+      category: series.category || '',
+      subject: series.subject || '',
+      topic: '',
+      level: 'medium',
+      language: series.language || 'English',
+      maxQuestions: '',
+      shuffle: type === 'mock',
+      selectedTestIds: [],
+      tags: '',
+    })
+    setGenResult(null)
+    setGenError('')
+    setGenerateModal({ seriesId: series._id, seriesTitle: series.title, tests: series.tests || [], type })
+  }
+
+  const closeGenerateModal = () => {
+    setGenerateModal(null)
+    setGenResult(null)
+    setGenError('')
+  }
+
+  const handleGenerate = async () => {
+    setGenError('')
+    setGenResult(null)
+    if (!genForm.title.trim()) return setGenError('Title is required')
+    if (generateModal.type === 'mock' && !genForm.duration) return setGenError('Duration is required')
+
+    const payload = {
+      seriesId: generateModal.seriesId,
+      title: genForm.title.trim(),
+      description: genForm.description.trim(),
+      shuffle: genForm.shuffle,
+      ...(genForm.maxQuestions ? { maxQuestions: Number(genForm.maxQuestions) } : {}),
+      ...(genForm.selectedTestIds.length ? { testIds: genForm.selectedTestIds } : {}),
+    }
+
+    try {
+      let result
+      if (generateModal.type === 'mock') {
+        result = await generateMockTest({
+          ...payload,
+          category: genForm.category,
+          duration: Number(genForm.duration),
+        }).unwrap()
+      } else {
+        result = await generatePracticeSet({
+          ...payload,
+          subject: genForm.subject,
+          topic: genForm.topic,
+          level: genForm.level,
+          language: genForm.language,
+          tags: genForm.tags ? genForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        }).unwrap()
+      }
+      setGenResult(result)
+    } catch (err) {
+      setGenError(err.data?.message || err.message || 'Generation failed')
+    }
+  }
+
+  const toggleTestId = (id) => {
+    setGenForm(prev => ({
+      ...prev,
+      selectedTestIds: prev.selectedTestIds.includes(id)
+        ? prev.selectedTestIds.filter(x => x !== id)
+        : [...prev.selectedTestIds, id],
+    }))
+  }
 
   const bulkExample = `[
   {
-    "title": "SSC Maths Book Test Series",
-    "description": "Chapter wise tests from the practice book",
-    "bookName": "SSC Mathematics Practice Book",
-    "author": "ExamRoot Faculty",
-    "publisher": "ExamRoot",
-    "subject": "Mathematics",
+    "title": "Lucent GK Test Series",
+    "description": "Lucent's General Knowledge book ke sabhi chapters ke chapter-wise tests. SSC, Railway, UPSC ke liye best.",
+    "bookName": "Lucent's General Knowledge",
+    "author": "Lucent Publication",
+    "publisher": "Lucent Publication",
+    "subject": "General Knowledge",
     "category": "SSC",
     "language": "Hindi + English",
     "isPaid": true,
     "price": 299,
     "discountedPrice": 199,
     "freeTestsCount": 1,
-    "tags": ["ssc", "maths", "book"],
+    "tags": ["lucent", "gk", "ssc", "railway", "history"],
     "isPublished": true,
     "tests": [
       {
-        "title": "Algebra Test 1",
-        "description": "Linear equations",
-        "duration": 45,
+        "title": "History Test Series - 1",
+        "description": "History Page 1-3 | Ancient India",
+        "duration": 30,
         "isFree": true,
         "isPublished": true,
         "questions": [
           {
-            "question": "Solve: 2x + 3 = 7",
-            "options": ["x = 1", "x = 2", "x = 3", "x = 4"],
-            "correctAnswer": "x = 2",
-            "explanation": "2x = 4, so x = 2"
+            "question": "Who founded the Maurya Empire?",
+            "questionHi": "मौर्य साम्राज्य की स्थापना किसने की?",
+            "options": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
+            "optionsHi": ["अशोक", "चंद्रगुप्त मौर्य", "बिंदुसार", "बिंबिसार"],
+            "correctAnswer": "Chandragupta Maurya",
+            "correctAnswerHi": "चंद्रगुप्त मौर्य",
+            "explanation": "Chandragupta Maurya founded the Maurya Empire around 321 BC with help of Chanakya.",
+            "explanationHi": "चंद्रगुप्त मौर्य ने चाणक्य की सहायता से लगभग 321 ईसा पूर्व में मौर्य साम्राज्य की स्थापना की।"
+          },
+          {
+            "question": "The Battle of Plassey was fought in which year?",
+            "questionHi": "प्लासी का युद्ध किस वर्ष लड़ा गया था?",
+            "options": ["1757", "1761", "1764", "1775"],
+            "optionsHi": ["1757", "1761", "1764", "1775"],
+            "correctAnswer": "1757",
+            "correctAnswerHi": "1757",
+            "explanation": "The Battle of Plassey was fought on 23 June 1757 between the British East India Company and Nawab of Bengal.",
+            "explanationHi": "प्लासी का युद्ध 23 जून 1757 को ब्रिटिश ईस्ट इंडिया कंपनी और बंगाल के नवाब के बीच लड़ा गया था।"
+          },
+          {
+            "question": "Ashoka's Dhamma was written in which language?",
+            "questionHi": "अशोक के धम्म किस भाषा में लिखे गए थे?",
+            "options": ["Sanskrit", "Pali", "Prakrit", "Hindi"],
+            "optionsHi": ["संस्कृत", "पालि", "प्राकृत", "हिंदी"],
+            "correctAnswer": "Pali",
+            "correctAnswerHi": "पालि",
+            "explanation": "Ashoka's edicts were primarily written in Pali language using Brahmi script.",
+            "explanationHi": "अशोक के शिलालेख मुख्यतः ब्राह्मी लिपि में पालि भाषा में लिखे गए थे।"
+          }
+        ]
+      },
+      {
+        "title": "History Test Series - 2",
+        "description": "History Page 4-6 | Medieval India",
+        "duration": 30,
+        "isFree": false,
+        "isPublished": true,
+        "questions": [
+          {
+            "question": "Who built the Qutub Minar?",
+            "questionHi": "कुतुब मीनार का निर्माण किसने कराया?",
+            "options": ["Akbar", "Qutb ud-Din Aibak", "Humayun", "Aurangzeb"],
+            "optionsHi": ["अकबर", "कुतुबुद्दीन ऐबक", "हुमायूँ", "औरंगजेब"],
+            "correctAnswer": "Qutb ud-Din Aibak",
+            "correctAnswerHi": "कुतुबुद्दीन ऐबक",
+            "explanation": "Qutb ud-Din Aibak began the construction of Qutub Minar in 1193 AD.",
+            "explanationHi": "कुतुबुद्दीन ऐबक ने 1193 ईस्वी में कुतुब मीनार का निर्माण शुरू करवाया था।"
+          },
+          {
+            "question": "Akbar introduced the Din-i-Ilahi religion in which year?",
+            "questionHi": "अकबर ने दीन-ए-इलाही धर्म की शुरुआत किस वर्ष में की?",
+            "options": ["1570", "1575", "1582", "1590"],
+            "optionsHi": ["1570", "1575", "1582", "1590"],
+            "correctAnswer": "1582",
+            "correctAnswerHi": "1582",
+            "explanation": "Akbar introduced the Din-i-Ilahi in 1582, a syncretic religion blending elements of multiple faiths.",
+            "explanationHi": "अकबर ने 1582 में दीन-ए-इलाही की स्थापना की, जो कई धर्मों के तत्वों को मिलाकर बनाया गया एक समन्वयवादी धर्म था।"
+          }
+        ]
+      },
+      {
+        "title": "Geography Test Series - 1",
+        "description": "Geography Page 10-12 | Physical Geography of India",
+        "duration": 25,
+        "isFree": false,
+        "isPublished": true,
+        "questions": [
+          {
+            "question": "Which is the highest peak in India?",
+            "questionHi": "भारत की सबसे ऊँची चोटी कौन सी है?",
+            "options": ["Mount Everest", "K2", "Kanchenjunga", "Nanda Devi"],
+            "optionsHi": ["माउंट एवरेस्ट", "K2", "कंचनजंगा", "नंदा देवी"],
+            "correctAnswer": "Kanchenjunga",
+            "correctAnswerHi": "कंचनजंगा",
+            "explanation": "Kanchenjunga (8,586 m) is the highest peak entirely within India.",
+            "explanationHi": "कंचनजंगा (8,586 मीटर) पूरी तरह से भारत के भीतर स्थित सबसे ऊँची चोटी है।"
+          },
+          {
+            "question": "The river Ganga originates from which glacier?",
+            "questionHi": "गंगा नदी किस ग्लेशियर से निकलती है?",
+            "options": ["Siachen", "Gangotri", "Zemu", "Milam"],
+            "optionsHi": ["सियाचिन", "गंगोत्री", "जेमू", "मिलम"],
+            "correctAnswer": "Gangotri",
+            "correctAnswerHi": "गंगोत्री",
+            "explanation": "The Ganga river originates from the Gangotri glacier in Uttarakhand.",
+            "explanationHi": "गंगा नदी उत्तराखंड में गंगोत्री ग्लेशियर से निकलती है।"
           }
         ]
       }
@@ -259,12 +434,12 @@ export default function TestSeries() {
             className="btn btn-secondary"
             onClick={() => {
               setBulkText(bulkExample)
-              setBulkInfo('Example loaded')
+              setBulkInfo('✅ Example loaded in textarea below — edit karo ya seedha Import karo')
               setBulkError('')
               setBulkResult(null)
             }}
           >
-            See Example
+            <i className="fa-solid fa-eye"></i> See Example
           </button>
           <button
             type="button"
@@ -272,23 +447,23 @@ export default function TestSeries() {
             onClick={async () => {
               try {
                 await copyToClipboard(bulkExample)
-                setBulkInfo('Example copied')
-                alert('Copied!')
+                setBulkInfo('✅ Example JSON clipboard me copy ho gaya!')
+                setBulkError('')
               } catch (e) {
-                setBulkError(e.message || 'Copy failed')
+                setBulkError('Copy failed: ' + (e.message || 'Unknown error'))
               }
             }}
           >
-            Copy Example
+            <i className="fa-solid fa-copy"></i> Copy Example
           </button>
         </div>
         <div className="form-group full">
           <label>JSON Array</label>
           <textarea
-            rows={10}
+            rows={12}
             value={bulkText}
-            onChange={(e) => setBulkText(e.target.value)}
-            placeholder='[{"title":"...","bookName":"...","subject":"...","category":"...","tests":[{"title":"...","duration":60,"questions":[{"question":"...","options":["A","B"],"correctAnswer":"A"}]}]}]'
+            onChange={(e) => { setBulkText(e.target.value); setBulkInfo(''); setBulkResult(null); setBulkError('') }}
+            placeholder={`Paste karo ya "See Example" click karo:\n[\n  {\n    "title": "Lucent GK Test Series",\n    "bookName": "Lucent's General Knowledge",\n    "subject": "General Knowledge",\n    "category": "SSC",\n    "tests": [\n      {\n        "title": "History Test Series - 1",\n        "description": "History Page 1-3",\n        "duration": 30,\n        "isFree": true,\n        "questions": [\n          {\n            "question": "...",\n            "options": ["A","B","C","D"],\n            "correctAnswer": "A",\n            "explanation": "..."\n          }\n        ]\n      }\n    ]\n  }\n]`}
           />
         </div>
         <button
@@ -516,6 +691,20 @@ export default function TestSeries() {
                   </td>
                   <td>
                     <div className="action-buttons">
+                      <button
+                        className="btn-icon btn-generate-mock"
+                        onClick={() => openGenerateModal(series, 'mock')}
+                        title="Generate Mock Test"
+                      >
+                        ⚡
+                      </button>
+                      <button
+                        className="btn-icon btn-generate-practice"
+                        onClick={() => openGenerateModal(series, 'practice')}
+                        title="Generate Practice Set"
+                      >
+                        📝
+                      </button>
                       <button className="btn-icon btn-edit" onClick={() => handleEdit(series)} title="Edit">
                         <i className="fa-solid fa-pen"></i>
                       </button>
@@ -535,6 +724,205 @@ export default function TestSeries() {
           </table>
         </div>
       </div>
+
+      {/* ─── GENERATE MODAL ─────────────────────────────────────────────────── */}
+      {generateModal && (
+        <div className="modal-overlay" onClick={closeGenerateModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">
+                  {generateModal.type === 'mock' ? '⚡ Generate Mock Test' : '📝 Generate Practice Set'}
+                </h3>
+                <p className="modal-subtitle">Source: {generateModal.seriesTitle}</p>
+              </div>
+              <button className="modal-close" onClick={closeGenerateModal}>✕</button>
+            </div>
+
+            {/* Success state */}
+            {genResult ? (
+              <div className="gen-success">
+                <div className="gen-success-icon">✅</div>
+                <h4>{genResult.message}</h4>
+                <p><strong>Title:</strong> {genResult.data?.title}</p>
+                <p><strong>Questions:</strong> {genResult.data?.totalQuestions}</p>
+                {generateModal.type === 'mock' && <p><strong>Duration:</strong> {genResult.data?.duration} min</p>}
+                <p><strong>Category/Subject:</strong> {genResult.data?.category || genResult.data?.subject}</p>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={closeGenerateModal}>Close</button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setGenResult(null)
+                      setGenForm(f => ({ ...f, title: '' }))
+                    }}
+                  >
+                    Generate Another
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Select Tests */}
+                <div className="gen-section">
+                  <label className="gen-label">
+                    Select Tests to include
+                    <span className="gen-label-hint">
+                      {genForm.selectedTestIds.length === 0
+                        ? ' — All tests selected'
+                        : ` — ${genForm.selectedTestIds.length} selected`}
+                    </span>
+                  </label>
+                  <div className="gen-test-list">
+                    {generateModal.tests.map((t) => {
+                      const checked = genForm.selectedTestIds.length === 0 || genForm.selectedTestIds.includes(String(t._id))
+                      return (
+                        <label key={t._id} className="gen-test-item">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTestId(String(t._id))}
+                          />
+                          <span className="gen-test-name">{t.title}</span>
+                          <span className="gen-test-count">
+                            {t.totalQuestions || 0} Qs
+                            {t.description ? ` • ${t.description}` : ''}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Common fields */}
+                <div className="gen-section">
+                  <div className="form-group full">
+                    <label>Title *</label>
+                    <input
+                      value={genForm.title}
+                      onChange={(e) => setGenForm(f => ({ ...f, title: e.target.value }))}
+                      placeholder="e.g. Lucent GK — History Mock Test"
+                    />
+                  </div>
+                  <div className="form-group full">
+                    <label>Description</label>
+                    <input
+                      value={genForm.description}
+                      onChange={(e) => setGenForm(f => ({ ...f, description: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Max Questions <span className="gen-label-hint">(blank = all)</span></label>
+                      <input
+                        type="number" min="1"
+                        value={genForm.maxQuestions}
+                        onChange={(e) => setGenForm(f => ({ ...f, maxQuestions: e.target.value }))}
+                        placeholder="e.g. 50"
+                      />
+                    </div>
+                    {generateModal.type === 'mock' && (
+                      <div className="form-group">
+                        <label>Duration (minutes) *</label>
+                        <input
+                          type="number" min="1"
+                          value={genForm.duration}
+                          onChange={(e) => setGenForm(f => ({ ...f, duration: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                    {generateModal.type === 'mock' && (
+                      <div className="form-group">
+                        <label>Category</label>
+                        <input
+                          value={genForm.category}
+                          onChange={(e) => setGenForm(f => ({ ...f, category: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                    {generateModal.type === 'practice' && (
+                      <div className="form-group">
+                        <label>Subject</label>
+                        <input
+                          value={genForm.subject}
+                          onChange={(e) => setGenForm(f => ({ ...f, subject: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                    {generateModal.type === 'practice' && (
+                      <div className="form-group">
+                        <label>Topic</label>
+                        <input
+                          value={genForm.topic}
+                          onChange={(e) => setGenForm(f => ({ ...f, topic: e.target.value }))}
+                          placeholder="e.g. Ancient History"
+                        />
+                      </div>
+                    )}
+                    {generateModal.type === 'practice' && (
+                      <div className="form-group">
+                        <label>Difficulty Level</label>
+                        <select value={genForm.level} onChange={(e) => setGenForm(f => ({ ...f, level: e.target.value }))}>
+                          <option value="easy">Easy</option>
+                          <option value="medium">Medium</option>
+                          <option value="hard">Hard</option>
+                        </select>
+                      </div>
+                    )}
+                    {generateModal.type === 'practice' && (
+                      <div className="form-group">
+                        <label>Language</label>
+                        <input
+                          value={genForm.language}
+                          onChange={(e) => setGenForm(f => ({ ...f, language: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                    {generateModal.type === 'practice' && (
+                      <div className="form-group">
+                        <label>Tags <span className="gen-label-hint">(comma separated)</span></label>
+                        <input
+                          value={genForm.tags}
+                          onChange={(e) => setGenForm(f => ({ ...f, tags: e.target.value }))}
+                          placeholder="gk, history, lucent"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <label className="gen-shuffle-row">
+                    <input
+                      type="checkbox"
+                      checked={genForm.shuffle}
+                      onChange={(e) => setGenForm(f => ({ ...f, shuffle: e.target.checked }))}
+                    />
+                    <span>Shuffle questions randomly</span>
+                  </label>
+                </div>
+
+                {genError && <div className="error-text">{genError}</div>}
+
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={closeGenerateModal}>Cancel</button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleGenerate}
+                    disabled={isMockGenerating || isPracticeGenerating}
+                  >
+                    {(isMockGenerating || isPracticeGenerating)
+                      ? 'Generating...'
+                      : generateModal.type === 'mock'
+                        ? '⚡ Generate Mock Test'
+                        : '📝 Generate Practice Set'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

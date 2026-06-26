@@ -11,17 +11,16 @@ export default function Index() {
   useEffect(() => {
     if (!isInitialized) return;
 
+    // Small delay to avoid flash
     const timer = setTimeout(() => {
-      // If user is authenticated, go to tabs
       if (isAuthenticated) {
+        // Token exists → go directly to tabs, skip login
         router.replace('/(tabs)');
-      } 
-      // If user has seen intro, go to login
-      else if (getHasSeenIntro()) {
+      } else if (getHasSeenIntro()) {
+        // No token, intro seen → go to login
         router.replace('/login');
-      } 
-      // Otherwise, show intro
-      else {
+      } else {
+        // First launch → show intro
         router.replace('/intro');
       }
     }, 300);
@@ -29,6 +28,7 @@ export default function Index() {
     return () => clearTimeout(timer);
   }, [isInitialized, isAuthenticated, router]);
 
+  // Splash screen while checking auth
   return (
     <View style={{ flex: 1, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator size="large" color="#ffffff" />

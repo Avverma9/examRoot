@@ -1,0 +1,51 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ── Environment variables (SECRETS - never commit) ────────────────────────────
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# ── Editor / IDE ──────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/*.code-snippets
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.pem
+*.p12
+*.key
+*.jks
+*.mobileprovision

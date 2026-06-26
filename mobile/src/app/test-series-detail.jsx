@@ -1,46 +1,104 @@
-import { useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
+import { useEffect, useState } from 'react'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchTestSeriesById, fetchTestById, clearSelectedTest } from '../store/slices/testSeriesSlice'
+import { createOrder, clearCurrentOrder } from '../store/slices/paymentSlice'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function TestSeriesDetail() {
   const { id } = useLocalSearchParams()
   const dispatch = useDispatch()
-  const router = useRouter()
-  const insets = useSafeAreaInsets()
+  const router   = useRouter()
+  const insets   = useSafeAreaInsets()
+
   const { selectedSeries: series, seriesStatus, selectedTest, testStatus } = useSelector(s => s.testSeries)
+  const { token, isAuthenticated }  = useSelector(s => s.auth)
+  const { subscriptions }           = useSelector(s => s.payment)
+  const { orderStatus, currentOrder } = useSelector(s => s.payment)
+
+  // Check if user already has an active subscription for this series
+  const hasActiveSub = subscriptions.some(
+    (sub) => sub.isActive && String(sub.seriesId?._id || sub.seriesId) === String(id)
+  )
 
   useEffect(() => {
     dispatch(fetchTestSeriesById(id))
     return () => dispatch(clearSelectedTest())
   }, [id])
 
-  // When test loads navigate to player
+  // When test loads → navigate to player
   useEffect(() => {
     if (testStatus === 'succeeded' && selectedTest) {
       dispatch(clearSelectedTest())
-      router.push({ pathname: '/mock-test-player', params: { test: JSON.stringify({ ...selectedTest, title: series?.title }) } })
+      router.push({
+        pathname: '/mock-test-player',
+        params: {
+          test: JSON.stringify({
+            ...selectedTest,
+            title: selectedTest.title || series?.title,
+            seriesTitle: series?.title,
+          }),
+        },
+      })
     }
   }, [testStatus, selectedTest])
+
+  // When order created → navigate to Cashfree checkout screen
+  useEffect(() => {
+    if (orderStatus === 'succeeded' && currentOrder) {
+      const amount = series?.discountedPrice > 0 && series?.discountedPrice < series?.price
+        ? series.discountedPrice
+        : series?.price
+      router.push({
+        pathname: '/cashfree-checkout',
+        params: {
+          orderId:          currentOrder.orderId,
+          paymentSessionId: currentOrder.paymentSessionId,
+          seriesId:         id,
+          seriesTitle:      series?.title || '',
+          amount:           String(amount || currentOrder.orderAmount || ''),
+        },
+      })
+      dispatch(clearCurrentOrder())
+    }
+  }, [orderStatus, currentOrder])
 
   if (seriesStatus === 'loading') return (
     <View style={[styles.center, { paddingTop: insets.top }]}>
       <ActivityIndicator size="large" color="#8B5CF6" />
     </View>
   )
-
   if (!series) return null
 
+  // ── Handle test start ──────────────────────────────────────────────────────
   const handleStartTest = (test) => {
-    if (series.isPaid && !test.isFree) {
-      // Paid test — show purchase prompt (extend with payment gateway)
-      return alert('This test requires a paid subscription.')
+    // Free test or user has active subscription → start directly
+    if (!series.isPaid || test.isFree || hasActiveSub) {
+      dispatch(fetchTestById({ seriesId: series._id, testId: test._id }))
+      return
     }
-    dispatch(fetchTestById({ seriesId: series._id, testId: test._id }))
+    // Locked test → prompt to buy
+    handleBuyNow()
   }
+
+  // ── Handle subscription purchase ───────────────────────────────────────────
+  const handleBuyNow = () => {
+    if (!isAuthenticated || !token) {
+      Alert.alert('Login Required', 'Please login to purchase a subscription.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Login', onPress: () => router.push('/login') },
+      ])
+      return
+    }
+    dispatch(createOrder({ seriesId: series._id, token }))
+  }
+
+  const amount = series.discountedPrice > 0 && series.discountedPrice < series.price
+    ? series.discountedPrice : series.price
+
+  const isOrderLoading = orderStatus === 'loading'
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -50,6 +108,14 @@ export default function TestSeriesDetail() {
           <Feather name="arrow-left" size={20} color="#334155" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{series.title}</Text>
+        {isAuthenticated && (
+          <TouchableOpacity
+            onPress={() => router.push('/my-subscriptions')}
+            style={styles.subBtn}
+          >
+            <Feather name="award" size={18} color="#8B5CF6" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -92,29 +158,62 @@ export default function TestSeriesDetail() {
               </View>
             </View>
 
+            {/* Price / Subscription banner */}
             {series.isPaid && (
-              <View style={styles.priceBanner}>
-                <Feather name="lock" size={16} color="#92400E" />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.priceBannerTitle}>Premium Series</Text>
-                  <Text style={styles.priceBannerSub}>
-                    {series.freeTestsCount || 1} free test{series.freeTestsCount > 1 ? 's' : ''} available • Unlock all for{' '}
-                    {series.discountedPrice > 0 && series.discountedPrice < series.price
-                      ? `₹${series.discountedPrice}`
-                      : `₹${series.price}`}
-                  </Text>
+              hasActiveSub ? (
+                // ── Active subscription banner ─────────────────────────────
+                <View style={[styles.priceBanner, styles.priceBannerActive]}>
+                  <Feather name="check-circle" size={16} color="#065F46" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.priceBannerActiveTitle}>Subscription Active ✓</Text>
+                    <Text style={styles.priceBannerActiveSub}>
+                      All tests unlocked •{' '}
+                      {(() => {
+                        const sub = subscriptions.find(s => String(s.seriesId?._id || s.seriesId) === String(id))
+                        if (!sub) return ''
+                        const days = Math.max(0, Math.ceil((new Date(sub.endDate) - new Date()) / 86400000))
+                        return `${days} days left`
+                      })()}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => router.push('/my-subscriptions')} style={styles.manageBtn}>
+                    <Text style={styles.manageBtnText}>Manage</Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.buyBtn}>
-                  <Text style={styles.buyBtnText}>Buy Now</Text>
-                </TouchableOpacity>
-              </View>
+              ) : (
+                // ── Buy Now banner ─────────────────────────────────────────
+                <View style={styles.priceBanner}>
+                  <Feather name="lock" size={16} color="#92400E" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.priceBannerTitle}>Premium Series</Text>
+                    <Text style={styles.priceBannerSub}>
+                      {series.freeTestsCount || 1} free test{series.freeTestsCount > 1 ? 's' : ''} available
+                      {' • '}Unlock all for{' '}
+                      {series.discountedPrice > 0 && series.discountedPrice < series.price
+                        ? `₹${series.discountedPrice}`
+                        : `₹${series.price}`}
+                      {' '}/ 30 days
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.buyBtn, isOrderLoading && styles.buyBtnLoading]}
+                    onPress={handleBuyNow}
+                    disabled={isOrderLoading}
+                  >
+                    {isOrderLoading
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={styles.buyBtnText}>Buy ₹{amount}</Text>
+                    }
+                  </TouchableOpacity>
+                </View>
+              )
             )}
 
             <Text style={styles.testsHeading}>All Tests</Text>
           </View>
         }
         renderItem={({ item, index }) => {
-          const isLocked = series.isPaid && !item.isFree
+          const isLocked = series.isPaid && !item.isFree && !hasActiveSub
           const isLoading = testStatus === 'loading'
           return (
             <View style={[styles.testCard, isLocked && styles.testCardLocked]}>
@@ -127,6 +226,9 @@ export default function TestSeriesDetail() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.testTitle, isLocked && styles.testTitleLocked]} numberOfLines={2}>{item.title}</Text>
+                  {item.description ? (
+                    <Text style={styles.testDesc} numberOfLines={1}>{item.description}</Text>
+                  ) : null}
                   <View style={styles.testMeta}>
                     <Feather name="help-circle" size={11} color="#94A3B8" />
                     <Text style={styles.testMetaText}>{item.totalQuestions || item.questions?.length || 0} Qs</Text>
@@ -142,7 +244,7 @@ export default function TestSeriesDetail() {
               </View>
               <TouchableOpacity
                 onPress={() => handleStartTest(item)}
-                disabled={isLoading}
+                disabled={isLoading || isOrderLoading}
                 style={[styles.startBtn, isLocked && styles.startBtnLocked]}
               >
                 {isLoading
@@ -174,6 +276,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
   backBtn: { padding: 4, marginRight: 10 },
   headerTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  subBtn: { padding: 6 },
 
   list: { padding: 14, paddingBottom: 24 },
 
@@ -196,11 +299,20 @@ const styles = StyleSheet.create({
   badgeTextFree: { color: '#065F46' },
   badgeTextPaid: { color: '#92400E' },
 
+  // Buy Now banner
   priceBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1.5, borderColor: '#FCD34D' },
   priceBannerTitle: { fontSize: 13, fontWeight: '800', color: '#92400E' },
-  priceBannerSub: { fontSize: 11, color: '#A16207', marginTop: 2 },
-  buyBtn: { backgroundColor: '#F59E0B', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  priceBannerSub: { fontSize: 11, color: '#A16207', marginTop: 2, lineHeight: 16 },
+  buyBtn: { backgroundColor: '#F59E0B', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, minWidth: 72, alignItems: 'center' },
+  buyBtnLoading: { opacity: 0.7 },
   buyBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+
+  // Active subscription banner
+  priceBannerActive: { backgroundColor: '#ECFDF5', borderColor: '#6EE7B7' },
+  priceBannerActiveTitle: { fontSize: 13, fontWeight: '800', color: '#065F46' },
+  priceBannerActiveSub: { fontSize: 11, color: '#059669', marginTop: 2 },
+  manageBtn: { backgroundColor: '#D1FAE5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  manageBtnText: { color: '#065F46', fontWeight: '800', fontSize: 11 },
 
   testsHeading: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
 
@@ -210,8 +322,9 @@ const styles = StyleSheet.create({
   testNumCircle: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   testNumCircleLocked: { backgroundColor: '#F1F5F9' },
   testNum: { fontSize: 14, fontWeight: '900', color: '#8B5CF6' },
-  testTitle: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginBottom: 6, lineHeight: 20 },
+  testTitle: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginBottom: 4, lineHeight: 20 },
   testTitleLocked: { color: '#94A3B8' },
+  testDesc: { fontSize: 11, color: '#64748B', marginBottom: 4 },
   testMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   testMetaText: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginRight: 4 },
   freeChip: { backgroundColor: '#ECFDF5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 4 },

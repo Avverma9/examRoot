@@ -51,6 +51,22 @@ const userSchema = new mongoose.Schema(
       default: "en",
       enum: ["en", "hi"],
     },
+    // ─── Google OAuth ───────────────────────────────────────────────────────
+    googleId: {
+      type: String,
+      default: "",
+    },
+    // ─── Subscriptions ─────────────────────────────────────────────────────────
+    subscriptions: [
+      {
+        seriesId:  { type: mongoose.Schema.Types.ObjectId, ref: "TestSeries", required: true },
+        orderId:   { type: String, required: true },   // Cashfree order_id
+        startDate: { type: Date, required: true },
+        endDate:   { type: Date, required: true },      // startDate + 30 days
+        isActive:  { type: Boolean, default: true },
+        amount:    { type: Number, required: true },
+      },
+    ],
   },
   { timestamps: true }
 );

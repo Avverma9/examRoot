@@ -1,5 +1,9 @@
 import TestSeries from "../models/TestSeries.mjs";
+import MockTest from "../models/MockTest.mjs";
+import PracticeSet from "../models/PracticeSet.mjs";
+import User from "../models/User.mjs";
 import { formatBulkError, normalizeBulkItems } from "../utils/bulk.mjs";
+import { hasActiveSubscription } from "./paymentController.mjs";
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 export const createTestSeries = async (req, res) => {
@@ -97,14 +101,31 @@ export const getTestById = async (req, res) => {
     const test = series.tests.id(req.params.testId);
     if (!test) return res.status(404).json({ success: false, message: "Test not found" });
 
-    // Free series → serve all tests
+    // Free series → serve all tests without any check
     if (!series.isPaid) return res.status(200).json({ success: true, data: test });
 
-    // Free test inside paid series → serve
+    // Free test inside a paid series → serve
     if (test.isFree) return res.status(200).json({ success: true, data: test });
 
-    // Paid test — block (extend with payment/auth verification here)
-    return res.status(403).json({ success: false, message: "This test requires a paid subscription", requiresPurchase: true, seriesId: series._id, price: series.discountedPrice || series.price });
+    // Paid test — check active subscription
+    // req.userId is set by authMiddleware if token is provided (optional auth)
+    const userId = req.userId;
+    if (userId) {
+      const user = await User.findById(userId).select("subscriptions");
+      if (user && hasActiveSubscription(user, series._id)) {
+        return res.status(200).json({ success: true, data: test });
+      }
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: "This test requires a paid subscription",
+      requiresPurchase: true,
+      seriesId: series._id,
+      price: series.discountedPrice > 0 && series.discountedPrice < series.price
+        ? series.discountedPrice
+        : series.price,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -136,6 +157,147 @@ export const deleteTestSeries = async (req, res) => {
     const deleted = await TestSeries.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ success: false, message: "Test series not found" });
     res.status(200).json({ success: true, message: "Deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── HELPER: shuffle array (Fisher-Yates) ────────────────────────────────────
+const shuffleArray = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// ─── GET TESTS META (for generate modal — no questions) ──────────────────────
+// GET /api/test-series/:id/tests-meta
+export const getTestsMeta = async (req, res) => {
+  try {
+    const series = await TestSeries.findById(req.params.id).select(
+      "title subject category language tests._id tests.title tests.totalQuestions tests.description"
+    );
+    if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+    res.status(200).json({ success: true, data: series });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── GENERATE MOCK TEST FROM TEST SERIES ─────────────────────────────────────
+// POST /api/test-series/:id/generate-mock
+// Body: { title, description, category, duration, testIds[], maxQuestions, shuffle }
+export const generateMockTest = async (req, res) => {
+  try {
+    const series = await TestSeries.findById(req.params.id);
+    if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+
+    const {
+      title,
+      description = "",
+      category,
+      duration,
+      testIds,
+      maxQuestions,
+      shuffle = true,
+    } = req.body;
+
+    if (!title)    return res.status(400).json({ success: false, message: "title is required" });
+    if (!duration) return res.status(400).json({ success: false, message: "duration is required" });
+
+    const selectedTests = testIds?.length
+      ? series.tests.filter((t) => testIds.includes(String(t._id)))
+      : series.tests;
+
+    if (!selectedTests.length)
+      return res.status(400).json({ success: false, message: "No tests found for given testIds" });
+
+    let allQuestions = selectedTests.flatMap((t) => t.questions || []);
+
+    if (!allQuestions.length)
+      return res.status(400).json({ success: false, message: "Selected tests have no questions" });
+
+    if (shuffle) allQuestions = shuffleArray(allQuestions);
+    if (maxQuestions && maxQuestions > 0) allQuestions = allQuestions.slice(0, maxQuestions);
+
+    const mockTest = await MockTest.create({
+      title,
+      description,
+      category: category || series.category,
+      duration,
+      questions: allQuestions,
+      totalQuestions: allQuestions.length,
+      isPublished: true,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Mock test created with ${allQuestions.length} questions`,
+      data: mockTest,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── GENERATE PRACTICE SET FROM TEST SERIES ──────────────────────────────────
+// POST /api/test-series/:id/generate-practice
+// Body: { title, description, subject, topic, level, testIds[], maxQuestions, shuffle, language, tags[] }
+export const generatePracticeSet = async (req, res) => {
+  try {
+    const series = await TestSeries.findById(req.params.id);
+    if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+
+    const {
+      title,
+      description = "",
+      subject,
+      topic = "",
+      level = "medium",
+      testIds,
+      maxQuestions,
+      shuffle = false,
+      language,
+      tags = [],
+    } = req.body;
+
+    if (!title) return res.status(400).json({ success: false, message: "title is required" });
+
+    const selectedTests = testIds?.length
+      ? series.tests.filter((t) => testIds.includes(String(t._id)))
+      : series.tests;
+
+    if (!selectedTests.length)
+      return res.status(400).json({ success: false, message: "No tests found for given testIds" });
+
+    let allQuestions = selectedTests.flatMap((t) => t.questions || []);
+
+    if (!allQuestions.length)
+      return res.status(400).json({ success: false, message: "Selected tests have no questions" });
+
+    if (shuffle) allQuestions = shuffleArray(allQuestions);
+    if (maxQuestions && maxQuestions > 0) allQuestions = allQuestions.slice(0, maxQuestions);
+
+    const practiceSet = await PracticeSet.create({
+      title,
+      description,
+      subject: subject || series.subject,
+      topic,
+      level,
+      questions: allQuestions,
+      totalQuestions: allQuestions.length,
+      isPublished: true,
+      language: language || series.language || "English",
+      tags,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Practice set created with ${allQuestions.length} questions`,
+      data: practiceSet,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

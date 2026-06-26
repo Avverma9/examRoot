@@ -1,8 +1,11 @@
 import nodemailer from "nodemailer";
 
-// Create transporter
+// Gmail SMTP transporter — uses App Password (not regular Gmail password)
+// App Password generate: Google Account → Security → 2-Step Verification → App Passwords
 const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // SSL
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
@@ -41,7 +44,8 @@ export const sendOTPEmail = async (email, otp) => {
     return result;
   } catch (error) {
     console.error("❌ Error sending OTP email:", error.message);
-    throw new Error("Failed to send OTP email");
+    // Surface the actual nodemailer error to the caller
+    throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 };
 

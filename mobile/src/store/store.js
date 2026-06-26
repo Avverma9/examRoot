@@ -5,6 +5,7 @@ import practiceSetReducer from './slices/practiceSetSlice';
 import mockTestReducer from './slices/mockTestSlice';
 import testSeriesReducer from './slices/testSeriesSlice';
 import authReducer from './slices/authSlice';
+import paymentReducer from './slices/paymentSlice';
 import { api } from '../services/api';
 
 export const store = configureStore({
@@ -15,6 +16,7 @@ export const store = configureStore({
     mockTest: mockTestReducer,
     testSeries: testSeriesReducer,
     auth: authReducer,
+    payment: paymentReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) =>

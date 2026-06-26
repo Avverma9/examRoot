@@ -13,6 +13,14 @@ const PORT = process.env.PORT || 3000;
 
 // Middlewares
 app.use(cors());
+
+// ─── Raw body capture for Cashfree webhook signature verification ─────────────
+// Must be registered BEFORE express.json() for the /api/payment/webhook route
+app.use("/api/payment/webhook", express.raw({ type: "application/json" }), (req, _res, next) => {
+  req.rawBody = req.body.toString("utf8");
+  next();
+});
+
 app.use(express.json());
 
 // Routes

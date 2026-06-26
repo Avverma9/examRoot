@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "202970055398",
+    "project_id": "examrooot",
+    "storage_bucket": "examrooot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202970055398:android:34e7c66b6dbbd9634d7127",
+        "android_client_info": {
+          "package_name": "com.examroot.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "202970055398-k97ubjm4arcbl8j9h244nrqktu1m2ble.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHIOwCjw98WfjNjy3DHivKEKr-RYgXRKU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "202970055398-k97ubjm4arcbl8j9h244nrqktu1m2ble.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

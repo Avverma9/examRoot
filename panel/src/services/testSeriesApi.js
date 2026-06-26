@@ -11,11 +11,14 @@ export const testSeriesApi = createApi({
       return headers
     },
   }),
-  tagTypes: ['TestSeries'],
+  tagTypes: ['TestSeries', 'MockTest', 'PracticeSet'],
   endpoints: (builder) => ({
     getAllTestSeries: builder.query({
       query: () => '/test-series?includeDrafts=true&includeQuestions=true',
       providesTags: ['TestSeries'],
+    }),
+    getTestsMeta: builder.query({
+      query: (id) => `/test-series/${id}/tests-meta`,
     }),
     createTestSeries: builder.mutation({
       query: (body) => ({
@@ -48,13 +51,33 @@ export const testSeriesApi = createApi({
       }),
       invalidatesTags: ['TestSeries'],
     }),
+    // ─── Generate endpoints ───────────────────────────────────────────────────
+    generateMockTest: builder.mutation({
+      query: ({ seriesId, ...body }) => ({
+        url: `/test-series/${seriesId}/generate-mock`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['MockTest'],
+    }),
+    generatePracticeSet: builder.mutation({
+      query: ({ seriesId, ...body }) => ({
+        url: `/test-series/${seriesId}/generate-practice`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['PracticeSet'],
+    }),
   }),
 })
 
 export const {
   useGetAllTestSeriesQuery,
+  useGetTestsMetaQuery,
   useCreateTestSeriesMutation,
   useBulkCreateTestSeriesMutation,
   useUpdateTestSeriesMutation,
   useDeleteTestSeriesMutation,
+  useGenerateMockTestMutation,
+  useGeneratePracticeSetMutation,
 } = testSeriesApi

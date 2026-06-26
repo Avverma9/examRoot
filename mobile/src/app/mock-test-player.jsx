@@ -385,7 +385,12 @@ export default function MockTestPlayer() {
           <TouchableOpacity onPress={confirmExit} style={styles.closeBtn}>
             <Feather name="x" size={20} color="#374151" />
           </TouchableOpacity>
-          <Text style={styles.headerTitleMain} numberOfLines={1}>{parsedTest.title}</Text>
+          <View style={{ flex: 1, marginRight: 4 }}>
+            {parsedTest.seriesTitle ? (
+              <Text style={styles.headerSeriesTitle} numberOfLines={1}>{parsedTest.seriesTitle}</Text>
+            ) : null}
+            <Text style={styles.headerTitleMain} numberOfLines={1}>{parsedTest.title}</Text>
+          </View>
           {renderLangToggle()}
           <Animated.View style={[styles.timerPill, { backgroundColor: timerBg, transform: [{ scale: pulseAnim }] }]}>
             <Feather name="clock" size={11} color="#fff" />
@@ -527,7 +532,8 @@ const styles = StyleSheet.create({
   backBtn: { marginRight: 10 },
   closeBtn: { padding: 3, marginRight: 6 },
   headerTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  headerTitleMain: { flex: 1, fontSize: 12, fontWeight: '700', color: '#334155' },
+  headerTitleMain: { fontSize: 12, fontWeight: '700', color: '#334155' },
+  headerSeriesTitle: { fontSize: 9, fontWeight: '600', color: '#94A3B8', letterSpacing: 0.3 },
   timerPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, marginLeft: 6 },
   timerText: { color: '#fff', fontWeight: '700', fontSize: 11, marginLeft: 3 },
   progressBg: { height: 3, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },

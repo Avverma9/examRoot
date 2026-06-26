@@ -3,18 +3,22 @@ import { authMiddleware } from "../middleware/auth.mjs";
 import {
   requestOTP,
   verifyOTPAndLogin,
+  resendOTP,
+  googleLogin,
   getCurrentUser,
   updateUserProfile,
 } from "../controllers/authController.mjs";
 
 const router = express.Router();
 
-// Public routes
+// ── Public ────────────────────────────────────────────────────────────────────
 router.post("/request-otp", requestOTP);
-router.post("/verify-otp", verifyOTPAndLogin);
+router.post("/verify-otp",  verifyOTPAndLogin);
+router.post("/resend-otp",  resendOTP);
+router.post("/google",      googleLogin);       // Google OAuth
 
-// Protected routes
-router.get("/me", authMiddleware, getCurrentUser);
-router.put("/profile", authMiddleware, updateUserProfile);
+// ── Protected ─────────────────────────────────────────────────────────────────
+router.get("/me",           authMiddleware, getCurrentUser);
+router.put("/profile",      authMiddleware, updateUserProfile);
 
 export default router;

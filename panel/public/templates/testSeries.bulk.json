@@ -1,0 +1,117 @@
+[
+  {
+    "title": "Lucent GK Test Series",
+    "description": "Lucent's General Knowledge book ke sabhi chapters ke chapter-wise tests. SSC, Railway, UPSC ke liye best.",
+    "bookName": "Lucent's General Knowledge",
+    "author": "Lucent Publication",
+    "publisher": "Lucent Publication",
+    "subject": "General Knowledge",
+    "category": "SSC",
+    "language": "Hindi + English",
+    "isPaid": true,
+    "price": 299,
+    "discountedPrice": 199,
+    "freeTestsCount": 1,
+    "tags": ["lucent", "gk", "ssc", "railway", "history"],
+    "isPublished": true,
+    "tests": [
+      {
+        "title": "History Test Series - 1",
+        "description": "History Page 1-3 | Ancient India",
+        "duration": 30,
+        "isFree": true,
+        "isPublished": true,
+        "questions": [
+          {
+            "question": "Who founded the Maurya Empire?",
+            "questionHi": "मौर्य साम्राज्य की स्थापना किसने की?",
+            "options": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
+            "optionsHi": ["अशोक", "चंद्रगुप्त मौर्य", "बिंदुसार", "बिंबिसार"],
+            "correctAnswer": "Chandragupta Maurya",
+            "correctAnswerHi": "चंद्रगुप्त मौर्य",
+            "explanation": "Chandragupta Maurya founded the Maurya Empire around 321 BC with help of Chanakya.",
+            "explanationHi": "चंद्रगुप्त मौर्य ने चाणक्य की सहायता से लगभग 321 ईसा पूर्व में मौर्य साम्राज्य की स्थापना की।"
+          },
+          {
+            "question": "The Battle of Plassey was fought in which year?",
+            "questionHi": "प्लासी का युद्ध किस वर्ष लड़ा गया था?",
+            "options": ["1757", "1761", "1764", "1775"],
+            "optionsHi": ["1757", "1761", "1764", "1775"],
+            "correctAnswer": "1757",
+            "correctAnswerHi": "1757",
+            "explanation": "The Battle of Plassey was fought on 23 June 1757 between the British East India Company and Nawab of Bengal.",
+            "explanationHi": "प्लासी का युद्ध 23 जून 1757 को ब्रिटिश ईस्ट इंडिया कंपनी और बंगाल के नवाब के बीच लड़ा गया था।"
+          },
+          {
+            "question": "Ashoka's edicts were primarily written in which language?",
+            "questionHi": "अशोक के शिलालेख मुख्यतः किस भाषा में लिखे गए थे?",
+            "options": ["Sanskrit", "Pali", "Prakrit", "Hindi"],
+            "optionsHi": ["संस्कृत", "पालि", "प्राकृत", "हिंदी"],
+            "correctAnswer": "Pali",
+            "correctAnswerHi": "पालि",
+            "explanation": "Ashoka's edicts were primarily written in Pali language using Brahmi script.",
+            "explanationHi": "अशोक के शिलालेख मुख्यतः ब्राह्मी लिपि में पालि भाषा में लिखे गए थे।"
+          }
+        ]
+      },
+      {
+        "title": "History Test Series - 2",
+        "description": "History Page 4-6 | Medieval India",
+        "duration": 30,
+        "isFree": false,
+        "isPublished": true,
+        "questions": [
+          {
+            "question": "Who built the Qutub Minar?",
+            "questionHi": "कुतुब मीनार का निर्माण किसने कराया?",
+            "options": ["Akbar", "Qutb ud-Din Aibak", "Humayun", "Aurangzeb"],
+            "optionsHi": ["अकबर", "कुतुबुद्दीन ऐबक", "हुमायूँ", "औरंगजेब"],
+            "correctAnswer": "Qutb ud-Din Aibak",
+            "correctAnswerHi": "कुतुबुद्दीन ऐबक",
+            "explanation": "Qutb ud-Din Aibak began the construction of Qutub Minar in 1193 AD.",
+            "explanationHi": "कुतुबुद्दीन ऐबक ने 1193 ईस्वी में कुतुब मीनार का निर्माण शुरू करवाया था।"
+          },
+          {
+            "question": "Akbar introduced the Din-i-Ilahi religion in which year?",
+            "questionHi": "अकबर ने दीन-ए-इलाही धर्म की शुरुआत किस वर्ष में की?",
+            "options": ["1570", "1575", "1582", "1590"],
+            "optionsHi": ["1570", "1575", "1582", "1590"],
+            "correctAnswer": "1582",
+            "correctAnswerHi": "1582",
+            "explanation": "Akbar introduced the Din-i-Ilahi in 1582, a syncretic religion blending elements of multiple faiths.",
+            "explanationHi": "अकबर ने 1582 में दीन-ए-इलाही की स्थापना की, जो कई धर्मों के तत्वों को मिलाकर बनाया गया एक समन्वयवादी धर्म था।"
+          }
+        ]
+      },
+      {
+        "title": "Geography Test Series - 1",
+        "description": "Geography Page 10-12 | Physical Geography of India",
+        "duration": 25,
+        "isFree": false,
+        "isPublished": true,
+        "questions": [
+          {
+            "question": "Which is the highest peak entirely within India?",
+            "questionHi": "पूरी तरह से भारत के भीतर स्थित सबसे ऊँची चोटी कौन सी है?",
+            "options": ["Mount Everest", "K2", "Kanchenjunga", "Nanda Devi"],
+            "optionsHi": ["माउंट एवरेस्ट", "K2", "कंचनजंगा", "नंदा देवी"],
+            "correctAnswer": "Kanchenjunga",
+            "correctAnswerHi": "कंचनजंगा",
+            "explanation": "Kanchenjunga (8,586 m) is the highest peak entirely within India.",
+            "explanationHi": "कंचनजंगा (8,586 मीटर) पूरी तरह से भारत के भीतर स्थित सबसे ऊँची चोटी है।"
+          },
+          {
+            "question": "The river Ganga originates from which glacier?",
+            "questionHi": "गंगा नदी किस ग्लेशियर से निकलती है?",
+            "options": ["Siachen", "Gangotri", "Zemu", "Milam"],
+            "optionsHi": ["सियाचिन", "गंगोत्री", "जेमू", "मिलम"],
+            "correctAnswer": "Gangotri",
+            "correctAnswerHi": "गंगोत्री",
+            "explanation": "The Ganga river originates from the Gangotri glacier in Uttarakhand.",
+            "explanationHi": "गंगा नदी उत्तराखंड में गंगोत्री ग्लेशियर से निकलती है।"
+          }
+        ]
+      }
+    ]
+  }
+]
