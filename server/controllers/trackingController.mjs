@@ -97,20 +97,33 @@ export const endTracking = async (req, res) => {
     // Update user stats if test/practice completed
     if (tracking.status === "completed") {
       if (tracking.resourceType === "mock_test" || tracking.resourceType === "test_series") {
-        await User.findByIdAndUpdate(
-          userId,
+        // Recalculate accuracy as average of ALL completed mock tests
+        const stats = await Tracking.aggregate([
           {
-            $inc: { totalMockTestsTaken: 1 },
-            accuracy: accuracy || 0,
-          }
-        );
+            $match: {
+              userId: tracking.userId,
+              resourceType: { $in: ["mock_test", "test_series"] },
+              status: "completed",
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalTests:  { $sum: 1 },
+              avgAccuracy: { $avg: "$accuracy" },
+            },
+          },
+        ]);
+
+        const totalTests  = stats[0]?.totalTests  ?? 1;
+        const avgAccuracy = Math.round((stats[0]?.avgAccuracy ?? 0) * 10) / 10;
+
+        await User.findByIdAndUpdate(userId, {
+          totalMockTestsTaken: totalTests,
+          accuracy: avgAccuracy,
+        });
       } else if (tracking.resourceType === "practice_set") {
-        await User.findByIdAndUpdate(
-          userId,
-          {
-            $inc: { totalPracticeSetsTaken: 1 },
-          }
-        );
+        await User.findByIdAndUpdate(userId, { $inc: { totalPracticeSetsTaken: 1 } });
       }
     }
 

@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: 'fa-solid fa-gauge' },
   { path: '/videos', label: 'Videos', icon: 'fa-solid fa-video' },
+  { path: '/banners', label: 'Banners', icon: 'fa-solid fa-image' },
   { path: '/practice', label: 'Practice Sets', icon: 'fa-solid fa-book-open' },
   { path: '/mock-tests', label: 'Mock Tests', icon: 'fa-solid fa-clipboard-list' },
   { path: '/test-series', label: 'Test Series', icon: 'fa-solid fa-book' },

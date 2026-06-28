@@ -7,6 +7,7 @@ import Videos from './pages/Videos'
 import PracticeSets from './pages/PracticeSets'
 import MockTests from './pages/MockTests'
 import TestSeries from './pages/TestSeries'
+import Banners from './pages/Banners'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 
@@ -18,6 +19,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="videos" element={<Videos />} />
+            <Route path="banners" element={<Banners />} />
             <Route path="practice" element={<PracticeSets />} />
             <Route path="mock-tests" element={<MockTests />} />
             <Route path="test-series" element={<TestSeries />} />

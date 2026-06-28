@@ -4,6 +4,8 @@ import { videoApi } from '../services/videoApi'
 import { practiceSetApi } from '../services/practiceSetApi'
 import { mockTestApi } from '../services/mockTestApi'
 import { testSeriesApi } from '../services/testSeriesApi'
+import { bannerApi } from '../services/bannerApi'
+import { adminApi } from '../services/adminApi'
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +14,8 @@ export const store = configureStore({
     [practiceSetApi.reducerPath]: practiceSetApi.reducer,
     [mockTestApi.reducerPath]: mockTestApi.reducer,
     [testSeriesApi.reducerPath]: testSeriesApi.reducer,
+    [bannerApi.reducerPath]: bannerApi.reducer,
+    [adminApi.reducerPath]: adminApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -19,6 +23,8 @@ export const store = configureStore({
       videoApi.middleware,
       practiceSetApi.middleware,
       mockTestApi.middleware,
-      testSeriesApi.middleware
+      testSeriesApi.middleware,
+      bannerApi.middleware,
+      adminApi.middleware,
     ),
 })

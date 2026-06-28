@@ -4,6 +4,8 @@ import PracticeSet from "../models/PracticeSet.mjs";
 import User from "../models/User.mjs";
 import { formatBulkError, normalizeBulkItems } from "../utils/bulk.mjs";
 import { hasActiveSubscription } from "./paymentController.mjs";
+import { v4 as uuidv4 } from "uuid";
+import { getPresignedUploadUrl, deleteFromR2, keyFromUrl } from "../utils/r2.mjs";
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 export const createTestSeries = async (req, res) => {
@@ -11,12 +13,7 @@ export const createTestSeries = async (req, res) => {
     const body = req.body;
     if (body.tests?.length) {
       body.totalTests = body.tests.length;
-      body.tests = body.tests.map((t, idx) => ({
-        ...t,
-        totalQuestions: t.questions?.length || t.totalQuestions || 0,
-        isFree: idx < (body.freeTestsCount || 1) ? true : (t.isFree || false),
-        order: t.order ?? idx,
-      }));
+      body.tests = normalizeTests(body.tests, body.freeTestsCount);
     }
     const series = await TestSeries.create(body);
     res.status(201).json({ success: true, data: series });
@@ -35,12 +32,7 @@ export const bulkCreateTestSeries = async (req, res) => {
     const normalized = items.map(item => ({
       ...item,
       totalTests: item.tests?.length || item.totalTests || 0,
-      tests: (item.tests || []).map((t, idx) => ({
-        ...t,
-        totalQuestions: t.questions?.length || t.totalQuestions || 0,
-        isFree: idx < (item.freeTestsCount || 1) ? true : (t.isFree || false),
-        order: t.order ?? idx,
-      })),
+      tests: normalizeTests(item.tests || [], item.freeTestsCount),
     }));
 
     const series = await TestSeries.insertMany(normalized, { ordered: false });
@@ -139,6 +131,7 @@ export const updateTestSeries = async (req, res) => {
       body.totalTests = body.tests.length;
       body.tests = body.tests.map((t, idx) => ({
         ...t,
+        group: typeof t.group === "string" ? t.group.trim() : "",
         totalQuestions: t.questions?.length || t.totalQuestions || 0,
         order: t.order ?? idx,
       }));
@@ -171,6 +164,15 @@ const shuffleArray = (arr) => {
   }
   return a;
 };
+
+const normalizeTests = (tests = [], freeTestsCount = 1) =>
+  tests.map((t, idx) => ({
+    ...t,
+    group: typeof t.group === "string" ? t.group.trim() : "",
+    totalQuestions: t.questions?.length || t.totalQuestions || 0,
+    isFree: idx < (freeTestsCount || 1) ? true : (t.isFree || false),
+    order: t.order ?? idx,
+  }));
 
 // ─── GET TESTS META (for generate modal — no questions) ──────────────────────
 // GET /api/test-series/:id/tests-meta
@@ -300,5 +302,109 @@ export const generatePracticeSet = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// ─── PRESIGNED URL FOR THUMBNAIL UPLOAD ───────────────────────────────────────
+// POST /api/test-series/:id/thumbnail-presign
+// Body: { filename, contentType }
+// Returns: { uploadUrl, publicUrl, key }
+export const getThumnailPresignedUrl = async (req, res) => {
+  try {
+    const { filename, contentType } = req.body;
+
+    if (!filename || !contentType) {
+      return res.status(400).json({
+        success: false,
+        message: "filename and contentType are required",
+      });
+    }
+
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedMimes.includes(contentType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid contentType. Allowed: ${allowedMimes.join(", ")}`,
+      });
+    }
+
+    // Verify series exists
+    const series = await TestSeries.findById(req.params.id);
+    if (!series) {
+      return res.status(404).json({ success: false, message: "Test series not found" });
+    }
+
+    // Build unique key: thumbnails/uuid-filename
+    const ext = filename.split(".").pop().toLowerCase();
+    const safeExt = ext.replace(/[^a-z0-9]/g, "");
+    const key = `test-series-thumbnails/${uuidv4()}.${safeExt}`;
+
+    const { uploadUrl, publicUrl } = await getPresignedUploadUrl(key, contentType);
+
+    return res.status(200).json({
+      success: true,
+      uploadUrl,
+      publicUrl,
+      key,
+    });
+  } catch (error) {
+    console.error("getThumnailPresignedUrl error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to generate upload URL" });
+  }
+};
+
+// ─── SAVE THUMBNAIL URL ────────────────────────────────────────────────────────
+// PUT /api/test-series/:id/thumbnail
+// Body: { thumbnailUrl }
+// Saves the R2 public URL to the database
+export const saveSeriesThumbnail = async (req, res) => {
+  try {
+    const { thumbnailUrl } = req.body;
+
+    if (!thumbnailUrl) {
+      return res.status(400).json({ success: false, message: "thumbnailUrl is required" });
+    }
+
+    const series = await TestSeries.findByIdAndUpdate(
+      req.params.id,
+      { thumbnail: thumbnailUrl },
+      { new: true, runValidators: true }
+    );
+
+    if (!series) {
+      return res.status(404).json({ success: false, message: "Test series not found" });
+    }
+
+    res.status(200).json({ success: true, data: series });
+  } catch (error) {
+    console.error("saveSeriesThumbnail error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to save thumbnail" });
+  }
+};
+
+// ─── DELETE THUMBNAIL ──────────────────────────────────────────────────────────
+// DELETE /api/test-series/:id/thumbnail
+export const deleteSeriesThumbnail = async (req, res) => {
+  try {
+    const series = await TestSeries.findById(req.params.id);
+    if (!series) {
+      return res.status(404).json({ success: false, message: "Test series not found" });
+    }
+
+    if (series.thumbnail) {
+      const key = keyFromUrl(series.thumbnail);
+      if (key) {
+        await deleteFromR2(key);
+      }
+    }
+
+    series.thumbnail = "";
+    await series.save();
+
+    res.status(200).json({ success: true, message: "Thumbnail deleted", data: series });
+  } catch (error) {
+    console.error("deleteSeriesThumbnail error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to delete thumbnail" });
   }
 };

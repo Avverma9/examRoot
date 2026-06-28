@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import AdBannerSlider from '../../components/AdBannerSlider';
 import AdMobBanner from '../../components/AdMobBanner';
 import { getCurrentUser } from '../../services/authApi';
 import { setUser } from '../../store/slices/authSlice';
+import { getRecentProgress } from '../../services/progressApi';
 
 export default function HomeScreen() {
   const user = useSelector((state) => state.auth.user);
@@ -16,6 +17,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const { data: mockData } = useGetAllMockTestsQuery();
   const recommendedTests = (mockData?.data || []).slice(0, 5);
+
+  // ── Real "Continue Learning" data ─────────────────────────────────────────
+  const [recentProgress, setRecentProgress] = useState([]);
+  const [progressLoading, setProgressLoading] = useState(false);
 
   useEffect(() => {
     const fetchUserStats = async () => {
@@ -33,6 +38,17 @@ export default function HomeScreen() {
     fetchUserStats();
   }, [token, dispatch]);
 
+  useEffect(() => {
+    if (!token) return;
+    setProgressLoading(true);
+    getRecentProgress(token)
+      .then(res => {
+        if (res.success) setRecentProgress(res.data || []);
+      })
+      .catch(() => {})
+      .finally(() => setProgressLoading(false));
+  }, [token]);
+
   const quickLinks = [
     { id: 1, name: 'Mock Tests', icon: 'file-text', color: '#D97706', bg: 'bg-amber-100', route: '/mock-test' },
     { id: 2, name: 'Practice', icon: 'book-open', color: '#059669', bg: 'bg-green-100', route: '/practice-set' },
@@ -40,11 +56,18 @@ export default function HomeScreen() {
     { id: 4, name: 'PYQ Papers', icon: 'clock', color: '#7C3AED', bg: 'bg-purple-100', route: '/mock-test' },
   ];
 
-  const continueLearning = {
-    subject: 'Quantitative Aptitude',
-    topic: 'Time, Speed & Distance',
-    progress: 65, // Percentage
-    timeLeft: '15 mins left',
+  // Map resourceType to display config
+  const getProgressConfig = (item) => {
+    switch (item.resourceType) {
+      case 'mock_test':
+        return { icon: 'file-text', iconBg: 'bg-amber-50', iconColor: '#D97706', label: 'Mock Test', route: '/(tabs)' };
+      case 'practice_set':
+        return { icon: 'book-open', iconBg: 'bg-green-50', iconColor: '#059669', label: 'Practice Set', route: '/(tabs)' };
+      case 'test_series':
+        return { icon: 'book', iconBg: 'bg-blue-50', iconColor: '#2563EB', label: 'Test Series', route: '/(tabs)' };
+      default:
+        return { icon: 'play', iconBg: 'bg-orange-50', iconColor: '#EA580C', label: 'Study', route: '/videos' };
+    }
   };
 
   return (
@@ -98,39 +121,72 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* 4. CONTINUE LEARNING (PROGRESS BANNER) */}
+          {/* 4. CONTINUE LEARNING (REAL DATA) */}
           <View className="flex-row justify-between items-end mb-4">
             <Text className="text-lg font-extrabold text-gray-900 tracking-tight">Continue Learning</Text>
-            <TouchableOpacity onPress={() => router.push('/videos')}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)')}>
               <Text className="text-amber-600 font-bold text-sm">See All</Text>
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            onPress={() => router.push('/videos')}
-            className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8"
-          >
-            <View className="flex-row items-center mb-4">
-              <View className="bg-orange-50 p-3.5 rounded-2xl mr-4">
-                <Feather name="play" size={22} color="#EA580C" />
+
+          {progressLoading ? (
+            <View className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8 items-center justify-center" style={{ height: 80 }}>
+              <ActivityIndicator size="small" color="#F59E0B" />
+            </View>
+          ) : recentProgress.length === 0 ? (
+            /* No in-progress sessions */
+            <View className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8 items-center flex-row" style={{ gap: 14 }}>
+              <View className="bg-amber-50 p-3 rounded-2xl">
+                <Feather name="play" size={20} color="#D97706" />
               </View>
               <View className="flex-1">
-                <Text className="text-xs font-bold text-orange-600 mb-1 uppercase tracking-wider">{continueLearning.subject}</Text>
-                <Text className="text-base font-extrabold text-gray-900">{continueLearning.topic}</Text>
+                <Text className="text-sm font-bold text-gray-700">No recent activity</Text>
+                <Text className="text-xs text-gray-400 mt-0.5">Start a test or practice to see it here</Text>
               </View>
             </View>
-            
-            {/* Progress Bar */}
-            <View className="flex-row items-center">
-              <View className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden mr-3">
-                <View 
-                  className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full" 
-                  style={{ width: `${continueLearning.progress}%`, backgroundColor: '#F59E0B' }} 
-                />
-              </View>
-              <Text className="text-xs font-bold text-gray-400">{continueLearning.timeLeft}</Text>
-            </View>
-          </TouchableOpacity>
+          ) : (
+            recentProgress.map((item) => {
+              const cfg = getProgressConfig(item);
+              const answered = item.metadata?.answeredCount || 0;
+              const total = item.totalQuestions || 1;
+              const progressPct = Math.min(100, Math.round((answered / total) * 100));
+              return (
+                <TouchableOpacity
+                  key={item._id}
+                  onPress={() => router.push(cfg.route)}
+                  className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-3"
+                >
+                  <View className="flex-row items-center mb-4">
+                    <View className={`${cfg.iconBg} p-3.5 rounded-2xl mr-4`}>
+                      <Feather name={cfg.icon} size={22} color={cfg.iconColor} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-xs font-bold mb-1 uppercase tracking-wider" style={{ color: cfg.iconColor }}>
+                        {cfg.label}
+                      </Text>
+                      <Text className="text-base font-extrabold text-gray-900" numberOfLines={1}>
+                        {item.resourceTitle || 'Untitled'}
+                      </Text>
+                    </View>
+                    <View className="bg-gray-100 px-2 py-1 rounded-lg">
+                      <Text className="text-xs font-bold text-gray-500">
+                        Q {item.metadata?.currentQuestion != null ? item.metadata.currentQuestion + 1 : 1}/{total}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center">
+                    <View className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden mr-3">
+                      <View
+                        className="h-full rounded-full"
+                        style={{ width: `${progressPct}%`, backgroundColor: cfg.iconColor }}
+                      />
+                    </View>
+                    <Text className="text-xs font-bold text-gray-400">{progressPct}% done</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
 
           {/* 5. RECOMMENDED MOCK TESTS (HORIZONTAL SCROLL) */}
           <View className="flex-row justify-between items-end mb-4">

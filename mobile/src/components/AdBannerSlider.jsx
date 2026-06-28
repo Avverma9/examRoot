@@ -1,38 +1,37 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, Text, Dimensions } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Image, Text, Dimensions, ActivityIndicator } from 'react-native';
+import { getAllBanners } from '../services/bannerApi';
 
 const { width } = Dimensions.get('window');
-
-const banners = [
-  {
-    id: 1,
-    title: 'Summer Sale',
-    subtitle: 'Get 50% Off All Courses',
-    color: '#FF6B6B',
-    image: 'https://via.placeholder.com/400x200/FF6B6B/FFFFFF?text=50%+OFF',
-  },
-  {
-    id: 2,
-    title: 'Free Trial',
-    subtitle: 'Start Your Journey Today',
-    color: '#4ECDC4',
-    image: 'https://via.placeholder.com/400x200/4ECDC4/FFFFFF?text=FREE+TRIAL',
-  },
-  {
-    id: 3,
-    title: 'Expert Teachers',
-    subtitle: 'Learn From The Best',
-    color: '#FFD93D',
-    image: 'https://via.placeholder.com/400x200/FFD93D/FFFFFF?text=BEST+TEACHERS',
-  },
-];
 
 export default function AdBannerSlider() {
   const scrollViewRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(true);
   const intervalRef = useRef(null);
 
+  // Fetch banners on mount
   useEffect(() => {
+    const fetchBanners = async () => {
+      setLoading(true);
+      try {
+        const data = await getAllBanners();
+        setBanners(data);
+      } catch (error) {
+        console.error('Error fetching banners:', error);
+        setBanners([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBanners();
+  }, []);
+
+  // Auto-rotate banners
+  useEffect(() => {
+    if (banners.length === 0) return;
+
     intervalRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % banners.length);
     }, 5000);
@@ -40,28 +39,45 @@ export default function AdBannerSlider() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [banners.length]);
 
+  // Scroll to current index
   useEffect(() => {
-    if (scrollViewRef.current) {
+    if (scrollViewRef.current && banners.length > 0) {
       scrollViewRef.current.scrollTo({
         x: currentIndex * width,
         animated: true,
       });
     }
-  }, [currentIndex]);
+  }, [currentIndex, banners.length]);
 
   const handleScroll = useCallback((event) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / width);
-    if (index !== currentIndex) {
+    if (index !== currentIndex && index >= 0 && index < banners.length) {
       setCurrentIndex(index);
     }
-  }, [currentIndex]);
+  }, [currentIndex, banners.length]);
 
   const handleDotPress = useCallback((index) => {
     setCurrentIndex(index);
   }, []);
+
+  if (loading) {
+    return (
+      <View className="rounded-2xl overflow-hidden h-48 bg-gray-100 justify-center items-center">
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
+
+  if (banners.length === 0) {
+    return (
+      <View className="rounded-2xl overflow-hidden h-48 bg-gradient-to-r from-amber-400 to-orange-500 justify-center items-center">
+        <Text className="text-white text-lg font-bold">No Banners Available</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="mb-6">
@@ -77,7 +93,7 @@ export default function AdBannerSlider() {
       >
         {banners.map((banner) => (
           <View
-            key={banner.id}
+            key={banner._id}
             style={{ width }}
             className="px-5"
           >
@@ -86,7 +102,7 @@ export default function AdBannerSlider() {
               className="rounded-2xl overflow-hidden h-48 justify-center items-center shadow-lg"
             >
               <Image
-                source={{ uri: banner.image }}
+                source={{ uri: banner.imageUrl }}
                 style={{ width: '100%', height: '100%', position: 'absolute' }}
                 resizeMode="cover"
               />
@@ -105,21 +121,23 @@ export default function AdBannerSlider() {
       </ScrollView>
 
       {/* Dot Indicators */}
-      <View className="flex-row justify-center items-center mt-4 gap-2">
-        {banners.map((_, index) => (
-          <TouchableOpacity
-            key={index}
-            onPress={() => handleDotPress(index)}
-            style={{
-              width: index === currentIndex ? 10 : 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: index === currentIndex ? '#F59E0B' : '#D1D5DB',
-              marginHorizontal: 4,
-            }}
-          />
-        ))}
-      </View>
+      {banners.length > 1 && (
+        <View className="flex-row justify-center items-center mt-4 gap-2">
+          {banners.map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => handleDotPress(index)}
+              style={{
+                width: index === currentIndex ? 10 : 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: index === currentIndex ? '#F59E0B' : '#D1D5DB',
+                marginHorizontal: 4,
+              }}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }

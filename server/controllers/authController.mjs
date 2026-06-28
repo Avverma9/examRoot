@@ -1,10 +1,11 @@
-import jwt from "jsonwebtoken";
+﻿import jwt from "jsonwebtoken";
 import User from "../models/User.mjs";
 import OTP from "../models/OTP.mjs";
+import Tracking from "../models/Tracking.mjs";
 import { sendOTPEmail, sendWelcomeEmail } from "../utils/email.mjs";
 import { sendSMSOTP } from "../utils/sms.mjs";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const generateOTP = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
@@ -31,14 +32,14 @@ const safeUserPayload = (user) => ({
   profileImage: user.profileImage || null,
 });
 
-// ─── REQUEST OTP ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ REQUEST OTP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // POST /api/auth/request-otp
 // Body: { email } OR { phone }  (one of them required)
 export const requestOTP = async (req, res) => {
   try {
     const { email, phone } = req.body;
 
-    // ── Validate input ─────────────────────────────────────────────────────
+    // â”€â”€ Validate input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (!email && !phone) {
       return res.status(400).json({ success: false, message: "Email or phone number is required" });
     }
@@ -52,7 +53,7 @@ export const requestOTP = async (req, res) => {
     const isEmailFlow = !!email;
     const identifier  = isEmailFlow ? email.toLowerCase() : phone;
 
-    // ── Check if user exists ───────────────────────────────────────────────
+    // â”€â”€ Check if user exists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const existingUser = isEmailFlow
       ? await User.findOne({ email: identifier })
       : await User.findOne({ phone: identifier });
@@ -63,10 +64,15 @@ export const requestOTP = async (req, res) => {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
     if (isEmailFlow) {
-      // ── Email OTP — stored in our DB ─────────────────────────────────────
+      // â”€â”€ Email OTP â€” stored in our DB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       await OTP.deleteMany({ email: identifier });
       await OTP.create({ email: identifier, otp, expiresAt });
-      await sendOTPEmail(identifier, otp);
+      try {
+        await sendOTPEmail(identifier, otp);
+      } catch (mailErr) {
+        await OTP.deleteMany({ email: identifier });
+        throw mailErr;
+      }
 
       return res.status(200).json({
         success: true,
@@ -76,12 +82,17 @@ export const requestOTP = async (req, res) => {
         email: identifier,
       });
     } else {
-      // ── Phone OTP — Fast2SMS manages it, we still store OTP in DB ────────
+      // â”€â”€ Phone OTP â€” Fast2SMS manages it, we still store OTP in DB â”€â”€â”€â”€â”€â”€â”€â”€
       // We generate the OTP ourselves so email & SMS use same 6-digit code
       // Fast2SMS delivers it via SMS using our OTP template
       await OTP.deleteMany({ phone: identifier });
       await OTP.create({ phone: identifier, otp, expiresAt });
-      await sendSMSOTP(identifier, otp);
+      try {
+        await sendSMSOTP(identifier, otp);
+      } catch (smsErr) {
+        await OTP.deleteMany({ phone: identifier });
+        throw smsErr;
+      }
 
       return res.status(200).json({
         success: true,
@@ -97,7 +108,7 @@ export const requestOTP = async (req, res) => {
   }
 };
 
-// ─── VERIFY OTP & LOGIN ───────────────────────────────────────────────────────
+// â”€â”€â”€ VERIFY OTP & LOGIN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // POST /api/auth/verify-otp
 // Body: { email, otp, name? }  OR  { phone, otp, name? }
 export const verifyOTPAndLogin = async (req, res) => {
@@ -110,7 +121,7 @@ export const verifyOTPAndLogin = async (req, res) => {
     const isEmailFlow = !!email;
     const identifier  = isEmailFlow ? email.toLowerCase() : phone;
 
-    // ── Find OTP record in DB (both flows store in DB) ─────────────────────
+    // â”€â”€ Find OTP record in DB (both flows store in DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const otpRecord = isEmailFlow
       ? await OTP.findOne({ email: identifier })
       : await OTP.findOne({ phone: identifier });
@@ -119,7 +130,7 @@ export const verifyOTPAndLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: "OTP not found or already expired. Request a new OTP." });
     }
 
-    // ── Attempt tracking ───────────────────────────────────────────────────
+    // â”€â”€ Attempt tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (otpRecord.otp !== otp) {
       otpRecord.attempts += 1;
       if (otpRecord.attempts >= otpRecord.maxAttempts) {
@@ -131,16 +142,16 @@ export const verifyOTPAndLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: `Invalid OTP. ${remaining} attempt(s) left.` });
     }
 
-    // ── Expiry check ───────────────────────────────────────────────────────
+    // â”€â”€ Expiry check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (new Date() > otpRecord.expiresAt) {
       await OTP.deleteOne({ _id: otpRecord._id });
       return res.status(400).json({ success: false, message: "OTP expired. Request a new OTP." });
     }
 
-    // ── OTP correct — delete it ────────────────────────────────────────────
+    // â”€â”€ OTP correct â€” delete it â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     await OTP.deleteOne({ _id: otpRecord._id });
 
-    // ── Find or create user ────────────────────────────────────────────────
+    // â”€â”€ Find or create user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let user = isEmailFlow
       ? await User.findOne({ email: identifier })
       : await User.findOne({ phone: identifier });
@@ -183,7 +194,7 @@ export const verifyOTPAndLogin = async (req, res) => {
   }
 };
 
-// ─── RESEND OTP ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ RESEND OTP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // POST /api/auth/resend-otp
 // Body: { email } OR { phone }
 export const resendOTP = async (req, res) => {
@@ -198,7 +209,7 @@ export const resendOTP = async (req, res) => {
     const identifier  = isEmailFlow ? email.toLowerCase() : phone;
 
     if (isEmailFlow) {
-      // ── Email: generate fresh OTP and resend ──────────────────────────────
+      // â”€â”€ Email: generate fresh OTP and resend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const existing = await OTP.findOne({ email: identifier });
       if (!existing) {
         return res.status(404).json({ success: false, message: "No active OTP session. Please request a new OTP." });
@@ -210,11 +221,16 @@ export const resendOTP = async (req, res) => {
       existing.expiresAt = expiresAt;
       existing.attempts  = 0;
       await existing.save();
-      await sendOTPEmail(identifier, otp);
+      try {
+        await sendOTPEmail(identifier, otp);
+      } catch (mailErr) {
+        await OTP.deleteMany({ email: identifier });
+        throw mailErr;
+      }
 
       return res.status(200).json({ success: true, message: "OTP resent to your email", channel: "email" });
     } else {
-      // ── Phone: generate fresh OTP and resend via Fast2SMS Quick SMS ───────
+      // â”€â”€ Phone: generate fresh OTP and resend via Fast2SMS Quick SMS â”€â”€â”€â”€â”€â”€â”€
       const existing = await OTP.findOne({ phone: identifier });
       if (!existing) {
         return res.status(404).json({ success: false, message: "No active OTP session. Please request a new OTP." });
@@ -225,7 +241,12 @@ export const resendOTP = async (req, res) => {
       existing.expiresAt = expiresAt;
       existing.attempts  = 0;
       await existing.save();
-      await sendSMSOTP(identifier, otp);
+      try {
+        await sendSMSOTP(identifier, otp);
+      } catch (smsErr) {
+        await OTP.deleteMany({ phone: identifier });
+        throw smsErr;
+      }
 
       return res.status(200).json({ success: true, message: "OTP resent to your mobile", channel: "phone" });
     }
@@ -235,20 +256,128 @@ export const resendOTP = async (req, res) => {
   }
 };
 
-// ─── GET CURRENT USER ─────────────────────────────────────────────────────────
+// â”€â”€â”€ GET CURRENT USER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // GET /api/auth/me   (requires auth)
 export const getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-__v");
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
+    // â”€â”€ Live stats from Tracking collection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const [mockStats, practiceStats, streakData] = await Promise.all([
+
+      // Count completed mock tests + average accuracy
+      Tracking.aggregate([
+        {
+          $match: {
+            userId: user._id,
+            resourceType: { $in: ["mock_test", "test_series"] },
+            status: "completed",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            testsTaken:  { $sum: 1 },
+            avgAccuracy: { $avg: "$accuracy" },
+          },
+        },
+      ]),
+
+      // Count completed practice sets
+      Tracking.aggregate([
+        {
+          $match: {
+            userId: user._id,
+            resourceType: "practice_set",
+            status: "completed",
+          },
+        },
+        {
+          $group: { _id: null, setsTaken: { $sum: 1 } },
+        },
+      ]),
+
+      // Streak: count how many consecutive days (up to today) user completed at least one activity
+      Tracking.aggregate([
+        {
+          $match: {
+            userId: user._id,
+            status: "completed",
+          },
+        },
+        {
+          // Get unique activity dates (IST date string)
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" },
+            },
+          },
+        },
+        { $sort: { _id: -1 } }, // most recent first
+      ]),
+    ]);
+
+    // Calculate streak from sorted unique activity dates
+    const streak = (() => {
+      if (!streakData.length) return 0;
+
+      const today     = new Date();
+      today.setHours(0, 0, 0, 0);
+      const msPerDay  = 24 * 60 * 60 * 1000;
+
+      const dates = streakData.map((d) => {
+        const [y, m, day] = d._id.split("-").map(Number);
+        return new Date(y, m - 1, day).getTime();
+      });
+
+      let count    = 0;
+      let expected = today.getTime();
+
+      for (const ts of dates) {
+        if (ts === expected) {
+          count++;
+          expected -= msPerDay;
+        } else if (ts === expected + msPerDay) {
+          // Allow "today not yet done but yesterday was" â€” still streak
+          expected = ts - msPerDay;
+          count++;
+        } else {
+          break;
+        }
+      }
+      return count;
+    })();
+
+    const testsTaken  = mockStats[0]?.testsTaken  ?? 0;
+    const setsTaken   = practiceStats[0]?.setsTaken ?? 0;
+    const rawAccuracy = mockStats[0]?.avgAccuracy  ?? 0;
+    const accuracy    = Math.round(rawAccuracy * 10) / 10; // 1 decimal place
+
+    // Keep User doc in sync (for profile screen cached reads)
+    await User.findByIdAndUpdate(req.userId, {
+      totalMockTestsTaken:    testsTaken,
+      totalPracticeSetsTaken: setsTaken,
+      accuracy,
+      streak,
+    });
+
     res.status(200).json({
       success: true,
       user: {
-        ...safeUserPayload(user),
-        profileImage:      user.profileImage,
+        _id:               user._id,
+        email:             user.email,
+        name:              user.name,
+        phone:             user.phone,
+        isVerified:        user.isVerified,
+        profileImage:      user.profileImage || null,
         lastLogin:         user.lastLogin,
         preferredLanguage: user.preferredLanguage,
+        // â”€â”€ Live computed stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        testsTaken,
+        accuracy,
+        streak,
+        practiceSetsTaken: setsTaken,
       },
     });
   } catch (error) {
@@ -256,7 +385,7 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
-// ─── UPDATE PROFILE ───────────────────────────────────────────────────────────
+// â”€â”€â”€ UPDATE PROFILE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // PUT /api/auth/profile   (requires auth)
 export const updateUserProfile = async (req, res) => {
   try {
@@ -287,9 +416,9 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// ─── GOOGLE OAuth LOGIN ───────────────────────────────────────────────────────
+// â”€â”€â”€ GOOGLE OAuth LOGIN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // POST /api/auth/google
-// Body: { idToken } — Google ID token from expo-auth-session
+// Body: { idToken } â€” Google ID token from expo-auth-session
 export const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
@@ -306,7 +435,7 @@ export const googleLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid Google token" });
     }
 
-    // Validate audience — must match our web OR Android Google Client ID
+    // Validate audience â€” must match our web OR Android Google Client ID
     const webClientId     = process.env.GOOGLE_CLIENT_ID;
     const androidClientId = process.env.GOOGLE_ANDROID_CLIENT_ID;
     const validAudiences  = [webClientId, androidClientId].filter(Boolean);
@@ -315,7 +444,7 @@ export const googleLogin = async (req, res) => {
     console.log("Valid auds   :", validAudiences);
 
     if (validAudiences.length > 0 && !validAudiences.includes(googleData.aud)) {
-      console.error("Audience mismatch — token aud:", googleData.aud);
+      console.error("Audience mismatch â€” token aud:", googleData.aud);
       return res.status(401).json({ success: false, message: "Token audience mismatch" });
     }
 
@@ -359,3 +488,4 @@ export const googleLogin = async (req, res) => {
     res.status(500).json({ success: false, message: error.message || "Google login failed" });
   }
 };
+

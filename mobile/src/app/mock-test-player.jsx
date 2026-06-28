@@ -9,24 +9,51 @@ import {
   BackHandler,
   Animated,
   StyleSheet,
-  ActivityIndicator
+  ActivityIndicator,
+  Pressable,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSelector } from 'react-redux';
 import { Feather } from '@expo/vector-icons';
-import { preloadTranslations } from '../utils/translator';
 import { BASE_URL } from '../utils/baseUrl';
+import { toggleSavedQuestion, getSavedStatus } from '../services/savedQuestionsApi';
+import { saveProgress, completeProgress } from '../services/progressApi';
+
+// ─── DESIGN TOKENS — "Test Booklet" ──────────────────────────────────────────
+// Paper ground + ink-navy structure + a single sealing-wax red for emphasis.
+// Green = correct ink, amber = bookmark tab, the rest stays quiet.
+const PAPER         = '#FAF7F0';
+const PAPER_ELEV    = '#FFFFFF';
+const INK           = '#1C2B42';
+const INK_SOFT      = '#5C6B80';
+const INK_FAINT     = '#9CA7B4';
+const RULE          = 'rgba(28,43,66,0.14)';
+const RULE_SOFT     = 'rgba(28,43,66,0.08)';
+const SEAL          = '#AE3B2A';
+const SEAL_SOFT     = 'rgba(174,59,42,0.09)';
+const SEAL_BORDER   = 'rgba(174,59,42,0.28)';
+const CORRECT       = '#3E6A52';
+const CORRECT_SOFT  = 'rgba(62,106,82,0.10)';
+const CORRECT_BORDER = 'rgba(62,106,82,0.30)';
+const MARKED        = '#8C6A1E';
+const MARKED_SOFT   = 'rgba(140,106,30,0.10)';
+const MARKED_BORDER = 'rgba(140,106,30,0.30)';
+
+const SERIF = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
+const MONO  = Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' });
 
 // ─── CONSTANTS & FALLBACK DATA ───────────────────────────────────────────────
 const LABELS = ['A', 'B', 'C', 'D', 'E'];
 
 const STATUS_STYLE = {
-  current:           { bg: '#3B82F6', border: '#3B82F6', text: '#fff' },
-  answered:          { bg: '#10B981', border: '#10B981', text: '#fff' },
-  marked:            { bg: '#8B5CF6', border: '#8B5CF6', text: '#fff' },
-  'answered-marked': { bg: '#8B5CF6', border: '#8B5CF6', text: '#fff' },
-  visited:           { bg: '#FEE2E2', border: '#FCA5A5', text: '#DC2626' },
-  notvisited:        { bg: '#F8FAFC', border: '#CBD5E1', text: '#64748B' },
+  current:           { bg: INK,        border: INK,          text: PAPER_ELEV },
+  answered:          { bg: CORRECT,    border: CORRECT,      text: PAPER_ELEV },
+  marked:            { bg: MARKED,     border: MARKED,       text: PAPER_ELEV },
+  'answered-marked': { bg: MARKED,     border: MARKED,       text: PAPER_ELEV },
+  visited:           { bg: SEAL_SOFT,  border: SEAL_BORDER,  text: SEAL },
+  notvisited:        { bg: PAPER_ELEV, border: RULE,         text: INK_FAINT },
 };
 
 // Fallback data ensures the EN/HI toggle works out of the box if no params are passed
@@ -68,15 +95,30 @@ export default function MockTestPlayer() {
 
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [marked, setMarked] = useState({});
+  const [marked, setMarked] = useState({});      // "mark for review" (local only, exam feature)
+  const [savedQ, setSavedQ] = useState({});      // actually saved to server
+  const [savingQ, setSavingQ] = useState({});    // loading state per question
   const [lang, setLang] = useState('EN');
   const [timeLeft, setTimeLeft] = useState(parsedTest.duration * 60);
   const [timeTaken, setTimeTaken] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  const [translatedQuestions, setTranslatedQuestions] = useState(questions);
-  const [isTranslating, setIsTranslating] = useState(false);
   const [isLoadingTest, setIsLoadingTest] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const token = useSelector((state) => state.auth.token);
+
+  // ─── Load saved status for this resource ─────────────────────────────────
+  useEffect(() => {
+    if (!token || !parsedTest?._id) return;
+    getSavedStatus(token, parsedTest._id)
+      .then(({ savedIndices }) => {
+        const map = {};
+        savedIndices.forEach(idx => { map[idx] = true; });
+        setSavedQ(map);
+      })
+      .catch(() => {});
+  }, [token, parsedTest?._id]);
 
   const timerRef = useRef(null);
   const pulseAnim = useMemo(() => new Animated.Value(1), []);
@@ -99,23 +141,6 @@ export default function MockTestPlayer() {
         setLoadError(error.message || 'Failed to load mock test');
       })
       .finally(() => setIsLoadingTest(false));
-  }, [parsedTest?._id, questions.length]);
-
-  // ─── PRELOAD TRANSLATIONS ───
-  useEffect(() => {
-    if (questions.length > 0) {
-      setIsTranslating(true);
-      
-      preloadTranslations(questions, true)
-        .then(translated => {
-          setTranslatedQuestions(translated);
-          setIsTranslating(false);
-        })
-        .catch(err => {
-          console.error('Translation failed:', err);
-          setIsTranslating(false);
-        });
-    }
   }, [parsedTest?._id, questions.length]);
 
   // ─── TIMER & ANIMATIONS ───
@@ -155,7 +180,24 @@ export default function MockTestPlayer() {
   function confirmExit() {
     Alert.alert('Exit Test', 'Your progress will be lost. Exit anyway?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Exit', style: 'destructive', onPress: () => { clearInterval(timerRef.current); router.back(); } },
+      {
+        text: 'Exit', style: 'destructive', onPress: () => {
+          clearInterval(timerRef.current);
+          // Save progress for resume
+          if (token && parsedTest?._id) {
+            saveProgress(token, {
+              resourceId: parsedTest._id,
+              resourceType: 'mock_test',
+              resourceTitle: parsedTest.title || '',
+              currentQuestion: current,
+              totalQuestions: questions.length,
+              answeredCount: Object.keys(answers).length,
+              metadata: { timeLeft },
+            });
+          }
+          router.back();
+        },
+      },
     ]);
   }
 
@@ -166,9 +208,59 @@ export default function MockTestPlayer() {
       unanswered > 0 ? `${unanswered} question(s) unanswered. Submit anyway?` : 'Are you sure you want to submit the test?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Submit', onPress: () => { clearInterval(timerRef.current); setSubmitted(true); } },
+        {
+          text: 'Submit', onPress: () => {
+            clearInterval(timerRef.current);
+            setSubmitted(true);
+            // Mark as completed on server
+            if (token && parsedTest?._id) {
+              const score = questions.filter((q, i) => answers[i] === (q.options?.indexOf(q.correctAnswer) ?? -1)).length;
+              const wrong = Object.keys(answers).filter(i => answers[i] !== (questions[i]?.options?.indexOf(questions[i]?.correctAnswer) ?? -1)).length;
+              const acc = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+              completeProgress(token, {
+                resourceId: parsedTest._id,
+                resourceType: 'mock_test',
+                status: 'completed',
+                score,
+                accuracy: acc,
+                totalQuestions: questions.length,
+                correctAnswers: score,
+              });
+            }
+          },
+        },
       ]
     );
+  };
+
+  // ─── Save/unsave individual question ─────────────────────────────────────
+  const handleSaveQuestion = async (index) => {
+    if (!token) return;
+    const q = questions[index];
+    if (!q) return;
+
+    setSavingQ(prev => ({ ...prev, [index]: true }));
+    try {
+      const result = await toggleSavedQuestion(token, {
+        sourceType: 'mock_test',
+        resourceId: parsedTest._id || parsedTest.title || 'unknown',
+        resourceTitle: parsedTest.title || '',
+        questionIndex: index,
+        question: q.question,
+        questionHi: q.questionHi || '',
+        options: q.options,
+        optionsHi: q.optionsHi || [],
+        correctAnswer: q.correctAnswer || '',
+        correctAnswerHi: q.correctAnswerHi || '',
+        explanation: q.explanation || '',
+        explanationHi: q.explanationHi || '',
+      });
+      setSavedQ(prev => ({ ...prev, [index]: result.saved }));
+    } catch (err) {
+      console.warn('Save question failed:', err.message);
+    } finally {
+      setSavingQ(prev => ({ ...prev, [index]: false }));
+    }
   };
 
   // ─── HELPERS ───
@@ -209,14 +301,28 @@ export default function MockTestPlayer() {
         <TouchableOpacity
           key={l}
           onPress={() => setLang(l)}
-          disabled={isTranslating}
-          style={[styles.langBtn, { backgroundColor: lang === l ? '#3B82F6' : 'transparent', opacity: isTranslating ? 0.5 : 1 }]}
+          style={[styles.langBtn, lang === l && styles.langBtnActive]}
         >
-          <Text style={[styles.langBtnText, { color: lang === l ? '#fff' : '#64748B' }]}>{l}</Text>
+          <Text style={[styles.langBtnText, lang === l && styles.langBtnTextActive]}>{l}</Text>
         </TouchableOpacity>
       ))}
     </View>
   );
+
+  const paletteAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(paletteAnim, {
+      toValue: paletteOpen ? 1 : 0,
+      duration: 240,
+      useNativeDriver: true,
+    }).start();
+  }, [paletteOpen, paletteAnim]);
+
+  const paletteTranslateX = paletteAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [320, 0],
+  });
 
   // ─── RESULT SCREEN ─────────────────────────────────────────────────────────
   if (submitted) {
@@ -225,34 +331,44 @@ export default function MockTestPlayer() {
     const skipped = getSkipped();
     const percent = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
     const marks = (score * 1 - wrong * 0.25).toFixed(2);
-    const bgColor = percent >= 60 ? '#10B981' : percent >= 35 ? '#F59E0B' : '#EF4444';
+    const band = percent >= 60
+      ? { color: CORRECT, label: 'Strong attempt', icon: 'award' }
+      : percent >= 35
+        ? { color: MARKED, label: 'Needs more revision', icon: 'trending-up' }
+        : { color: SEAL, label: 'Requires focused practice', icon: 'book-open' };
 
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color="#374151" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>Test Result</Text>
-          {renderLangToggle()}
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+              <Feather name="arrow-left" size={20} color={INK} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.kicker}>SCORE SHEET</Text>
+              <Text style={styles.headerTitleMain} numberOfLines={1}>{parsedTest.title}</Text>
+            </View>
+            {renderLangToggle()}
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.resultBannerWrap}>
-            <View style={[styles.resultBannerTop, { backgroundColor: bgColor }]}>
-              <View style={styles.scoreCircle}>
-                <Text style={styles.scoreText}>{percent}%</Text>
+            <View style={styles.resultBannerTop}>
+              <View style={[styles.scoreRing, { borderColor: band.color }]}>
+                <Text style={[styles.scoreText, { color: band.color }]}>{percent}<Text style={styles.scoreTextPct}>%</Text></Text>
               </View>
-              <Text style={styles.scoreMsg}>
-                {percent >= 60 ? '🎉 Excellent Performance!' : percent >= 35 ? '👍 Keep Practicing' : '📚 Need More Practice'}
-              </Text>
+              <View style={styles.scoreMsgRow}>
+                <Feather name={band.icon} size={13} color={band.color} />
+                <Text style={[styles.scoreMsg, { color: band.color }]}>{band.label}</Text>
+              </View>
             </View>
             <View style={styles.statsRow}>
               {[
-                { label: 'Correct', val: score, color: '#10B981' },
-                { label: 'Wrong', val: wrong, color: '#EF4444' },
-                { label: 'Skipped', val: skipped, color: '#9CA3AF' },
-                { label: 'Marks', val: marks, color: '#2563EB' },
+                { label: 'Correct', val: score, color: CORRECT },
+                { label: 'Wrong', val: wrong, color: SEAL },
+                { label: 'Skipped', val: skipped, color: INK_FAINT },
+                { label: 'Net Marks', val: marks, color: INK },
               ].map((s, i, arr) => (
                 <View key={s.label} style={[styles.statBox, i < arr.length - 1 && styles.statBorder]}>
                   <Text style={[styles.statVal, { color: s.color }]}>{s.val}</Text>
@@ -268,7 +384,7 @@ export default function MockTestPlayer() {
               { icon: 'bar-chart-2', label: 'Attempted', val: `${Object.keys(answers).length}/${questions.length}` },
             ].map(s => (
               <View key={s.label} style={styles.infoCard}>
-                <Feather name={s.icon} size={16} color="#6B7280" />
+                <Feather name={s.icon} size={14} color={INK_SOFT} />
                 <View style={styles.infoCardText}>
                   <Text style={styles.infoCardLabel}>{s.label}</Text>
                   <Text style={styles.infoCardVal}>{s.val}</Text>
@@ -277,47 +393,54 @@ export default function MockTestPlayer() {
             ))}
           </View>
 
-          <Text style={styles.analysisSectionTitle}>Detailed Analysis</Text>
+          <View style={styles.sectionRuleRow}>
+            <Text style={styles.sectionRuleTitle}>DETAILED ANALYSIS</Text>
+            <View style={styles.sectionRuleLine} />
+          </View>
+
           <View style={styles.analysisList}>
-            {translatedQuestions.map((q, i) => {
+            {questions.map((q, i) => {
               const isCorrect = answers[i] === getCorrectIdx(q);
               const isSkipped = answers[i] === undefined;
-              const bdrColor = isSkipped ? '#E5E7EB' : isCorrect ? '#A7F3D0' : '#FECACA';
-              const topColor = isSkipped ? '#E5E7EB' : isCorrect ? '#34D399' : '#F87171';
+              const barColor = isSkipped ? INK_FAINT : isCorrect ? CORRECT : SEAL;
+              const badgeBg = isSkipped ? RULE_SOFT : isCorrect ? CORRECT_SOFT : SEAL_SOFT;
+              const badgeText = isSkipped ? INK_SOFT : isCorrect ? CORRECT : SEAL;
 
               return (
-                <View key={i} style={[styles.analysisCard, { borderColor: bdrColor }]}>
-                  <View style={[styles.analysisTopIndicator, { backgroundColor: topColor }]} />
+                <View key={i} style={styles.analysisCard}>
+                  <View style={[styles.analysisAccent, { backgroundColor: barColor }]} />
                   <View style={styles.analysisContent}>
                     <View style={styles.analysisHeaderRow}>
-                      <Text style={styles.analysisQNum}>Q{i + 1}</Text>
-                      <View style={[styles.analysisBadge, { backgroundColor: isSkipped ? '#F3F4F6' : isCorrect ? '#D1FAE5' : '#FEE2E2' }]}>
-                        <Text style={[styles.analysisBadgeText, { color: isSkipped ? '#6B7280' : isCorrect ? '#065F46' : '#991B1B' }]}>
-                          {isSkipped ? 'Skipped' : isCorrect ? '+1.00' : '-0.25'}
+                      <View style={styles.qNumBadgeSm}>
+                        <Text style={styles.qNumBadgeSmText}>Q{i + 1}</Text>
+                      </View>
+                      <View style={[styles.analysisBadge, { backgroundColor: badgeBg }]}>
+                        <Text style={[styles.analysisBadgeText, { color: badgeText }]}>
+                          {isSkipped ? 'SKIPPED' : isCorrect ? '+1.00' : '−0.25'}
                         </Text>
                       </View>
                     </View>
                     <Text style={styles.analysisQText}>{qText(q)}</Text>
 
-                    <View style={[styles.ansRow, { backgroundColor: isCorrect ? '#ECFDF5' : isSkipped ? '#F9FAFB' : '#FEF2F2' }]}>
-                      <Feather name={isSkipped ? 'minus-circle' : isCorrect ? 'check-circle' : 'x-circle'} size={14} color={isSkipped ? '#9CA3AF' : isCorrect ? '#10B981' : '#EF4444'} />
-                      <Text style={[styles.ansRowVal, { color: isSkipped ? '#9CA3AF' : isCorrect ? '#065F46' : '#991B1B', fontStyle: isSkipped ? 'italic' : 'normal' }]}>
+                    <View style={[styles.ansRow, { backgroundColor: isCorrect ? CORRECT_SOFT : isSkipped ? RULE_SOFT : SEAL_SOFT }]}>
+                      <Feather name={isSkipped ? 'minus-circle' : isCorrect ? 'check-circle' : 'x-circle'} size={13} color={isSkipped ? INK_FAINT : isCorrect ? CORRECT : SEAL} />
+                      <Text style={[styles.ansRowVal, { color: isSkipped ? INK_FAINT : isCorrect ? CORRECT : SEAL, fontStyle: isSkipped ? 'italic' : 'normal' }]}>
                         {answers[i] !== undefined ? opts(q)[answers[i]] : 'Not answered'}
                       </Text>
                       <Text style={styles.ansRowLabel}>Your answer</Text>
                     </View>
 
                     {!isCorrect && (
-                      <View style={[styles.ansRow, { backgroundColor: '#ECFDF5' }]}>
-                        <Feather name="check-circle" size={14} color="#10B981" />
-                        <Text style={[styles.ansRowVal, { color: '#065F46' }]}>{corrText(q)}</Text>
+                      <View style={[styles.ansRow, { backgroundColor: CORRECT_SOFT }]}>
+                        <Feather name="check-circle" size={13} color={CORRECT} />
+                        <Text style={[styles.ansRowVal, { color: CORRECT }]}>{corrText(q)}</Text>
                         <Text style={styles.ansRowLabel}>Correct</Text>
                       </View>
                     )}
 
                     {expText(q) ? (
                       <View style={styles.expBox}>
-                        <Text style={styles.expTitle}>💡 EXPLANATION</Text>
+                        <Text style={styles.expTitle}>EXPLANATION</Text>
                         <Text style={styles.expText}>{expText(q)}</Text>
                       </View>
                     ) : null}
@@ -338,12 +461,12 @@ export default function MockTestPlayer() {
   }
 
   // ─── MAIN TEST PLAYER ──────────────────────────────────────────────────────
-  const q = translatedQuestions[current];
+  const q = questions[current];
   if (isLoadingTest) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={{ marginTop: 12, color: '#6B7280', fontSize: 14 }}>Loading test questions...</Text>
+        <ActivityIndicator size="large" color={INK} />
+        <Text style={styles.loadingText}>Loading test questions…</Text>
       </View>
     );
   }
@@ -351,31 +474,25 @@ export default function MockTestPlayer() {
   if (!q) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
-        <Feather name="alert-circle" size={32} color="#EF4444" />
-        <Text style={{ marginTop: 12, color: '#0F172A', fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+        <Feather name="alert-circle" size={30} color={SEAL} />
+        <Text style={styles.errorTitle}>
           {loadError || 'No questions found in this mock test'}
         </Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16, backgroundColor: '#2563EB', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 }}>
-          <Text style={{ color: '#fff', fontWeight: '800' }}>Go Back</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.errorBtn}>
+          <Text style={styles.errorBtnText}>Go Back</Text>
         </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // Show loading indicator while translating
-  if (isTranslating && lang === 'HI') {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={{ marginTop: 12, color: '#6B7280', fontSize: 14 }}>Loading translations...</Text>
       </View>
     );
   }
 
   const progress = ((current + 1) / questions.length) * 100;
   const isMarked = !!marked[current];
+  const isSaved = !!savedQ[current];
   const curOpts = opts(q) || [];
-  const timerBg = timeLeft <= 60 ? '#EF4444' : timeLeft <= 300 ? '#F59E0B' : '#3B82F6';
+  const timerUrgent = timeLeft <= 60;
+  const timerWarn = timeLeft <= 300 && !timerUrgent;
+  const timerColor = timerUrgent ? SEAL : timerWarn ? MARKED : INK;
+  const kickerText = parsedTest.seriesTitle || 'MOCK TEST';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -383,46 +500,65 @@ export default function MockTestPlayer() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity onPress={confirmExit} style={styles.closeBtn}>
-            <Feather name="x" size={20} color="#374151" />
+            <Feather name="x" size={19} color={INK} />
           </TouchableOpacity>
-          <View style={{ flex: 1, marginRight: 4 }}>
-            {parsedTest.seriesTitle ? (
-              <Text style={styles.headerSeriesTitle} numberOfLines={1}>{parsedTest.seriesTitle}</Text>
-            ) : null}
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.kicker} numberOfLines={1}>{kickerText}</Text>
             <Text style={styles.headerTitleMain} numberOfLines={1}>{parsedTest.title}</Text>
           </View>
-          {renderLangToggle()}
-          <Animated.View style={[styles.timerPill, { backgroundColor: timerBg, transform: [{ scale: pulseAnim }] }]}>
-            <Feather name="clock" size={11} color="#fff" />
-            <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+          <Animated.View style={[styles.timerStamp, { borderColor: timerColor, transform: [{ scale: pulseAnim }] }]}>
+            <Feather name="clock" size={11} color={timerColor} />
+            <Text style={[styles.timerText, { color: timerColor }]}>{formatTime(timeLeft)}</Text>
           </Animated.View>
         </View>
+
+        <View style={styles.headerControlsRow}>
+          <TouchableOpacity onPress={() => setPaletteOpen(true)} style={styles.paletteToggleBtn}>
+            <Feather name="grid" size={13} color={INK} />
+            <Text style={styles.paletteToggleText}>Palette</Text>
+          </TouchableOpacity>
+          {renderLangToggle()}
+          <View style={{ flex: 1 }} />
+          <Text style={styles.progressDataText}>Q {current + 1}/{questions.length}</Text>
+          <View style={styles.dotSep} />
+          <Text style={styles.progressDataText}>{Object.keys(answers).length} answered</Text>
+        </View>
+
         <View style={styles.progressBg}>
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
-        <View style={styles.progressDataRow}>
-          <Text style={styles.progressDataText}>Q {current + 1} / {questions.length}</Text>
-          <Text style={styles.progressDataText}>{Object.keys(answers).length} answered</Text>
         </View>
       </View>
 
       <ScrollView style={styles.bodyScroll} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.chipsRow}>
-          <View style={[styles.chip, styles.chipGreen]}>
-            <Text style={styles.chipTextGreen}>+1.00</Text>
+        <View style={styles.qHeaderRow}>
+          <View style={styles.qNumBadge}>
+            <Text style={styles.qNumBadgeText}>Q{current + 1}</Text>
           </View>
-          <View style={[styles.chip, styles.chipRed]}>
-            <Text style={styles.chipTextRed}>-0.25</Text>
-          </View>
-          {isMarked && (
-            <View style={[styles.chip, styles.chipPurple]}>
-              <Feather name="bookmark" size={11} color="#7C3AED" />
-              <Text style={styles.chipTextPurple}>Marked</Text>
+          <View style={styles.chipsRow}>
+            <View style={[styles.chip, styles.chipCorrect]}>
+              <Text style={[styles.chipText, { color: CORRECT }]}>+1.00</Text>
             </View>
-          )}
+            <View style={[styles.chip, styles.chipSeal]}>
+              <Text style={[styles.chipText, { color: SEAL }]}>−0.25</Text>
+            </View>
+            {isMarked && (
+              <View style={[styles.chip, styles.chipMarked]}>
+                <Feather name="bookmark" size={10} color={MARKED} />
+                <Text style={[styles.chipText, { color: MARKED, marginLeft: 3 }]}>Marked</Text>
+              </View>
+            )}
+            {isSaved && (
+              <View style={[styles.chip, styles.chipInk]}>
+                <Feather name="star" size={10} color={INK} />
+                <Text style={[styles.chipText, { color: INK, marginLeft: 3 }]}>Saved</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <Text style={styles.questionTextMain}>{qText(q)}</Text>
+
+        <View style={styles.qDivider} />
 
         <View style={styles.optionsWrap}>
           {curOpts.map((opt, i) => {
@@ -432,50 +568,74 @@ export default function MockTestPlayer() {
                 key={i}
                 activeOpacity={0.75}
                 onPress={() => setAnswers({ ...answers, [current]: i })}
-                style={[styles.optBtn, { borderColor: isSelected ? '#3B82F6' : '#E2E8F0', backgroundColor: isSelected ? '#EFF6FF' : '#fff' }]}
+                style={[styles.optBtn, isSelected && styles.optBtnSelected]}
               >
-                <View style={[styles.optBubble, { backgroundColor: isSelected ? '#3B82F6' : '#F1F5F9' }]}>
-                  <Text style={[styles.optBubbleText, { color: isSelected ? '#fff' : '#64748B' }]}>{LABELS[i]}</Text>
+                <View style={[styles.bubble, isSelected && styles.bubbleSelected]}>
+                  <Text style={[styles.bubbleText, isSelected && styles.bubbleTextSelected]}>{LABELS[i]}</Text>
                 </View>
-                <Text style={[styles.optText, { color: isSelected ? '#1E40AF' : '#334155' }]}>{opt}</Text>
-                {isSelected && <Feather name="check-circle" size={16} color="#3B82F6" />}
+                <Text style={[styles.optText, isSelected && styles.optTextSelected]}>{opt}</Text>
+                {isSelected && <Feather name="check" size={15} color={INK} />}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <View style={styles.paletteContainer}>
-          <Text style={styles.paletteTitle}>QUESTION PALETTE</Text>
-          <View style={styles.legendRow}>
-            {[
-              { color: '#10B981', label: 'Answered' },
-              { color: '#FEE2E2', border: '#FCA5A5', label: 'Not Answered' },
-              { color: '#7C3AED', label: 'Marked' },
-              { color: '#F9FAFB', border: '#D1D5DB', label: 'Not Visited' },
-            ].map(l => (
-              <View key={l.label} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: l.color, borderColor: l.border || 'transparent', borderWidth: l.border ? 1 : 0 }]} />
-                <Text style={styles.legendText}>{l.label}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.paletteGrid}>
-            {questions.map((_, i) => {
-              const s = STATUS_STYLE[getQStatus(i)];
-              return (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setCurrent(i)}
-                  style={[styles.paletteBtn, { backgroundColor: s.bg, borderColor: s.border }]}
-                >
-                  <Text style={[styles.paletteBtnText, { color: s.text }]}>{i + 1}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {paletteOpen && (
+        <View style={styles.paletteBackdrop}>
+          <Pressable style={styles.paletteBackdropPressable} onPress={() => setPaletteOpen(false)} />
+          <Animated.View
+            style={[
+              styles.paletteSheet,
+              { transform: [{ translateX: paletteTranslateX }] },
+            ]}
+          >
+            <View style={styles.paletteHeader}>
+              <View>
+                <Text style={styles.kicker}>NAVIGATOR</Text>
+                <Text style={styles.paletteTitle}>Question Palette</Text>
+              </View>
+              <TouchableOpacity onPress={() => setPaletteOpen(false)} style={styles.paletteCloseBtn}>
+                <Feather name="x" size={17} color={INK} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.legendRow}>
+              {[
+                { color: CORRECT, label: 'Answered' },
+                { color: SEAL_SOFT, border: SEAL_BORDER, label: 'Not Answered' },
+                { color: MARKED, label: 'Marked' },
+                { color: PAPER_ELEV, border: RULE, label: 'Not Visited' },
+              ].map(l => (
+                <View key={l.label} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: l.color, borderColor: l.border || 'transparent', borderWidth: l.border ? 1 : 0 }]} />
+                  <Text style={styles.legendText}>{l.label}</Text>
+                </View>
+              ))}
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.paletteGrid}>
+                {questions.map((_, i) => {
+                  const s = STATUS_STYLE[getQStatus(i)];
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => {
+                        setCurrent(i);
+                        setPaletteOpen(false);
+                      }}
+                      style={[styles.paletteBtn, { backgroundColor: s.bg, borderColor: s.border }]}
+                    >
+                      <Text style={[styles.paletteBtnText, { color: s.text }]}>{String(i + 1).padStart(2, '0')}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
         <View style={styles.footerTopRow}>
@@ -484,19 +644,34 @@ export default function MockTestPlayer() {
               onPress={() => { const a = { ...answers }; delete a[current]; setAnswers(a); }}
               style={styles.secondaryBtn}
             >
+              <Feather name="rotate-ccw" size={11} color={INK_SOFT} />
               <Text style={styles.secondaryBtnText}>Clear</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setMarked({ ...marked, [current]: !marked[current] })}
-              style={[styles.secondaryBtn, { borderColor: isMarked ? '#8B5CF6' : '#E2E8F0', backgroundColor: isMarked ? '#F5F3FF' : '#fff' }]}
+              style={[styles.secondaryBtn, isMarked && styles.secondaryBtnMarkedActive]}
             >
-              <Feather name="bookmark" size={12} color={isMarked ? '#8B5CF6' : '#94A3B8'} />
-              <Text style={[styles.secondaryBtnText, { color: isMarked ? '#7C3AED' : '#64748B', marginLeft: 6 }]}>
+              <Feather name="bookmark" size={11} color={isMarked ? MARKED : INK_SOFT} />
+              <Text style={[styles.secondaryBtnText, isMarked && { color: MARKED }]}>
                 {isMarked ? 'Marked' : 'Mark'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleSaveQuestion(current)}
+              disabled={!!savingQ[current]}
+              style={[styles.secondaryBtn, isSaved && styles.secondaryBtnSavedActive]}
+            >
+              {savingQ[current]
+                ? <ActivityIndicator size={11} color={INK} />
+                : <Feather name="star" size={11} color={isSaved ? INK : INK_SOFT} />
+              }
+              <Text style={[styles.secondaryBtnText, isSaved && { color: INK }]}>
+                {isSaved ? 'Saved' : 'Save'}
               </Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={handleSubmit} style={styles.submitBtnMini}>
+            <Feather name="check" size={11} color={CORRECT} />
             <Text style={styles.submitBtnMiniText}>Submit</Text>
           </TouchableOpacity>
         </View>
@@ -507,15 +682,15 @@ export default function MockTestPlayer() {
             disabled={current === 0}
             style={[styles.navBtnPrev, current === 0 && styles.navBtnPrevDisabled]}
           >
-            <Feather name="chevron-left" size={18} color={current === 0 ? '#D1D5DB' : '#374151'} />
-            <Text style={[styles.navBtnPrevText, { color: current === 0 ? '#D1D5DB' : '#374151' }]}>Prev</Text>
+            <Feather name="chevron-left" size={17} color={current === 0 ? INK_FAINT : INK} />
+            <Text style={[styles.navBtnPrevText, { color: current === 0 ? INK_FAINT : INK }]}>Prev</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => current < questions.length - 1 ? setCurrent(c => c + 1) : handleSubmit()}
-            style={[styles.navBtnNext, { backgroundColor: current < questions.length - 1 ? '#3B82F6' : '#10B981' }]}
+            style={[styles.navBtnNext, { backgroundColor: current < questions.length - 1 ? INK : CORRECT }]}
           >
             <Text style={styles.navBtnNextText}>{current < questions.length - 1 ? 'Save & Next' : 'Submit Test'}</Text>
-            <Feather name={current < questions.length - 1 ? 'chevron-right' : 'check'} size={16} color="#fff" />
+            <Feather name={current < questions.length - 1 ? 'chevron-right' : 'check'} size={15} color={PAPER_ELEV} />
           </TouchableOpacity>
         </View>
       </View>
@@ -525,101 +700,165 @@ export default function MockTestPlayer() {
 
 // ─── STYLESHEET ──────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  
-  header: { backgroundColor: '#fff', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  backBtn: { marginRight: 10 },
-  closeBtn: { padding: 3, marginRight: 6 },
-  headerTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  headerTitleMain: { fontSize: 12, fontWeight: '700', color: '#334155' },
-  headerSeriesTitle: { fontSize: 9, fontWeight: '600', color: '#94A3B8', letterSpacing: 0.3 },
-  timerPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, marginLeft: 6 },
-  timerText: { color: '#fff', fontWeight: '700', fontSize: 11, marginLeft: 3 },
-  progressBg: { height: 3, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
-  progressDataRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 },
-  progressDataText: { fontSize: 10, color: '#94A3B8', fontWeight: '600' },
+  container: { flex: 1, backgroundColor: PAPER },
 
-  langToggleWrap: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 6, padding: 2, marginRight: 6 },
-  langBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
-  langBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  // ── Shared text utilities ──
+  kicker: { fontSize: 9.5, fontWeight: '800', color: INK_FAINT, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 1 },
+  loadingText: { marginTop: 12, color: INK_SOFT, fontSize: 13 },
+  errorTitle: { marginTop: 12, color: INK, fontSize: 14, fontWeight: '700', textAlign: 'center', fontFamily: SERIF },
+  errorBtn: { marginTop: 16, backgroundColor: INK, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10 },
+  errorBtnText: { color: PAPER_ELEV, fontWeight: '800', fontSize: 13 },
 
+  // ── Header ──
+  header: { backgroundColor: PAPER_ELEV, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 9, borderBottomWidth: 1, borderBottomColor: RULE },
+  headerTopRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 9 },
+  closeBtn: { padding: 2, marginRight: 9, marginTop: 1 },
+  headerTitleMain: { fontSize: 14, fontWeight: '700', color: INK, fontFamily: SERIF },
+
+  timerStamp: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7, borderWidth: 1.5, backgroundColor: PAPER },
+  timerText: { fontWeight: '800', fontSize: 12, fontFamily: MONO },
+
+  headerControlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  paletteToggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7, borderWidth: 1, borderColor: RULE, backgroundColor: PAPER },
+  paletteToggleText: { fontSize: 11, fontWeight: '700', color: INK },
+  progressDataText: { fontSize: 10.5, color: INK_SOFT, fontWeight: '600', fontFamily: MONO },
+  dotSep: { width: 3, height: 3, borderRadius: 2, backgroundColor: INK_FAINT },
+
+  progressBg: { height: 3, backgroundColor: RULE_SOFT, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: INK, borderRadius: 2 },
+
+  langToggleWrap: { flexDirection: 'row', backgroundColor: PAPER, borderRadius: 7, padding: 2, borderWidth: 1, borderColor: RULE },
+  langBtn: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 5 },
+  langBtnActive: { backgroundColor: INK },
+  langBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4, color: INK_SOFT, fontFamily: MONO },
+  langBtnTextActive: { color: PAPER_ELEV },
+
+  // ── Question body ──
   bodyScroll: { flex: 1 },
-  bodyContent: { padding: 12 },
-  chipsRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
-  chip: { borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, flexDirection: 'row', alignItems: 'center' },
-  chipGreen: { backgroundColor: '#ECFDF5', borderColor: '#86EFAC' },
-  chipTextGreen: { fontSize: 10, fontWeight: '700', color: '#065F46' },
-  chipRed: { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' },
-  chipTextRed: { fontSize: 10, fontWeight: '700', color: '#991B1B' },
-  chipPurple: { backgroundColor: '#F5F3FF', borderColor: '#C4B5FD' },
-  chipTextPurple: { fontSize: 10, fontWeight: '700', color: '#6D28D9', marginLeft: 3 },
-  
-  questionTextMain: { fontSize: 14, fontWeight: '600', color: '#0F172A', lineHeight: 22, marginBottom: 14 },
-  optionsWrap: { gap: 8, marginBottom: 16 },
-  optBtn: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1.5, backgroundColor: '#fff' },
-  optBubble: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  optBubbleText: { fontSize: 11, fontWeight: '800' },
-  optText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 20 },
+  bodyContent: { padding: 14 },
 
-  paletteContainer: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  paletteTitle: { fontSize: 11, fontWeight: '800', color: '#64748B', marginBottom: 8, letterSpacing: 0.5 },
-  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center' },
-  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 3 },
-  legendText: { fontSize: 9, color: '#94A3B8', fontWeight: '600' },
-  paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  paletteBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  paletteBtnText: { fontSize: 11, fontWeight: '800' },
+  qHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 8 },
+  qNumBadge: { borderWidth: 1.5, borderColor: INK, borderRadius: 7, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: PAPER_ELEV },
+  qNumBadgeText: { fontSize: 12, fontWeight: '800', color: INK, fontFamily: SERIF },
+
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexShrink: 1, justifyContent: 'flex-end' },
+  chip: { borderWidth: 1, paddingHorizontal: 7, paddingVertical: 3.5, borderRadius: 6, flexDirection: 'row', alignItems: 'center' },
+  chipCorrect: { backgroundColor: CORRECT_SOFT, borderColor: CORRECT_BORDER },
+  chipSeal: { backgroundColor: SEAL_SOFT, borderColor: SEAL_BORDER },
+  chipMarked: { backgroundColor: MARKED_SOFT, borderColor: MARKED_BORDER },
+  chipInk: { backgroundColor: RULE_SOFT, borderColor: RULE },
+  chipText: { fontSize: 10, fontWeight: '800', fontFamily: MONO },
+
+  questionTextMain: { fontSize: 15, fontWeight: '600', color: INK, lineHeight: 23, marginBottom: 14, fontFamily: SERIF },
+  qDivider: { height: 1, backgroundColor: RULE, marginBottom: 14 },
+
+  optionsWrap: { gap: 9, marginBottom: 16 },
+  optBtn: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: RULE, backgroundColor: PAPER_ELEV },
+  optBtnSelected: { borderColor: INK, backgroundColor: '#F1EEE6' },
+
+  bubble: { width: 27, height: 27, borderRadius: 14, borderWidth: 1.5, borderColor: INK_FAINT, alignItems: 'center', justifyContent: 'center', marginRight: 11, backgroundColor: PAPER },
+  bubbleSelected: { backgroundColor: INK, borderColor: INK },
+  bubbleText: { fontSize: 11.5, fontWeight: '800', color: INK_SOFT, fontFamily: MONO },
+  bubbleTextSelected: { color: PAPER_ELEV },
+
+  optText: { flex: 1, fontSize: 13.5, fontWeight: '500', lineHeight: 20, color: INK },
+  optTextSelected: { color: INK, fontWeight: '700' },
+
   bottomSpacer: { height: 6 },
 
-  footer: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingHorizontal: 12, paddingTop: 8, shadowColor: '#000', shadowOffset: { width: 0, height: -1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 3 },
-  footerTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  footerLeftActions: { flexDirection: 'row', gap: 6 },
-  secondaryBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff' },
-  secondaryBtnText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
-  submitBtnMini: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' },
-  submitBtnMiniText: { fontSize: 11, fontWeight: '800', color: '#065F46' },
-  navRow: { flexDirection: 'row', gap: 8 },
-  navBtnPrev: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#fff' },
-  navBtnPrevDisabled: { borderColor: '#F1F5F9', backgroundColor: '#F8FAFC' },
-  navBtnPrevText: { fontSize: 12, fontWeight: '800', marginLeft: 2 },
-  navBtnNext: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 12, gap: 5 },
-  navBtnNextText: { fontSize: 12, fontWeight: '800', color: '#fff' },
+  // ── Question palette (side sheet) ──
+  paletteBackdrop: { ...StyleSheet.absoluteFillObject, zIndex: 20 },
+  paletteBackdropPressable: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(28,43,66,0.40)' },
+  paletteSheet: {
+    position: 'absolute',
+    top: 0, right: 0, bottom: 0,
+    width: 300,
+    backgroundColor: PAPER_ELEV,
+    borderLeftWidth: 1,
+    borderLeftColor: RULE,
+    paddingTop: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  paletteHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
+  paletteTitle: { fontSize: 14, fontWeight: '800', color: INK, fontFamily: SERIF },
+  paletteCloseBtn: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER, borderWidth: 1, borderColor: RULE },
 
-  resultBannerWrap: { margin: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  resultBannerTop: { alignItems: 'center', paddingVertical: 24 },
-  scoreCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  scoreText: { fontSize: 30, fontWeight: '900', color: '#fff' },
-  scoreMsg: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: RULE },
+  legendItem: { flexDirection: 'row', alignItems: 'center' },
+  legendDot: { width: 9, height: 9, borderRadius: 2, marginRight: 4 },
+  legendText: { fontSize: 9.5, color: INK_SOFT, fontWeight: '600' },
+
+  paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  paletteBtn: { width: 47, height: 40, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  paletteBtnText: { fontSize: 11.5, fontWeight: '800', fontFamily: MONO },
+
+  // ── Footer toolbar ──
+  footer: { backgroundColor: PAPER_ELEV, borderTopWidth: 1, borderTopColor: RULE, paddingHorizontal: 14, paddingTop: 10 },
+  footerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
+  footerLeftActions: { flexDirection: 'row', gap: 7 },
+  secondaryBtn: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 7, borderWidth: 1, borderColor: RULE, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: PAPER },
+  secondaryBtnMarkedActive: { borderColor: MARKED_BORDER, backgroundColor: MARKED_SOFT },
+  secondaryBtnSavedActive: { borderColor: RULE, backgroundColor: RULE_SOFT },
+  secondaryBtnText: { fontSize: 11, fontWeight: '700', color: INK_SOFT },
+  submitBtnMini: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 7, borderWidth: 1, borderColor: CORRECT_BORDER, backgroundColor: CORRECT_SOFT },
+  submitBtnMiniText: { fontSize: 11, fontWeight: '800', color: CORRECT },
+
+  navRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  navBtnPrev: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: RULE, backgroundColor: PAPER_ELEV },
+  navBtnPrevDisabled: { borderColor: RULE_SOFT, backgroundColor: PAPER },
+  navBtnPrevText: { fontSize: 12.5, fontWeight: '800', marginLeft: 2 },
+  navBtnNext: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10, gap: 6 },
+  navBtnNextText: { fontSize: 12.5, fontWeight: '800', color: PAPER_ELEV },
+
+  // ── Result screen ──
+  resultBannerWrap: { margin: 14, marginBottom: 16, borderRadius: 14, backgroundColor: PAPER_ELEV, borderWidth: 1, borderColor: RULE, overflow: 'hidden' },
+  resultBannerTop: { alignItems: 'center', paddingVertical: 26, borderBottomWidth: 1, borderBottomColor: RULE },
+  scoreRing: { width: 92, height: 92, borderRadius: 46, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginBottom: 12, backgroundColor: PAPER },
+  scoreText: { fontSize: 28, fontWeight: '900', fontFamily: SERIF },
+  scoreTextPct: { fontSize: 15, fontWeight: '700' },
+  scoreMsgRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  scoreMsg: { fontWeight: '700', fontSize: 13.5 },
+
   statsRow: { flexDirection: 'row' },
   statBox: { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  statBorder: { borderRightWidth: 1, borderRightColor: '#E2E8F0' },
-  statVal: { fontSize: 20, fontWeight: '900' },
-  statLabel: { fontSize: 10, color: '#94A3B8', marginTop: 2, fontWeight: '600' },
-  infoRow: { flexDirection: 'row', marginHorizontal: 12, gap: 8, marginBottom: 12 },
-  infoCard: { flex: 1, backgroundColor: '#fff', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  infoCardText: { marginLeft: 6 },
-  infoCardLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '600' },
-  infoCardVal: { fontWeight: '800', color: '#0F172A', fontSize: 12 },
-  analysisSectionTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginHorizontal: 12, marginBottom: 8 },
-  analysisList: { marginHorizontal: 12, gap: 8, paddingBottom: 20 },
-  analysisCard: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', borderWidth: 1 },
-  analysisTopIndicator: { height: 3 },
-  analysisContent: { padding: 12 },
-  analysisHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  analysisQNum: { fontSize: 10, fontWeight: '800', color: '#94A3B8' },
-  analysisBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 12 },
-  analysisBadgeText: { fontSize: 10, fontWeight: '800' },
-  analysisQText: { fontSize: 12, fontWeight: '600', color: '#0F172A', lineHeight: 18, marginBottom: 8 },
+  statBorder: { borderRightWidth: 1, borderRightColor: RULE },
+  statVal: { fontSize: 18, fontWeight: '900', fontFamily: MONO },
+  statLabel: { fontSize: 9.5, color: INK_SOFT, marginTop: 3, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
+
+  infoRow: { flexDirection: 'row', marginHorizontal: 14, gap: 8, marginBottom: 16 },
+  infoCard: { flex: 1, backgroundColor: PAPER_ELEV, borderRadius: 10, padding: 11, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: RULE },
+  infoCardText: { marginLeft: 8 },
+  infoCardLabel: { fontSize: 9.5, color: INK_FAINT, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  infoCardVal: { fontWeight: '800', color: INK, fontSize: 12.5, marginTop: 1, fontFamily: MONO },
+
+  sectionRuleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 14, marginBottom: 10 },
+  sectionRuleTitle: { fontSize: 11.5, fontWeight: '800', color: INK, letterSpacing: 1, fontFamily: SERIF },
+  sectionRuleLine: { flex: 1, height: 1, backgroundColor: RULE },
+
+  analysisList: { marginHorizontal: 14, gap: 9, paddingBottom: 24 },
+  analysisCard: { flexDirection: 'row', backgroundColor: PAPER_ELEV, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: RULE },
+  analysisAccent: { width: 3 },
+  analysisContent: { flex: 1, padding: 12 },
+  analysisHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  qNumBadgeSm: { borderWidth: 1, borderColor: RULE, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  qNumBadgeSmText: { fontSize: 10, fontWeight: '800', color: INK_SOFT, fontFamily: SERIF },
+  analysisBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  analysisBadgeText: { fontSize: 9.5, fontWeight: '800', fontFamily: MONO, letterSpacing: 0.3 },
+  analysisQText: { fontSize: 12.5, fontWeight: '600', color: INK, lineHeight: 19, marginBottom: 9 },
   ansRow: { flexDirection: 'row', alignItems: 'center', padding: 9, borderRadius: 8, marginBottom: 5 },
   ansRowVal: { flex: 1, marginLeft: 7, fontSize: 12, fontWeight: '600' },
-  ansRowLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '600' },
-  expBox: { marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  expTitle: { fontSize: 10, fontWeight: '800', color: '#94A3B8', marginBottom: 3 },
-  expText: { fontSize: 11, color: '#64748B', lineHeight: 17 },
-  resultFooter: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingHorizontal: 12, paddingTop: 10 },
-  primaryBtn: { backgroundColor: '#3B82F6', paddingVertical: 12, borderRadius: 12, alignItems: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 },
-  primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 }
+  ansRowLabel: { fontSize: 9.5, color: INK_FAINT, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.2 },
+  expBox: { marginTop: 7, paddingTop: 8, paddingLeft: 10, borderTopWidth: 1, borderTopColor: RULE, borderLeftWidth: 2, borderLeftColor: MARKED_BORDER },
+  expTitle: { fontSize: 9.5, fontWeight: '800', color: MARKED, marginBottom: 3, letterSpacing: 0.5 },
+  expText: { fontSize: 11.5, color: INK_SOFT, lineHeight: 17, fontStyle: 'italic' },
+
+  resultFooter: { backgroundColor: PAPER_ELEV, borderTopWidth: 1, borderTopColor: RULE, paddingHorizontal: 14, paddingTop: 12 },
+  primaryBtn: { backgroundColor: INK, paddingVertical: 13, borderRadius: 11, alignItems: 'center' },
+  primaryBtnText: { color: PAPER_ELEV, fontWeight: '800', fontSize: 14 },
 });

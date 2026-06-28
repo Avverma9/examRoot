@@ -2,23 +2,38 @@ import nodemailer from "nodemailer";
 
 // Gmail SMTP transporter — uses App Password (not regular Gmail password)
 // App Password generate: Google Account → Security → 2-Step Verification → App Passwords
+const smtpUser = process.env.EMAIL_USER;
+const smtpPass = process.env.EMAIL_PASSWORD;
+
+if (!smtpUser || !smtpPass) {
+  console.warn("⚠️ EMAIL_USER or EMAIL_PASSWORD is missing. Email OTP delivery will fail.");
+}
+
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
   secure: true, // SSL
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: smtpUser,
+    pass: smtpPass,
   },
 });
+
+const ensureSmtpConfig = () => {
+  if (!smtpUser || !smtpPass) {
+    throw new Error("SMTP is not configured. Set EMAIL_USER and EMAIL_PASSWORD in server/.env");
+  }
+};
 
 // Function to send OTP email
 export const sendOTPEmail = async (email, otp) => {
   try {
+    ensureSmtpConfig();
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: smtpUser,
       to: email,
       subject: "ExamRoot - Your OTP for Login",
+      text: `Your ExamRoot OTP is ${otp}. It is valid for 10 minutes. Do not share it with anyone.`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0;">
@@ -52,10 +67,12 @@ export const sendOTPEmail = async (email, otp) => {
 // Function to send welcome email
 export const sendWelcomeEmail = async (email, name) => {
   try {
+    ensureSmtpConfig();
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: smtpUser,
       to: email,
       subject: "Welcome to ExamRoot!",
+      text: `Hello ${name}, welcome to ExamRoot!`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0;">

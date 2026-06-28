@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, TextInput } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, TextInput, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import { useDispatch, useSelector } from 'react-redux'
@@ -88,6 +88,13 @@ export default function TestSeriesScreen() {
             style={styles.card}
             activeOpacity={0.85}
           >
+            {/* Thumbnail Image or Icon */}
+            {item.thumbnail ? (
+              <View style={styles.thumbnailWrap}>
+                <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+              </View>
+            ) : null}
+
             {/* Top: Title + Badge */}
             <View style={styles.cardTop}>
               <View style={styles.cardIconWrap}>
@@ -170,6 +177,8 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 14, paddingBottom: 20 },
 
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 4, elevation: 2 },
+  thumbnailWrap: { width: '100%', height: 160, borderRadius: 12, overflow: 'hidden', marginBottom: 12, backgroundColor: '#F1F5F9' },
+  thumbnail: { width: '100%', height: '100%', resizeMode: 'cover' },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   cardIconWrap: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', lineHeight: 20, marginBottom: 3 },

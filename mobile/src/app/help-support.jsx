@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const APP_VERSION = '1.0.0';
 const SUPPORT_EMAIL = 'examrootofficial@gmail.com';
-const WHATSAPP_NUMBER = '919999999999'; // replace with real number
+const WHATSAPP_NUMBER = '7004198258'; // replace with real number
 
 const FAQS = [
   {

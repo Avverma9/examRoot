@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import {
@@ -25,6 +25,7 @@ const emptyQuestion = {
 }
 
 const emptyTest = {
+  group: '',
   title: '',
   description: '',
   duration: 60,
@@ -68,13 +69,19 @@ export default function TestSeries() {
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptySeries)
   const [testInput, setTestInput] = useState(emptyTest)
+  const [editingTestIndex, setEditingTestIndex] = useState(null)
   const [questionInput, setQuestionInput] = useState(emptyQuestion)
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null)
   const [bulkText, setBulkText] = useState('')
   const [bulkResult, setBulkResult] = useState(null)
   const [bulkError, setBulkError] = useState('')
   const [bulkInfo, setBulkInfo] = useState('')
+  const [testBulkText, setTestBulkText] = useState('')
+  const [testBulkResult, setTestBulkResult] = useState(null)
+  const [testBulkError, setTestBulkError] = useState('')
+  const [testBulkInfo, setTestBulkInfo] = useState('')
 
-  // ─── Generate modal state ─────────────────────────────────────────────────
+  // --- Generate modal state -------------------------------------------------
   const [generateModal, setGenerateModal] = useState(null) // { seriesId, seriesTitle, type: 'mock'|'practice' }
   const [genForm, setGenForm] = useState({
     title: '', description: '', duration: 60,
@@ -89,7 +96,7 @@ export default function TestSeries() {
 
   const seriesList = data?.data || []
 
-  // ─── Generate modal helpers ───────────────────────────────────────────────
+  // --- Generate modal helpers -----------------------------------------------
   const openGenerateModal = (series, type) => {
     setGenForm({
       title: `${series.title} — ${type === 'mock' ? 'Mock Test' : 'Practice Set'}`,
@@ -190,33 +197,33 @@ export default function TestSeries() {
         "questions": [
           {
             "question": "Who founded the Maurya Empire?",
-            "questionHi": "मौर्य साम्राज्य की स्थापना किसने की?",
+            "questionHi": "????? ????????? ?? ??????? ????? ???",
             "options": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
-            "optionsHi": ["अशोक", "चंद्रगुप्त मौर्य", "बिंदुसार", "बिंबिसार"],
+            "optionsHi": ["????", "?????????? ?????", "????????", "????????"],
             "correctAnswer": "Chandragupta Maurya",
-            "correctAnswerHi": "चंद्रगुप्त मौर्य",
+            "correctAnswerHi": "?????????? ?????",
             "explanation": "Chandragupta Maurya founded the Maurya Empire around 321 BC with help of Chanakya.",
-            "explanationHi": "चंद्रगुप्त मौर्य ने चाणक्य की सहायता से लगभग 321 ईसा पूर्व में मौर्य साम्राज्य की स्थापना की।"
+            "explanationHi": "?????????? ????? ?? ?????? ?? ?????? ?? ???? 321 ??? ????? ??? ????? ????????? ?? ??????? ???"
           },
           {
             "question": "The Battle of Plassey was fought in which year?",
-            "questionHi": "प्लासी का युद्ध किस वर्ष लड़ा गया था?",
+            "questionHi": "?????? ?? ????? ??? ???? ???? ??? ???",
             "options": ["1757", "1761", "1764", "1775"],
             "optionsHi": ["1757", "1761", "1764", "1775"],
             "correctAnswer": "1757",
             "correctAnswerHi": "1757",
             "explanation": "The Battle of Plassey was fought on 23 June 1757 between the British East India Company and Nawab of Bengal.",
-            "explanationHi": "प्लासी का युद्ध 23 जून 1757 को ब्रिटिश ईस्ट इंडिया कंपनी और बंगाल के नवाब के बीच लड़ा गया था।"
+            "explanationHi": "?????? ?? ????? 23 ??? 1757 ?? ??????? ???? ?????? ????? ?? ????? ?? ???? ?? ??? ???? ??? ???"
           },
           {
             "question": "Ashoka's Dhamma was written in which language?",
-            "questionHi": "अशोक के धम्म किस भाषा में लिखे गए थे?",
+            "questionHi": "???? ?? ???? ??? ???? ??? ???? ?? ???",
             "options": ["Sanskrit", "Pali", "Prakrit", "Hindi"],
-            "optionsHi": ["संस्कृत", "पालि", "प्राकृत", "हिंदी"],
+            "optionsHi": ["???????", "????", "???????", "?????"],
             "correctAnswer": "Pali",
-            "correctAnswerHi": "पालि",
+            "correctAnswerHi": "????",
             "explanation": "Ashoka's edicts were primarily written in Pali language using Brahmi script.",
-            "explanationHi": "अशोक के शिलालेख मुख्यतः ब्राह्मी लिपि में पालि भाषा में लिखे गए थे।"
+            "explanationHi": "???? ?? ??????? ??????? ???????? ???? ??? ???? ???? ??? ???? ?? ???"
           }
         ]
       },
@@ -229,23 +236,23 @@ export default function TestSeries() {
         "questions": [
           {
             "question": "Who built the Qutub Minar?",
-            "questionHi": "कुतुब मीनार का निर्माण किसने कराया?",
+            "questionHi": "????? ????? ?? ??????? ????? ??????",
             "options": ["Akbar", "Qutb ud-Din Aibak", "Humayun", "Aurangzeb"],
-            "optionsHi": ["अकबर", "कुतुबुद्दीन ऐबक", "हुमायूँ", "औरंगजेब"],
+            "optionsHi": ["????", "??????????? ???", "???????", "???????"],
             "correctAnswer": "Qutb ud-Din Aibak",
-            "correctAnswerHi": "कुतुबुद्दीन ऐबक",
+            "correctAnswerHi": "??????????? ???",
             "explanation": "Qutb ud-Din Aibak began the construction of Qutub Minar in 1193 AD.",
-            "explanationHi": "कुतुबुद्दीन ऐबक ने 1193 ईस्वी में कुतुब मीनार का निर्माण शुरू करवाया था।"
+            "explanationHi": "??????????? ??? ?? 1193 ????? ??? ????? ????? ?? ??????? ???? ?????? ???"
           },
           {
             "question": "Akbar introduced the Din-i-Ilahi religion in which year?",
-            "questionHi": "अकबर ने दीन-ए-इलाही धर्म की शुरुआत किस वर्ष में की?",
+            "questionHi": "???? ?? ???-?-????? ???? ?? ?????? ??? ???? ??? ???",
             "options": ["1570", "1575", "1582", "1590"],
             "optionsHi": ["1570", "1575", "1582", "1590"],
             "correctAnswer": "1582",
             "correctAnswerHi": "1582",
             "explanation": "Akbar introduced the Din-i-Ilahi in 1582, a syncretic religion blending elements of multiple faiths.",
-            "explanationHi": "अकबर ने 1582 में दीन-ए-इलाही की स्थापना की, जो कई धर्मों के तत्वों को मिलाकर बनाया गया एक समन्वयवादी धर्म था।"
+            "explanationHi": "???? ?? 1582 ??? ???-?-????? ?? ??????? ??, ?? ?? ?????? ?? ?????? ?? ?????? ????? ??? ?? ?????????? ???? ???"
           }
         ]
       },
@@ -258,25 +265,64 @@ export default function TestSeries() {
         "questions": [
           {
             "question": "Which is the highest peak in India?",
-            "questionHi": "भारत की सबसे ऊँची चोटी कौन सी है?",
+            "questionHi": "???? ?? ???? ???? ???? ??? ?? ???",
             "options": ["Mount Everest", "K2", "Kanchenjunga", "Nanda Devi"],
-            "optionsHi": ["माउंट एवरेस्ट", "K2", "कंचनजंगा", "नंदा देवी"],
+            "optionsHi": ["????? ???????", "K2", "????????", "???? ????"],
             "correctAnswer": "Kanchenjunga",
-            "correctAnswerHi": "कंचनजंगा",
+            "correctAnswerHi": "????????",
             "explanation": "Kanchenjunga (8,586 m) is the highest peak entirely within India.",
-            "explanationHi": "कंचनजंगा (8,586 मीटर) पूरी तरह से भारत के भीतर स्थित सबसे ऊँची चोटी है।"
+            "explanationHi": "???????? (8,586 ????) ???? ??? ?? ???? ?? ???? ????? ???? ???? ???? ???"
           },
           {
             "question": "The river Ganga originates from which glacier?",
-            "questionHi": "गंगा नदी किस ग्लेशियर से निकलती है?",
+            "questionHi": "???? ??? ??? ???????? ?? ?????? ???",
             "options": ["Siachen", "Gangotri", "Zemu", "Milam"],
-            "optionsHi": ["सियाचिन", "गंगोत्री", "जेमू", "मिलम"],
+            "optionsHi": ["???????", "????????", "????", "????"],
             "correctAnswer": "Gangotri",
-            "correctAnswerHi": "गंगोत्री",
+            "correctAnswerHi": "????????",
             "explanation": "The Ganga river originates from the Gangotri glacier in Uttarakhand.",
-            "explanationHi": "गंगा नदी उत्तराखंड में गंगोत्री ग्लेशियर से निकलती है।"
+            "explanationHi": "???? ??? ????????? ??? ???????? ???????? ?? ?????? ???"
           }
         ]
+      }
+    ]
+  }
+]`
+
+  const testBulkExample = `[
+  {
+    "group": "History",
+    "title": "History Test - 1",
+    "description": "Ancient India",
+    "duration": 30,
+    "isFree": true,
+    "isPublished": true,
+    "questions": [
+      {
+        "question": "Who founded the Maurya Empire?",
+        "questionHi": "Maurya Empire ki sthapna kisne ki?",
+        "options": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
+        "optionsHi": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
+        "correctAnswer": "Chandragupta Maurya",
+        "correctAnswerHi": "Chandragupta Maurya",
+        "explanation": "Chandragupta Maurya founded the Maurya Empire.",
+        "explanationHi": "Chandragupta Maurya ne Maurya Empire ki sthapna ki."
+      }
+    ]
+  },
+  {
+    "group": "Geography",
+    "title": "Geography Test - 1",
+    "description": "Physical Geography",
+    "duration": 25,
+    "isFree": false,
+    "isPublished": true,
+    "questions": [
+      {
+        "question": "Which is the highest peak in India?",
+        "options": ["Mount Everest", "K2", "Kanchenjunga", "Nanda Devi"],
+        "correctAnswer": "Kanchenjunga",
+        "explanation": "Kanchenjunga is the highest peak entirely within India."
       }
     ]
   }
@@ -302,6 +348,8 @@ export default function TestSeries() {
     setForm(emptySeries)
     setTestInput(emptyTest)
     setQuestionInput(emptyQuestion)
+    setEditingTestIndex(null)
+    setEditingQuestionIndex(null)
     setEditingId(null)
     setShowForm(false)
   }
@@ -314,6 +362,7 @@ export default function TestSeries() {
       : form.tags,
     tests: form.tests.map((test, index) => ({
       ...test,
+      group: typeof test.group === 'string' ? test.group.trim() : '',
       order: test.order ?? index,
       totalQuestions: test.questions?.length || 0,
     })),
@@ -339,13 +388,6 @@ export default function TestSeries() {
     }
   }
 
-  const addQuestionToTest = () => {
-    if (!questionInput.question || !questionInput.correctAnswer) return
-    const questions = [...testInput.questions, { ...questionInput }]
-    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
-    setQuestionInput(emptyQuestion)
-  }
-
   const removeQuestionFromTest = (index) => {
     const questions = testInput.questions.filter((_, i) => i !== index)
     setTestInput({ ...testInput, questions, totalQuestions: questions.length })
@@ -353,22 +395,103 @@ export default function TestSeries() {
 
   const addTest = () => {
     if (!testInput.title || testInput.questions.length === 0) return
-    const tests = [
-      ...form.tests,
-      {
-        ...testInput,
-        order: form.tests.length,
-        totalQuestions: testInput.questions.length,
-      },
-    ]
+    const nextTest = {
+      ...testInput,
+      group: testInput.group.trim(),
+      order: editingTestIndex != null ? form.tests[editingTestIndex]?.order ?? editingTestIndex : form.tests.length,
+      totalQuestions: testInput.questions.length,
+    }
+    const tests = editingTestIndex != null
+      ? form.tests.map((test, index) => (index === editingTestIndex ? nextTest : test))
+      : [...form.tests, nextTest]
     setForm({ ...form, tests, totalTests: tests.length })
     setTestInput(emptyTest)
     setQuestionInput(emptyQuestion)
+    setEditingTestIndex(null)
+    setEditingQuestionIndex(null)
+  }
+
+  const handleTestBulkImport = async () => {
+    setTestBulkError('')
+    setTestBulkResult(null)
+    setTestBulkInfo('')
+    if (!testBulkText.trim()) {
+      setTestBulkError('Please paste JSON array first')
+      return
+    }
+
+    try {
+      const items = parseBulkJson(testBulkText)
+      if (!Array.isArray(items)) throw new Error('Invalid JSON: expected an array of tests')
+
+      const normalizedTests = items.map((test, index) => ({
+        ...test,
+        group: typeof test.group === 'string' ? test.group.trim() : '',
+        order: test.order ?? form.tests.length + index,
+        totalQuestions: test.questions?.length || 0,
+      }))
+
+      const tests = [...form.tests, ...normalizedTests]
+      setForm({ ...form, tests, totalTests: tests.length })
+      setTestBulkResult({ totalInserted: normalizedTests.length, totalReceived: items.length })
+      setTestBulkText('')
+      setTestBulkInfo('Bulk tests added to current series draft')
+    } catch (err) {
+      setTestBulkError(err.data?.message || err.message || 'Bulk test import failed')
+    }
   }
 
   const removeTest = (index) => {
     const tests = form.tests.filter((_, i) => i !== index).map((test, i) => ({ ...test, order: i }))
     setForm({ ...form, tests, totalTests: tests.length })
+    if (editingTestIndex === index) {
+      setTestInput(emptyTest)
+      setQuestionInput(emptyQuestion)
+      setEditingTestIndex(null)
+      setEditingQuestionIndex(null)
+    }
+  }
+
+  const editTest = (index) => {
+    const test = form.tests[index]
+    if (!test) return
+    setTestInput({
+      ...emptyTest,
+      ...test,
+      group: test.group || '',
+      questions: test.questions || [],
+      totalQuestions: test.questions?.length || test.totalQuestions || 0,
+    })
+    setQuestionInput(emptyQuestion)
+    setEditingTestIndex(index)
+    setEditingQuestionIndex(null)
+  }
+
+  const addQuestionToTest = () => {
+    if (!questionInput.question || !questionInput.correctAnswer) return
+    const questions = [...testInput.questions, { ...questionInput }]
+    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
+    setQuestionInput(emptyQuestion)
+    setEditingQuestionIndex(null)
+  }
+
+  const saveQuestionEdit = () => {
+    if (!questionInput.question || !questionInput.correctAnswer) return
+    const questions = [...testInput.questions]
+    if (editingQuestionIndex == null || !questions[editingQuestionIndex]) return
+    questions[editingQuestionIndex] = { ...questionInput }
+    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
+    setQuestionInput(emptyQuestion)
+    setEditingQuestionIndex(null)
+  }
+
+  const removeQuestionFromTestDraft = (index) => {
+    const questions = testInput.questions.filter((_, i) => i !== index)
+    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
+    if (editingQuestionIndex === index) {
+      setQuestionInput(emptyQuestion)
+      setEditingQuestionIndex(null)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -392,12 +515,19 @@ export default function TestSeries() {
       ...emptySeries,
       ...series,
       tags: (series.tags || []).join(', '),
-      tests: series.tests || [],
+      tests: (series.tests || []).map((test, index) => ({
+        ...emptyTest,
+        ...test,
+        group: test.group || '',
+        order: test.order ?? index,
+      })),
       isPublished: series.isPublished !== false,
       isPaid: series.isPaid === true,
     })
     setEditingId(series._id)
     setShowForm(true)
+    setEditingTestIndex(null)
+    setEditingQuestionIndex(null)
   }
 
   const handleDelete = async (id) => {
@@ -434,7 +564,7 @@ export default function TestSeries() {
             className="btn btn-secondary"
             onClick={() => {
               setBulkText(bulkExample)
-              setBulkInfo('✅ Example loaded in textarea below — edit karo ya seedha Import karo')
+              setBulkInfo('? Example loaded in textarea below — edit karo ya seedha Import karo')
               setBulkError('')
               setBulkResult(null)
             }}
@@ -447,7 +577,7 @@ export default function TestSeries() {
             onClick={async () => {
               try {
                 await copyToClipboard(bulkExample)
-                setBulkInfo('✅ Example JSON clipboard me copy ho gaya!')
+                setBulkInfo('? Example JSON clipboard me copy ho gaya!')
                 setBulkError('')
               } catch (e) {
                 setBulkError('Copy failed: ' + (e.message || 'Unknown error'))
@@ -463,7 +593,7 @@ export default function TestSeries() {
             rows={12}
             value={bulkText}
             onChange={(e) => { setBulkText(e.target.value); setBulkInfo(''); setBulkResult(null); setBulkError('') }}
-            placeholder={`Paste karo ya "See Example" click karo:\n[\n  {\n    "title": "Lucent GK Test Series",\n    "bookName": "Lucent's General Knowledge",\n    "subject": "General Knowledge",\n    "category": "SSC",\n    "tests": [\n      {\n        "title": "History Test Series - 1",\n        "description": "History Page 1-3",\n        "duration": 30,\n        "isFree": true,\n        "questions": [\n          {\n            "question": "...",\n            "options": ["A","B","C","D"],\n            "correctAnswer": "A",\n            "explanation": "..."\n          }\n        ]\n      }\n    ]\n  }\n]`}
+            placeholder={`Paste karo ya "See Example" click karo:\n[\n  {\n    "title": "Lucent GK Test Series",\n    "bookName": "Lucent's General Knowledge",\n    "subject": "General Knowledge",\n    "category": "SSC",\n    "tests": [\n      {\n        "group": "History",\n        "title": "History Test Series - 1",\n        "description": "History Page 1-3",\n        "duration": 30,\n        "isFree": true,\n        "questions": [\n          {\n            "question": "...",\n            "options": ["A","B","C","D"],\n            "correctAnswer": "A",\n            "explanation": "..."\n          }\n        ]\n      }\n    ]\n  }\n]`}
           />
         </div>
         <button
@@ -556,9 +686,79 @@ export default function TestSeries() {
             <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
+          <div className="form-card" style={{ marginBottom: '16px', background: '#FCFCFD', border: '1px solid #E5E7EB' }}>
+            <h4 style={{ marginTop: 0, marginBottom: '6px' }}>Bulk Add Tests to This Series</h4>
+            <p className="page-subtitle" style={{ marginBottom: '12px' }}>
+              Har item ek child test hoga. Isme `group`, `title`, `duration`, aur questions sab aa sakte hain.
+            </p>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setTestBulkText(testBulkExample)
+                  setTestBulkInfo('Example loaded in textarea below')
+                  setTestBulkError('')
+                  setTestBulkResult(null)
+                }}
+              >
+                <i className="fa-solid fa-eye"></i> See Example
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(testBulkExample)
+                    setTestBulkInfo('Example copied to clipboard')
+                    setTestBulkError('')
+                  } catch (e) {
+                    setTestBulkError('Copy failed: ' + (e.message || 'Unknown error'))
+                  }
+                }}
+              >
+                <i className="fa-solid fa-copy"></i> Copy Example
+              </button>
+            </div>
+            <div className="form-group full">
+              <label>Tests JSON Array</label>
+              <textarea
+                rows={10}
+                value={testBulkText}
+                onChange={(e) => {
+                  setTestBulkText(e.target.value)
+                  setTestBulkInfo('')
+                  setTestBulkResult(null)
+                  setTestBulkError('')
+                }}
+                placeholder={`[\n  {\n    "group": "History",\n    "title": "History Test - 1",\n    "duration": 30,\n    "isFree": true,\n    "questions": [ ... ]\n  }\n]`}
+              />
+            </div>
+            <button type="button" className="btn btn-primary" onClick={handleTestBulkImport} disabled={isBulkLoading}>
+              {isBulkLoading ? 'Importing...' : 'Import Tests Into Series'}
+            </button>
+            {testBulkError && <div className="error-text">{testBulkError}</div>}
+            {testBulkInfo && <div className="success-text">{testBulkInfo}</div>}
+            {testBulkResult?.totalInserted != null && (
+              <div className="success-text">
+                Imported {testBulkResult.totalInserted} test(s)
+                {testBulkResult.totalReceived != null ? ` out of ${testBulkResult.totalReceived}` : ''}.
+              </div>
+            )}
+          </div>
+
           <div className="question-builder">
             <h4>Build Test ({form.tests.length} tests added)</h4>
+            {editingTestIndex != null && (
+              <div className="success-text" style={{ marginBottom: '12px' }}>
+                Editing test #{editingTestIndex + 1}
+              </div>
+            )}
             <div className="form-grid">
+              <div className="form-group">
+                <label>Test Group</label>
+                <input value={testInput.group} onChange={(e) => setTestInput({ ...testInput, group: e.target.value })} placeholder="History, Geography, etc." />
+              </div>
               <div className="form-group">
                 <label>Test Title</label>
                 <input value={testInput.title} onChange={(e) => setTestInput({ ...testInput, title: e.target.value })} />
@@ -616,8 +816,13 @@ export default function TestSeries() {
                 <input value={questionInput.explanation} onChange={(e) => setQuestionInput({ ...questionInput, explanation: e.target.value })} />
               </div>
             </div>
-            <button type="button" className="btn btn-secondary" onClick={addQuestionToTest}>
-              <i className="fa-solid fa-plus"></i> Add Question
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={editingQuestionIndex == null ? addQuestionToTest : saveQuestionEdit}
+            >
+              <i className={`fa-solid ${editingQuestionIndex == null ? 'fa-plus' : 'fa-floppy-disk'}`}></i>
+              {editingQuestionIndex == null ? ' Add Question' : ' Save Question'}
             </button>
 
             {testInput.questions.length > 0 && (
@@ -625,9 +830,21 @@ export default function TestSeries() {
                 {testInput.questions.map((question, index) => (
                   <div className="question-chip" key={index}>
                     <span>Q{index + 1}: {question.question.slice(0, 40)}...</span>
-                    <button type="button" onClick={() => removeQuestionFromTest(index)}>
-                      <i className="fa-solid fa-xmark"></i>
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuestionInput({ ...question })
+                          setEditingQuestionIndex(index)
+                        }}
+                        title="Edit question"
+                      >
+                        <i className="fa-solid fa-pen"></i>
+                      </button>
+                      <button type="button" onClick={() => removeQuestionFromTestDraft(index)} title="Remove question">
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -635,7 +852,8 @@ export default function TestSeries() {
 
             <div className="form-actions">
               <button type="button" className="btn btn-secondary" onClick={addTest}>
-                <i className="fa-solid fa-plus"></i> Add Test To Series
+                <i className={`fa-solid ${editingTestIndex == null ? 'fa-plus' : 'fa-floppy-disk'}`}></i>
+                {editingTestIndex == null ? ' Add Test To Series' : ' Save Test'}
               </button>
             </div>
 
@@ -643,10 +861,17 @@ export default function TestSeries() {
               <div className="question-list">
                 {form.tests.map((test, index) => (
                   <div className="question-chip" key={`${test.title}-${index}`}>
-                    <span>{index + 1}. {test.title} ({test.questions?.length || 0} questions)</span>
-                    <button type="button" onClick={() => removeTest(index)}>
-                      <i className="fa-solid fa-xmark"></i>
-                    </button>
+                    <span>
+                      {index + 1}. {test.group ? `${test.group} - ` : ''}{test.title} ({test.questions?.length || 0} questions, {test.duration} min)
+                    </span>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button type="button" onClick={() => editTest(index)} title="Edit test">
+                        <i className="fa-solid fa-pen"></i>
+                      </button>
+                      <button type="button" onClick={() => removeTest(index)} title="Remove test">
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -696,14 +921,14 @@ export default function TestSeries() {
                         onClick={() => openGenerateModal(series, 'mock')}
                         title="Generate Mock Test"
                       >
-                        ⚡
+                        ?
                       </button>
                       <button
                         className="btn-icon btn-generate-practice"
                         onClick={() => openGenerateModal(series, 'practice')}
                         title="Generate Practice Set"
                       >
-                        📝
+                        ??
                       </button>
                       <button className="btn-icon btn-edit" onClick={() => handleEdit(series)} title="Edit">
                         <i className="fa-solid fa-pen"></i>
@@ -725,7 +950,7 @@ export default function TestSeries() {
         </div>
       </div>
 
-      {/* ─── GENERATE MODAL ─────────────────────────────────────────────────── */}
+      {/* --- GENERATE MODAL --------------------------------------------------- */}
       {generateModal && (
         <div className="modal-overlay" onClick={closeGenerateModal}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
@@ -734,17 +959,17 @@ export default function TestSeries() {
             <div className="modal-header">
               <div>
                 <h3 className="modal-title">
-                  {generateModal.type === 'mock' ? '⚡ Generate Mock Test' : '📝 Generate Practice Set'}
+                  {generateModal.type === 'mock' ? '? Generate Mock Test' : '?? Generate Practice Set'}
                 </h3>
                 <p className="modal-subtitle">Source: {generateModal.seriesTitle}</p>
               </div>
-              <button className="modal-close" onClick={closeGenerateModal}>✕</button>
+              <button className="modal-close" onClick={closeGenerateModal}>?</button>
             </div>
 
             {/* Success state */}
             {genResult ? (
               <div className="gen-success">
-                <div className="gen-success-icon">✅</div>
+                <div className="gen-success-icon">?</div>
                 <h4>{genResult.message}</h4>
                 <p><strong>Title:</strong> {genResult.data?.title}</p>
                 <p><strong>Questions:</strong> {genResult.data?.totalQuestions}</p>
@@ -914,8 +1139,8 @@ export default function TestSeries() {
                     {(isMockGenerating || isPracticeGenerating)
                       ? 'Generating...'
                       : generateModal.type === 'mock'
-                        ? '⚡ Generate Mock Test'
-                        : '📝 Generate Practice Set'}
+                        ? '? Generate Mock Test'
+                        : '?? Generate Practice Set'}
                   </button>
                 </div>
               </>
@@ -926,3 +1151,4 @@ export default function TestSeries() {
     </div>
   )
 }
+

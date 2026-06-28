@@ -20,6 +20,7 @@ const questionSchema = new mongoose.Schema(
 
 const testSchema = new mongoose.Schema(
   {
+    group: { type: String, default: "", trim: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     duration: { type: Number, required: true }, // in minutes
@@ -42,6 +43,7 @@ const testSeriesSchema = new mongoose.Schema(
     subject: { type: String, required: true },
     category: { type: String, required: true },
     coverImage: { type: String, default: "" },
+    thumbnail: { type: String, default: "" }, // R2 public URL for series thumbnail
     language: { type: String, default: "English" },
     isPaid: { type: Boolean, default: false },
     price: { type: Number, default: 0 },

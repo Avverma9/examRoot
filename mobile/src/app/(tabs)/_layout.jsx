@@ -1,12 +1,31 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TabLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, isInitialized } = useAuth();
+
+  // ── Auth Guard: agar token nahi hai toh login pe bhejo ──────────────────
+  useEffect(() => {
+    if (!isInitialized) return;          // abhi check chal raha hai, wait karo
+    if (!isAuthenticated) {
+      router.replace('/login');          // token nahi → login
+    }
+  }, [isInitialized, isAuthenticated]);
+
+  // Jab tak init nahi hua, kuch mat dikhao
+  if (!isInitialized || !isAuthenticated) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    );
+  }
   
   return (
     <Tabs 

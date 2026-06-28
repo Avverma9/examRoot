@@ -21,7 +21,7 @@ app.use("/api/payment/webhook", express.raw({ type: "application/json" }), (req,
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 
 // Routes
 app.use("/api", routes);
@@ -55,6 +55,30 @@ connectDB();
 // Test Route
 app.get("/", (req, res) => {
   res.send("Server is running...");
+});
+
+// Central error handler so oversized/invalid payloads return JSON instead of HTML
+app.use((err, _req, res, next) => {
+  if (!err) return next();
+
+  if (err.type === "entity.too.large" || err instanceof SyntaxError && err.status === 413) {
+    return res.status(413).json({
+      success: false,
+      message: "Request body is too large. Please reduce the JSON size or split it into smaller parts.",
+    });
+  }
+
+  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid JSON syntax. Please check the pasted data and try again.",
+    });
+  }
+
+  return res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
 });
 
 // Start Server

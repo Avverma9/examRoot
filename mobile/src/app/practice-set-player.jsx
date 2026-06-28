@@ -12,9 +12,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSelector } from 'react-redux';
 import { Feather } from '@expo/vector-icons';
 import { preloadTranslations } from '../utils/translator';
 import { BASE_URL } from '../utils/baseUrl';
+import { toggleSavedQuestion, getSavedStatus } from '../services/savedQuestionsApi';
+import { saveProgress, completeProgress } from '../services/progressApi';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const LABELS = ['A', 'B', 'C', 'D', 'E'];
@@ -54,12 +57,27 @@ export default function PracticeSetPlayer() {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showAnswer, setShowAnswer] = useState({});
-  const [bookmarked, setBookmarked] = useState({});
+  const [bookmarked, setBookmarked] = useState({});   // { index: true/false }
+  const [savingBookmark, setSavingBookmark] = useState({}); // { index: true } while API call
   const [lang, setLang] = useState('EN');
   const [translatedQuestions, setTranslatedQuestions] = useState(questions);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isLoadingPractice, setIsLoadingPractice] = useState(false);
   const [loadError, setLoadError] = useState('');
+
+  const token = useSelector((state) => state.auth.token);
+
+  // ─── Load saved status for this resource ─────────────────────────────────
+  useEffect(() => {
+    if (!token || !parsedPractice?._id) return;
+    getSavedStatus(token, parsedPractice._id)
+      .then(({ savedIndices }) => {
+        const map = {};
+        savedIndices.forEach(idx => { map[idx] = true; });
+        setBookmarked(map);
+      })
+      .catch(() => {}); // non-critical
+  }, [token, parsedPractice?._id]);
 
   useEffect(() => {
     const shouldFetchDetails = parsedPractice?._id && questions.length === 0;
@@ -110,9 +128,54 @@ export default function PracticeSetPlayer() {
   function confirmExit() {
     Alert.alert('Exit Practice', 'Are you sure you want to exit?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Exit', style: 'destructive', onPress: () => router.back() },
+      {
+        text: 'Exit', style: 'destructive', onPress: () => {
+          // Save progress when leaving mid-way
+          if (token && parsedPractice?._id) {
+            saveProgress(token, {
+              resourceId: parsedPractice._id,
+              resourceType: 'practice_set',
+              resourceTitle: parsedPractice.title || '',
+              currentQuestion: current,
+              totalQuestions: questions.length,
+              answeredCount: Object.keys(answers).length,
+            });
+          }
+          router.back();
+        },
+      },
     ]);
   }
+
+  // ─── Bookmark toggle with real API ───────────────────────────────────────
+  const handleBookmark = async (index) => {
+    if (!token) return; // not logged in, skip
+    const q = translatedQuestions[index] || questions[index];
+    if (!q) return;
+
+    setSavingBookmark(prev => ({ ...prev, [index]: true }));
+    try {
+      const result = await toggleSavedQuestion(token, {
+        sourceType: 'practice_set',
+        resourceId: parsedPractice._id || parsedPractice.title || 'unknown',
+        resourceTitle: parsedPractice.title || '',
+        questionIndex: index,
+        question: q.question,
+        questionHi: q.questionHi || '',
+        options: q.options,
+        optionsHi: q.optionsHi || [],
+        correctAnswer: q.correctAnswer || '',
+        correctAnswerHi: q.correctAnswerHi || '',
+        explanation: q.explanation || '',
+        explanationHi: q.explanationHi || '',
+      });
+      setBookmarked(prev => ({ ...prev, [index]: result.saved }));
+    } catch (err) {
+      console.warn('Bookmark toggle failed:', err.message);
+    } finally {
+      setSavingBookmark(prev => ({ ...prev, [index]: false }));
+    }
+  };
 
   // ─── HELPERS ───
   const getCorrectIdx = q => {
@@ -226,10 +289,14 @@ export default function PracticeSetPlayer() {
             <Text style={styles.qNumText}>Q{current + 1}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => setBookmarked({ ...bookmarked, [current]: !bookmarked[current] })}
+            onPress={() => handleBookmark(current)}
+            disabled={!!savingBookmark[current]}
             style={[styles.bookmarkBtn, { backgroundColor: isBookmarked ? '#FEF3C7' : '#F8FAFC' }]}
           >
-            <Feather name="bookmark" size={14} color={isBookmarked ? '#F59E0B' : '#94A3B8'} />
+            {savingBookmark[current]
+              ? <ActivityIndicator size={14} color="#F59E0B" />
+              : <Feather name="bookmark" size={14} color={isBookmarked ? '#F59E0B' : '#94A3B8'} />
+            }
           </TouchableOpacity>
         </View>
 
@@ -341,6 +408,21 @@ export default function PracticeSetPlayer() {
               if (current < questions.length - 1) {
                 setCurrent(c => c + 1);
               } else {
+                // Mark as completed on server
+                if (token && parsedPractice?._id) {
+                  const score = getScore();
+                  const attempted = getAttempted();
+                  const acc = attempted > 0 ? Math.round((score / attempted) * 100) : 0;
+                  completeProgress(token, {
+                    resourceId: parsedPractice._id,
+                    resourceType: 'practice_set',
+                    status: 'completed',
+                    score,
+                    accuracy: acc,
+                    totalQuestions: questions.length,
+                    correctAnswers: score,
+                  });
+                }
                 Alert.alert(
                   'Practice Complete!',
                   `You scored ${getScore()} out of ${getAttempted()} attempted questions.`,
