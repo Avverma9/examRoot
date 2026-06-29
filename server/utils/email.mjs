@@ -1,36 +1,37 @@
 import nodemailer from "nodemailer";
 
-// Gmail SMTP transporter — uses App Password (not regular Gmail password)
-// App Password generate: Google Account → Security → 2-Step Verification → App Passwords
-const smtpUser = process.env.EMAIL_USER;
-const smtpPass = process.env.EMAIL_PASSWORD;
-
-if (!smtpUser || !smtpPass) {
-  console.warn("⚠️ EMAIL_USER or EMAIL_PASSWORD is missing. Email OTP delivery will fail.");
-}
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // SSL
-  auth: {
-    user: smtpUser,
-    pass: smtpPass,
-  },
+const getSmtpConfig = () => ({
+  user: process.env.EMAIL_USER,
+  pass: process.env.EMAIL_PASSWORD,
 });
 
 const ensureSmtpConfig = () => {
-  if (!smtpUser || !smtpPass) {
+  const config = getSmtpConfig();
+  if (!config.user || !config.pass) {
     throw new Error("SMTP is not configured. Set EMAIL_USER and EMAIL_PASSWORD in server/.env");
   }
+  return config;
 };
 
-// Function to send OTP email
+const createTransporter = () => {
+  const config = ensureSmtpConfig();
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: config.user,
+      pass: config.pass,
+    },
+  });
+};
+
 export const sendOTPEmail = async (email, otp) => {
   try {
-    ensureSmtpConfig();
+    const config = ensureSmtpConfig();
+    const transporter = createTransporter();
     const mailOptions = {
-      from: smtpUser,
+      from: config.user,
       to: email,
       subject: "ExamRoot - Your OTP for Login",
       text: `Your ExamRoot OTP is ${otp}. It is valid for 10 minutes. Do not share it with anyone.`,
@@ -48,28 +49,27 @@ export const sendOTPEmail = async (email, otp) => {
             <p style="color: #6b7280; font-size: 12px; margin-bottom: 10px;">This OTP is valid for 10 minutes only.</p>
             <p style="color: #6b7280; font-size: 12px; margin-bottom: 20px;">Do not share this OTP with anyone.</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-            <p style="color: #9ca3af; font-size: 12px;">If you didn't request this OTP, please ignore this email.</p>
+            <p style="color: #9ca3af; font-size: 12px;">If you did not request this OTP, please ignore this email.</p>
           </div>
         </div>
       `,
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log("✅ OTP Email sent to:", email);
+    console.log("OTP Email sent to:", email);
     return result;
   } catch (error) {
-    console.error("❌ Error sending OTP email:", error.message);
-    // Surface the actual nodemailer error to the caller
+    console.error("Error sending OTP email:", error.message);
     throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 };
 
-// Function to send welcome email
 export const sendWelcomeEmail = async (email, name) => {
   try {
-    ensureSmtpConfig();
+    const config = ensureSmtpConfig();
+    const transporter = createTransporter();
     const mailOptions = {
-      from: smtpUser,
+      from: config.user,
       to: email,
       subject: "Welcome to ExamRoot!",
       text: `Hello ${name}, welcome to ExamRoot!`,
@@ -80,21 +80,15 @@ export const sendWelcomeEmail = async (email, name) => {
           </div>
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb;">
             <p style="color: #1f2937; font-size: 16px;">Hello ${name},</p>
-            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-              Welcome to ExamRoot! We're excited to have you on board. 🎉
-            </p>
-            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-              With ExamRoot, you can:
-            </p>
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">Welcome to ExamRoot! We are excited to have you on board.</p>
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">With ExamRoot, you can:</p>
             <ul style="color: #6b7280; font-size: 14px;">
               <li>Take unlimited mock tests</li>
               <li>Practice with subject-wise sets</li>
               <li>Watch video lectures</li>
               <li>Track your progress</li>
             </ul>
-            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-              Happy learning!
-            </p>
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">Happy learning!</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
             <p style="color: #9ca3af; font-size: 12px;">Best regards,<br>ExamRoot Team</p>
           </div>
@@ -103,10 +97,10 @@ export const sendWelcomeEmail = async (email, name) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log("✅ Welcome email sent to:", email);
+    console.log("Welcome email sent to:", email);
     return result;
   } catch (error) {
-    console.error("❌ Error sending welcome email:", error.message);
+    console.error("Error sending welcome email:", error.message);
     throw new Error("Failed to send welcome email");
   }
 };

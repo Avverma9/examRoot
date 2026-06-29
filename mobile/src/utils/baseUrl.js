@@ -1,17 +1,21 @@
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 
-// ─── URL Resolution Priority ───────────────────────────────────────────────
-// 1. EXPO_PUBLIC_API_BASE_URL from .env (highest priority - use this in prod)
-// 2. Expo dev server host (auto-detected - works for physical devices)
-// 3. Android emulator fallback (10.0.2.2)
-// 4. localhost fallback (web/iOS simulator)
+// URL resolution priority:
+// 1. EXPO_PUBLIC_API_BASE_URL from .env
+// 2. Expo dev server host (physical device / dev client)
+// 3. Web current origin
 
-const ENV_URL = process.env.EXPO_PUBLIC_API_BASE_URL
+const normalizeApiUrl = (value) => {
+  if (!value) return null
+  const trimmed = value.trim().replace(/\/$/, '')
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
+}
+
+const ENV_URL = normalizeApiUrl(process.env.EXPO_PUBLIC_API_BASE_URL)
 
 const getExpoHost = () => {
   try {
-    // expo-constants v14+ (SDK 50+)
     const hostUri =
       Constants.expoConfig?.hostUri ||
       Constants.manifest2?.extra?.expoClient?.hostUri ||
@@ -23,30 +27,25 @@ const getExpoHost = () => {
 }
 
 export const BASE_URL = (() => {
-  // If .env has explicit URL, always use it
   if (ENV_URL) {
     console.log('🌐 API URL (from .env):', ENV_URL)
-    return ENV_URL.replace(/\/$/, '')
+    return ENV_URL
   }
 
-  // Web → localhost
-  if (Platform.OS === 'web') return 'http://localhost:3000/api'
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
+    const originUrl = normalizeApiUrl(window.location.origin)
+    console.log('🌐 API URL (web origin fallback):', originUrl)
+    return originUrl
+  }
 
-  // Try to auto-detect Expo dev server host (works for physical devices)
   const expoHost = getExpoHost()
   if (expoHost) {
-    console.log('🌐 API URL (auto-detected):', `http://${expoHost}:3000/api`)
-    return `http://${expoHost}:3000/api`
+    const detected = `http://${expoHost}:3000/api`
+    console.log('🌐 API URL (auto-detected):', detected)
+    return detected
   }
 
-  // Android emulator fallback
-  if (Platform.OS === 'android') {
-    console.log('🌐 API URL (emulator fallback): http://10.0.2.2:3000/api')
-    return 'http://10.0.2.2:3000/api'
-  }
-
-  console.log('🌐 API URL (localhost fallback)')
-  return 'http://localhost:3000/api'
+  throw new Error('EXPO_PUBLIC_API_BASE_URL is not set and no runtime API host could be detected')
 })()
 
 export const API_BASE_URL = BASE_URL

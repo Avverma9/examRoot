@@ -145,7 +145,7 @@ R2_PUBLIC_URL=https://pub-xxx.r2.dev
 
 ### Generate Presigned URL
 ```bash
-curl -X POST http://localhost:3000/api/test-series/507f1f77bcf86cd799439011/thumbnail-presign \
+curl -X POST https://backend.examroot.cc/api/test-series/507f1f77bcf86cd799439011/thumbnail-presign \
   -H "Content-Type: application/json" \
   -d '{
     "filename": "physics-series.jpg",
@@ -165,7 +165,7 @@ Response:
 
 ### Save Thumbnail URL
 ```bash
-curl -X PUT http://localhost:3000/api/test-series/507f1f77bcf86cd799439011/thumbnail \
+curl -X PUT https://backend.examroot.cc/api/test-series/507f1f77bcf86cd799439011/thumbnail \
   -H "Content-Type: application/json" \
   -d '{
     "thumbnailUrl": "https://pub-xxx.r2.dev/test-series-thumbnails/uuid.jpg"
@@ -174,7 +174,7 @@ curl -X PUT http://localhost:3000/api/test-series/507f1f77bcf86cd799439011/thumb
 
 ### Delete Thumbnail
 ```bash
-curl -X DELETE http://localhost:3000/api/test-series/507f1f77bcf86cd799439011/thumbnail
+curl -X DELETE https://backend.examroot.cc/api/test-series/507f1f77bcf86cd799439011/thumbnail
 ```
 
 ## Validation Rules

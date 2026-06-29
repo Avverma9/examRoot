@@ -1,6 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-
-const BASE_URL = 'http://localhost:3000/api'
+import { BASE_URL } from '../utils/baseUrl'
 
 export const bannerApi = createApi({
   reducerPath: 'bannerApi',

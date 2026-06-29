@@ -48,13 +48,14 @@ const safeParsePractice = value => {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function PracticeSetPlayer() {
   const insets = useSafeAreaInsets();
-  const { practice } = useLocalSearchParams();
+  const { practice, currentQuestion } = useLocalSearchParams();
   const router = useRouter();
 
   const [parsedPractice, setParsedPractice] = useState(() => safeParsePractice(practice));
   const questions = parsedPractice.questions || [];
+  const initialQuestion = Math.max(0, Number.parseInt(Array.isArray(currentQuestion) ? currentQuestion[0] : currentQuestion || '0', 10) || 0);
 
-  const [current, setCurrent] = useState(0);
+  const [current, setCurrent] = useState(initialQuestion);
   const [answers, setAnswers] = useState({});
   const [showAnswer, setShowAnswer] = useState({});
   const [bookmarked, setBookmarked] = useState({});   // { index: true/false }

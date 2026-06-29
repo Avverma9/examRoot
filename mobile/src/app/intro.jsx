@@ -16,7 +16,7 @@ export default function IntroScreen() {
 
   useEffect(() => {
     loadVideo();
-    const timer = setTimeout(handleFinish, 15000);
+    const timer = setTimeout(handleFinish, 9000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -81,25 +81,7 @@ export default function IntroScreen() {
         />
       )}
 
-      {/* Logo overlay */}
-      <LinearGradient
-        colors={['rgba(0,0,0,0.75)', 'transparent']}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220 }}
-        pointerEvents="none"
-      />
-      <View style={{ position: 'absolute', top: 60, left: 0, right: 0, alignItems: 'center' }}>
-        <Image
-          source={require('../../assets/app-logo.jpeg')}
-          style={{ width: 90, height: 90, borderRadius: 18 }}
-          resizeMode="cover"
-        />
-        
-        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 6, fontWeight: '500' }}>
-          Your Success, Our Mission
-        </Text>
-      </View>
-
-      {/* Bottom skip button */}
+      {/* Bottom fade only, so video is the first thing user sees */}
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.85)', 'rgba(0,0,0,0.97)']}
         style={{
@@ -109,7 +91,9 @@ export default function IntroScreen() {
         }}
         pointerEvents="box-none"
       >
-       
+        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '500' }}>
+          Loading ExamRoot...
+        </Text>
       </LinearGradient>
     </View>
   );

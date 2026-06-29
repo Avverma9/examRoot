@@ -1,5 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
-import { AuthRequest, makeRedirectUri, exchangeCodeAsync } from 'expo-auth-session';
+import { makeRedirectUri, exchangeCodeAsync, loadAsync, ResponseType } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -18,8 +18,8 @@ const WEB_CLIENT_ID     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
 // ── Redirect URI ──────────────────────────────────────────────────────────────
-// Android → com.googleusercontent.apps.CLIENTID:/oauth2redirect
-// Web     → http://localhost:8081
+// Android → native com.googleusercontent scheme
+// Web     → expo scheme
 const getRedirectUri = () => {
   if (Platform.OS === 'android' && ANDROID_CLIENT_ID) {
     const clientPrefix = ANDROID_CLIENT_ID.replace('.apps.googleusercontent.com', '');
@@ -27,7 +27,7 @@ const getRedirectUri = () => {
       native: `com.googleusercontent.apps.${clientPrefix}:/oauth2redirect`,
     });
   }
-  return makeRedirectUri({ scheme: 'examroot' });
+  return makeRedirectUri({ scheme: 'examroot', path: 'oauth2redirect' });
 };
 
 // Status codes for error handling
@@ -49,7 +49,7 @@ export const configureGoogleSignIn = async (clientId) => {
 export const signInWithGoogle = async () => {
   try {
     // Pick correct client ID for platform
-    const clientId = (Platform.OS === 'android' && ANDROID_CLIENT_ID)
+    const clientId = Platform.OS === 'android'
       ? ANDROID_CLIENT_ID
       : WEB_CLIENT_ID;
 
@@ -63,15 +63,17 @@ export const signInWithGoogle = async () => {
     console.log('Client ID    :', clientId);
     console.log('Redirect URI :', redirectUri);
 
-    const request = new AuthRequest({
+    const request = await loadAsync({
       clientId,
-      scopes:       ['openid', 'profile', 'email'],
+      scopes: ['openid', 'profile', 'email'],
       redirectUri,
-      responseType: 'code',
-      usePKCE:      true,
-    });
+      responseType: ResponseType.Code,
+      usePKCE: true,
+    }, discovery);
 
-    const result = await request.promptAsync(discovery, { showInRecents: true });
+    const result = await request.promptAsync(discovery, {
+      showInRecents: true,
+    });
 
     console.log('Result type:', result.type);
 
@@ -89,6 +91,9 @@ export const signInWithGoogle = async () => {
     }
 
     if (result.type === 'success') {
+      try {
+        WebBrowser.dismissBrowser();
+      } catch (_) {}
       console.log('Auth success! Params keys:', Object.keys(result.params));
       const { code, id_token, access_token } = result.params;
 

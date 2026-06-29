@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, Redirect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,12 +19,16 @@ export default function TabLayout() {
   }, [isInitialized, isAuthenticated]);
 
   // Jab tak init nahi hua, kuch mat dikhao
-  if (!isInitialized || !isAuthenticated) {
+  if (!isInitialized) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#ffffff" />
       </View>
     );
+  }
+  
+  if (!isAuthenticated) {
+    return <Redirect href="/login" />;
   }
   
   return (
@@ -74,7 +78,7 @@ export default function TabLayout() {
           headerTitle: () => (
             <View className="flex-row items-center">
               <Image 
-                source={require('../../../assets/app-logo.jpeg')}
+                source={require('../../../assets/app-logo.png')}
                 style={{ width: 32, height: 32, borderRadius: 6 }}
                 resizeMode="cover"
               />

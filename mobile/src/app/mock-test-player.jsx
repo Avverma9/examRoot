@@ -87,13 +87,14 @@ const safeParseTest = value => {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function MockTestPlayer() {
   const insets = useSafeAreaInsets();
-  const { test } = useLocalSearchParams();
+  const { test, currentQuestion } = useLocalSearchParams();
   const router = useRouter();
 
   const [parsedTest, setParsedTest] = useState(() => safeParseTest(test));
   const questions = parsedTest.questions || [];
+  const initialQuestion = Math.max(0, Number.parseInt(Array.isArray(currentQuestion) ? currentQuestion[0] : currentQuestion || '0', 10) || 0);
 
-  const [current, setCurrent] = useState(0);
+  const [current, setCurrent] = useState(initialQuestion);
   const [answers, setAnswers] = useState({});
   const [marked, setMarked] = useState({});      // "mark for review" (local only, exam feature)
   const [savedQ, setSavedQ] = useState({});      // actually saved to server

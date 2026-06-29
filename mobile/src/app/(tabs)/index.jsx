@@ -5,10 +5,10 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
 import AdBannerSlider from '../../components/AdBannerSlider';
-import AdMobBanner from '../../components/AdMobBanner';
 import { getCurrentUser } from '../../services/authApi';
 import { setUser } from '../../store/slices/authSlice';
 import { getRecentProgress } from '../../services/progressApi';
+import { BASE_URL } from '../../utils/baseUrl';
 
 export default function HomeScreen() {
   const user = useSelector((state) => state.auth.user);
@@ -21,6 +21,7 @@ export default function HomeScreen() {
   // ── Real "Continue Learning" data ─────────────────────────────────────────
   const [recentProgress, setRecentProgress] = useState([]);
   const [progressLoading, setProgressLoading] = useState(false);
+  const [resumeLoadingId, setResumeLoadingId] = useState(null);
 
   useEffect(() => {
     const fetchUserStats = async () => {
@@ -49,6 +50,82 @@ export default function HomeScreen() {
       .finally(() => setProgressLoading(false));
   }, [token]);
 
+  const handleContinueLearning = async (item) => {
+    if (!item?.resourceType || !item?.resourceId) return;
+
+    setResumeLoadingId(item.resourceId);
+    try {
+      if (item.resourceType === 'mock_test') {
+        let testData = null;
+
+        const exactRes = await fetch(`${BASE_URL}/mock/${item.resourceId}`);
+        const exactJson = await exactRes.json();
+        if (exactRes.ok) {
+          testData = exactJson?.data || exactJson;
+        }
+
+        if (!testData) {
+          const listRes = await fetch(`${BASE_URL}/mock`);
+          const listJson = await listRes.json();
+          const allTests = listJson?.data || [];
+          testData =
+            allTests.find((test) => String(test._id) === String(item.resourceId)) ||
+            allTests.find((test) => test.title === item.resourceTitle) ||
+            null;
+        }
+
+        if (!testData) {
+          router.push('/mock-test');
+          return;
+        }
+
+        router.push({
+          pathname: '/mock-test-player',
+          params: {
+            test: JSON.stringify(testData),
+            currentQuestion: String(item.metadata?.currentQuestion ?? 0),
+          },
+        });
+        return;
+      }
+
+      if (item.resourceType === 'practice_set') {
+        const res = await fetch(`${BASE_URL}/practice/${item.resourceId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || 'Failed to load practice set');
+        router.push({
+          pathname: '/practice-set-player',
+          params: {
+            practice: JSON.stringify(data?.data || data),
+            currentQuestion: String(item.metadata?.currentQuestion ?? 0),
+          },
+        });
+        return;
+      }
+
+      if (item.resourceType === 'video') {
+        const res = await fetch(`${BASE_URL}/videos/${item.resourceId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || 'Failed to load video');
+        router.push({
+          pathname: '/video-player',
+          params: {
+            video: JSON.stringify(data?.data || data),
+          },
+        });
+        return;
+      }
+
+      if (item.resourceType === 'test_series') {
+        router.push({ pathname: '/test-series-detail', params: { id: String(item.resourceId) } });
+      }
+    } catch (error) {
+      console.error('Failed to resume progress:', error);
+    } finally {
+      setResumeLoadingId(null);
+    }
+  };
+
   const quickLinks = [
     { id: 1, name: 'Mock Tests', icon: 'file-text', color: '#D97706', bg: 'bg-amber-100', route: '/mock-test' },
     { id: 2, name: 'Practice', icon: 'book-open', color: '#059669', bg: 'bg-green-100', route: '/practice-set' },
@@ -76,9 +153,6 @@ export default function HomeScreen() {
         {/* 1. AD BANNER SLIDER */}
         <View className="px-5 pt-6">
           <AdBannerSlider />
-          <View className="mt-4">
-            <AdMobBanner />
-          </View>
         </View>
 
         {/* 2. STATS CARD */}
@@ -150,10 +224,11 @@ export default function HomeScreen() {
               const answered = item.metadata?.answeredCount || 0;
               const total = item.totalQuestions || 1;
               const progressPct = Math.min(100, Math.round((answered / total) * 100));
+              const isLoadingResume = resumeLoadingId === item.resourceId;
               return (
                 <TouchableOpacity
+                  onPress={() => handleContinueLearning(item)}
                   key={item._id}
-                  onPress={() => router.push(cfg.route)}
                   className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-3"
                 >
                   <View className="flex-row items-center mb-4">
@@ -183,6 +258,18 @@ export default function HomeScreen() {
                     </View>
                     <Text className="text-xs font-bold text-gray-400">{progressPct}% done</Text>
                   </View>
+
+                  {isLoadingResume ? (
+                    <View className="mt-3 flex-row items-center justify-center bg-amber-50 rounded-xl py-2.5">
+                      <ActivityIndicator size="small" color="#F59E0B" />
+                      <Text className="ml-2 text-amber-700 text-sm font-bold">Opening resume point...</Text>
+                    </View>
+                  ) : (
+                    <View className="mt-3 flex-row items-center justify-center bg-amber-600 rounded-xl py-2.5">
+                      <Feather name="play" size={14} color="#fff" />
+                      <Text className="ml-2 text-white text-sm font-bold">Resume</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })

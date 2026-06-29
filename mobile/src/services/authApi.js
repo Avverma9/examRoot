@@ -1,12 +1,11 @@
 import { API_BASE_URL } from '../utils/baseUrl';
 
 // ─── Request OTP ──────────────────────────────────────────────────────────────
-export const requestOTP = async ({ email, phone }) => {
-  const body = email ? { email } : { phone };
+export const requestOTP = async ({ email }) => {
   const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ email }),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || 'Failed to send OTP');
@@ -14,12 +13,11 @@ export const requestOTP = async ({ email, phone }) => {
 };
 
 // ─── Resend OTP ───────────────────────────────────────────────────────────────
-export const resendOTP = async ({ email, phone }) => {
-  const body = email ? { email } : { phone };
+export const resendOTP = async ({ email }) => {
   const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ email }),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || 'Failed to resend OTP');
@@ -27,10 +25,8 @@ export const resendOTP = async ({ email, phone }) => {
 };
 
 // ─── Verify OTP & Login ───────────────────────────────────────────────────────
-export const verifyOTPAndLogin = async ({ email, phone, otp, name }) => {
-  const payload = { otp };
-  if (email) payload.email = email;
-  if (phone) payload.phone = phone;
+export const verifyOTPAndLogin = async ({ email, otp, name }) => {
+  const payload = { email, otp };
   if (name)  payload.name  = name;
 
   const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {

@@ -11,21 +11,13 @@ export default function Index() {
   useEffect(() => {
     if (!isInitialized) return;
 
-    // Small delay to avoid flash
-    const timer = setTimeout(() => {
-      if (isAuthenticated) {
-        // Token exists → go directly to tabs, skip login
-        router.replace('/(tabs)');
-      } else if (getHasSeenIntro()) {
-        // No token, intro seen → go to login
-        router.replace('/login');
-      } else {
-        // First launch → show intro
-        router.replace('/intro');
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
+    if (isAuthenticated) {
+      router.replace('/(tabs)');
+    } else if (getHasSeenIntro()) {
+      router.replace('/login');
+    } else {
+      router.replace('/intro');
+    }
   }, [isInitialized, isAuthenticated, router]);
 
   // Splash screen while checking auth

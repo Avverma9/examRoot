@@ -1,6 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-
-const BASE_URL = 'http://localhost:3000/api'
+import { BASE_URL } from '../utils/baseUrl'
 
 const safeResponseHandler = async (response) => {
   const text = await response.text()
@@ -63,7 +62,6 @@ export const testSeriesApi = createApi({
       }),
       invalidatesTags: ['TestSeries'],
     }),
-    // ─── Generate endpoints ───────────────────────────────────────────────────
     generateMockTest: builder.mutation({
       query: ({ seriesId, ...body }) => ({
         url: `/test-series/${seriesId}/generate-mock`,
@@ -80,7 +78,6 @@ export const testSeriesApi = createApi({
       }),
       invalidatesTags: ['PracticeSet'],
     }),
-    // ─── Thumbnail endpoints ──────────────────────────────────────────────────
     getThumbnailPresignedUrl: builder.mutation({
       query: ({ id, ...body }) => ({
         url: `/test-series/${id}/thumbnail-presign`,

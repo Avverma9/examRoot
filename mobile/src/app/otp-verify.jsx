@@ -19,10 +19,10 @@ export default function OTPVerifyScreen() {
 
   // Params from login.jsx
   const { channel, identifier, requiresName } = useLocalSearchParams();
-  // channel: 'email' | 'phone'
-  // identifier: actual email or phone string
+  // channel: email
+  // identifier: actual email string
 
-  const isEmail = channel === 'email';
+  const isEmail = true;
 
   const [otp,          setOtp]          = useState('');
   const [name,         setName]         = useState('');
@@ -60,7 +60,7 @@ export default function OTPVerifyScreen() {
       setLoading(true);
       const payload = {
         otp,
-        ...(isEmail ? { email: identifier } : { phone: identifier }),
+        email: identifier,
         ...(showName ? { name: name.trim() } : {}),
       };
 
@@ -85,8 +85,7 @@ export default function OTPVerifyScreen() {
     try {
       setResending(true);
       setMessage({ text: '', type: '' });
-      const payload = isEmail ? { email: identifier } : { phone: identifier };
-      await resendOTP(payload);
+      await resendOTP({ email: identifier });
       setTimer(OTP_EXPIRY_SECS);
       setOtp('');
       showMsg('OTP resent successfully', 'success');
@@ -118,7 +117,7 @@ export default function OTPVerifyScreen() {
               <Feather name="shield-check" size={36} color="#fff" />
             </View>
             <Text style={styles.bannerTitle}>
-              {isEmail ? 'Verify Email' : 'Verify Mobile'}
+              Verify Email
             </Text>
             <Text style={styles.bannerSub}>{maskedIdentifier}</Text>
           </View>
@@ -127,7 +126,7 @@ export default function OTPVerifyScreen() {
         {/* Form */}
         <View style={styles.form}>
           <Text style={styles.hint}>
-            We've sent a 6-digit OTP to your {isEmail ? 'email' : 'mobile number'}.
+            We've sent a 6-digit OTP to your email.
             Enter it below to continue.
           </Text>
 
