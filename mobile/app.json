@@ -18,7 +18,10 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "category": ["BROWSABLE", "DEFAULT"],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
           "data": [
             {
               "scheme": "examroot"
@@ -27,7 +30,10 @@
         },
         {
           "action": "VIEW",
-          "category": ["BROWSABLE", "DEFAULT"],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
           "data": [
             {
               "scheme": "com.googleusercontent.apps.1094183809507-020798lscgvs0geugvi07v9r581enm7d"
@@ -67,6 +73,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6af03f9c-9a85-45e0-961f-126db961b4f8"
+      }
+    },
+    "owner": "avverma9"
   }
 }

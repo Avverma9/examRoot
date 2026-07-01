@@ -1,74 +1,74 @@
 import { API_BASE_URL } from '../utils/baseUrl';
 
-// ─── Request OTP ──────────────────────────────────────────────────────────────
+const parseApiResponse = async (response, fallbackMessage) => {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || fallbackMessage);
+    return data;
+  }
+
+  const text = await response.text();
+  const shortText = text.replace(/\s+/g, ' ').trim().slice(0, 120);
+  const serverMessage = response.status >= 500
+    ? 'Backend server is not responding. Please try again in a moment.'
+    : fallbackMessage;
+
+  throw new Error(shortText ? `${serverMessage} (${response.status}: ${shortText})` : serverMessage);
+};
+
 export const requestOTP = async ({ email }) => {
   const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to send OTP');
-  return data;
+  return parseApiResponse(response, 'Failed to send OTP');
 };
 
-// ─── Resend OTP ───────────────────────────────────────────────────────────────
 export const resendOTP = async ({ email }) => {
   const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to resend OTP');
-  return data;
+  return parseApiResponse(response, 'Failed to resend OTP');
 };
 
-// ─── Verify OTP & Login ───────────────────────────────────────────────────────
 export const verifyOTPAndLogin = async ({ email, otp, name }) => {
   const payload = { email, otp };
-  if (name)  payload.name  = name;
+  if (name) payload.name = name;
 
   const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to verify OTP');
-  return data;
+  return parseApiResponse(response, 'Failed to verify OTP');
 };
 
-// ─── Google Login ─────────────────────────────────────────────────────────────
 export const googleLoginApi = async (idToken) => {
   const response = await fetch(`${API_BASE_URL}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Google login failed');
-  return data; // { success, token, user }
+  return parseApiResponse(response, 'Google login failed');
 };
 
-// ─── Get current user ─────────────────────────────────────────────────────────
 export const getCurrentUser = async (token) => {
   const response = await fetch(`${API_BASE_URL}/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to get user');
-  return data;
+  return parseApiResponse(response, 'Failed to get user');
 };
 
-// ─── Update profile ───────────────────────────────────────────────────────────
 export const updateProfile = async (token, updates) => {
   const response = await fetch(`${API_BASE_URL}/auth/profile`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(updates),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Failed to update profile');
-  return data;
+  return parseApiResponse(response, 'Failed to update profile');
 };

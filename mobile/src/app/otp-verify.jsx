@@ -114,7 +114,7 @@ export default function OTPVerifyScreen() {
           </TouchableOpacity>
           <View style={styles.bannerContent}>
             <View style={styles.shieldWrap}>
-              <Feather name="shield-check" size={36} color="#fff" />
+              <Feather name="shield" size={36} color="#fff" />
             </View>
             <Text style={styles.bannerTitle}>
               Verify Email

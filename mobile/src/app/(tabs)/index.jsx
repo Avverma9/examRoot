@@ -4,7 +4,6 @@ import { Feather } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
-import AdBannerSlider from '../../components/AdBannerSlider';
 import { getCurrentUser } from '../../services/authApi';
 import { setUser } from '../../store/slices/authSlice';
 import { getRecentProgress } from '../../services/progressApi';
@@ -150,12 +149,7 @@ export default function HomeScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-50" showsVerticalScrollIndicator={false}>
         
-        {/* 1. AD BANNER SLIDER */}
-        <View className="px-5 pt-6">
-          <AdBannerSlider />
-        </View>
-
-        {/* 2. STATS CARD */}
+        {/* Stats Card */}
         <View className="px-5 mb-6">
           <View className="bg-white rounded-2xl p-5 flex-row justify-between items-center shadow-md border border-gray-100">
             <View className="items-center flex-1 border-r border-gray-100">
@@ -176,7 +170,7 @@ export default function HomeScreen() {
 
         <View className="px-5">
           
-          {/* 3. QUICK SHORTCUTS (GRID) */}
+          {/* Quick Shortcuts (Grid) */}
           <Text className="text-lg font-extrabold text-gray-900 mb-4 tracking-tight">Explore Categories</Text>
           <View className="flex-row flex-wrap justify-between mb-4">
             {quickLinks.map((link) => (
@@ -195,7 +189,7 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* 4. CONTINUE LEARNING (REAL DATA) */}
+          {/* Continue Learning (Real Data) */}
           <View className="flex-row justify-between items-end mb-4">
             <Text className="text-lg font-extrabold text-gray-900 tracking-tight">Continue Learning</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)')}>
@@ -275,7 +269,7 @@ export default function HomeScreen() {
             })
           )}
 
-          {/* 5. RECOMMENDED MOCK TESTS (HORIZONTAL SCROLL) */}
+          {/* Recommended Mock Tests (Horizontal Scroll) */}
           <View className="flex-row justify-between items-end mb-4">
             <Text className="text-lg font-extrabold text-gray-900 tracking-tight">Recommended Tests</Text>
             <TouchableOpacity onPress={() => router.push('/mock-test')}>
