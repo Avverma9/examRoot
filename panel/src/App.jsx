@@ -8,6 +8,7 @@ import PracticeSets from './pages/PracticeSets'
 import MockTests from './pages/MockTests'
 import TestSeries from './pages/TestSeries'
 import Banners from './pages/Banners'
+import GenerateQuestions from './pages/GenerateQuestions'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 
@@ -23,6 +24,7 @@ function App() {
             <Route path="practice" element={<PracticeSets />} />
             <Route path="mock-tests" element={<MockTests />} />
             <Route path="test-series" element={<TestSeries />} />
+            <Route path="generate-questions" element={<GenerateQuestions />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>

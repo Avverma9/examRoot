@@ -12,6 +12,21 @@ const generateOTP = () =>
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[6-9]\d{9}$/; // Indian 10-digit mobile
+const normalizeEmail = (value) => value.trim().toLowerCase();
+const findUserByIdentifier = async ({ email, phone }) => {
+  if (email) {
+    const normalizedEmail = normalizeEmail(email);
+    return User.findOne({
+      email: normalizedEmail,
+    });
+  }
+
+  if (phone) {
+    return User.findOne({ phone });
+  }
+
+  return null;
+};
 
 const makeJWT = (user) =>
   jwt.sign(
@@ -51,7 +66,7 @@ export const requestOTP = async (req, res) => {
     }
 
     const isEmailFlow = !!email;
-    const identifier  = isEmailFlow ? email.toLowerCase() : phone;
+    const identifier  = isEmailFlow ? normalizeEmail(email) : phone;
 
     // â”€â”€ Check if user exists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const existingUser = isEmailFlow
@@ -119,7 +134,7 @@ export const verifyOTPAndLogin = async (req, res) => {
     if (!email && !phone) return res.status(400).json({ success: false, message: "Email or phone is required" });
 
     const isEmailFlow = !!email;
-    const identifier  = isEmailFlow ? email.toLowerCase() : phone;
+    const identifier  = isEmailFlow ? normalizeEmail(email) : phone;
 
     // â”€â”€ Find OTP record in DB (both flows store in DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const otpRecord = isEmailFlow
@@ -152,9 +167,7 @@ export const verifyOTPAndLogin = async (req, res) => {
     await OTP.deleteOne({ _id: otpRecord._id });
 
     // â”€â”€ Find or create user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    let user = isEmailFlow
-      ? await User.findOne({ email: identifier })
-      : await User.findOne({ phone: identifier });
+    let user = await findUserByIdentifier({ email, phone });
 
     if (!user) {
       if (!name || !name.trim()) {
@@ -168,7 +181,16 @@ export const verifyOTPAndLogin = async (req, res) => {
       if (isEmailFlow) createData.email = identifier;
       else             createData.phone = identifier;
 
-      user = await User.create(createData);
+      try {
+        user = await User.create(createData);
+      } catch (createError) {
+        // Another request may have created the same email/phone in parallel.
+        if (createError?.code === 11000) {
+          user = await findUserByIdentifier({ email, phone });
+        } else {
+          throw createError;
+        }
+      }
 
       // Send welcome email if we have an email address
       if (user.email) {
@@ -453,11 +475,12 @@ export const googleLogin = async (req, res) => {
     if (!email) return res.status(400).json({ success: false, message: "Email not found in Google token" });
 
     // Find or create user
-    let user = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = normalizeEmail(email);
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       user = await User.create({
-        email:        email.toLowerCase(),
+        email:        normalizedEmail,
         name:         name || email.split("@")[0],
         profileImage: picture || "",
         googleId,

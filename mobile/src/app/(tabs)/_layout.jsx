@@ -125,7 +125,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="test-series"
         options={{
-          title: 'Tests',
+          title: 'Test Series',
           headerTitle: 'Book Test Series',
           tabBarIcon: ({ color }) => <Feather name="book" size={24} color={color} />,
         }}

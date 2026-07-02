@@ -1,32 +1,312 @@
-[
-  {
-    "group": "Subject name (e.g., Geography, History, Science)",
-    "title": "Test title (e.g., Geography Test - 1)",
-    "description": "Short meaningful description of the test",
-    "duration": 60,
-    "isFree": true,
-    "isPublished": true,
-    "questions": [
-      {
-        "question": "Question in English",
-        "questionHi": "Same question translated in Hindi",
-        "options": [
-          "Option 1 in English",
-          "Option 2 in English",
-          "Option 3 in English",
-          "Option 4 in English"
-        ],
-        "optionsHi": [
-          "Option 1 in Hindi",
-          "Option 2 in Hindi",
-          "Option 3 in Hindi",
-          "Option 4 in Hindi"
-        ],
-        "correctAnswer": "Exact matching correct option from options",
-        "correctAnswerHi": "Exact matching correct option from optionsHi",
-        "explanation": "Explanation of why the answer is correct in English",
-        "explanationHi": "Explanation of why the answer is correct in Hindi"
-      }
-    ]
-  }
-]
+{
+  "0": {
+    "group": "Geography",
+    "title": "Moon and Solar System Data",
+    "description": "Comprehensive test on the Moon, dwarf planets, planetary statistics, and minor solar system bodies.",
+    "duration": "60",
+    "isFree": "true",
+    "isPublished": "true",
+    "questions": []
+  },
+  "questions": [
+    {
+      "question": "What is the study of the surface and internal condition of the Moon called?",
+      "questionHi": "चन्द्रमा की सतह और उसकी आन्तरिक स्थिति का अध्ययन करने वाला विज्ञान क्या कहलाता है?",
+      "options": [
+        "Selenology",
+        "Cosmology",
+        "Geology",
+        "Astronomy"
+      ],
+      "optionsHi": [
+        "सेलेनोलोजी",
+        "कॉस्मोलॉजी",
+        "जियोलॉजी",
+        "एस्ट्रोनॉमी"
+      ],
+      "correctAnswer": "Selenology",
+      "correctAnswerHi": "सेलेनोलोजी",
+      "explanation": "The study of the Moon's surface and internal structure is called Selenology.",
+      "explanationHi": "चन्द्रमा की सतह और उसकी आन्तरिक स्थिति का अध्ययन करने वाला विज्ञान सेलेनोलोजी कहलाता है।"
+    },
+    {
+      "question": "What are the plains of dust on the Moon called?",
+      "questionHi": "चन्द्रमा पर धूल के मैदान को क्या कहते हैं?",
+      "options": [
+        "Sea of Tranquility",
+        "Ocean of Storms",
+        "Sea of Serenity",
+        "Sea of Clouds"
+      ],
+      "optionsHi": [
+        "शान्ति सागर",
+        "तूफानों का महासागर",
+        "सेरेनिटी का सागर",
+        "बादलों का सागर"
+      ],
+      "correctAnswer": "Sea of Tranquility",
+      "correctAnswerHi": "शान्ति सागर",
+      "explanation": "The plains of dust on the Moon are called the Sea of Tranquility (शान्ति सागर).",
+      "explanationHi": "चन्द्रमा पर धूल के मैदान को शान्ति सागर कहते हैं। यह चन्द्रमा का पिछला भाग है, जो अंधकारमय होता है।"
+    },
+    {
+      "question": "Where is the 'Sea of Tranquility' located on the Moon?",
+      "questionHi": "शान्ति सागर चन्द्रमा के किस भाग में स्थित है?",
+      "options": [
+        "Front side",
+        "Back side",
+        "North pole",
+        "South pole"
+      ],
+      "optionsHi": [
+        "अग्र भाग",
+        "पिछला भाग",
+        "उत्तरी ध्रुव",
+        "दक्षिणी ध्रुव"
+      ],
+      "correctAnswer": "Back side",
+      "correctAnswerHi": "पिछला भाग",
+      "explanation": "The Sea of Tranquility is located on the back side of the Moon, which is dark.",
+      "explanationHi": "शान्ति सागर चन्द्रमा का पिछला भाग है, जो अंधकारमय होता है।"
+    },
+    {
+      "question": "Which is the highest mountain on the Moon?",
+      "questionHi": "चन्द्रमा का उच्चतम पर्वत कौन सा है?",
+      "options": [
+        "Leibnitz Mountain",
+        "Mount Everest",
+        "Olympus Mons",
+        "Maxwell Montes"
+      ],
+      "optionsHi": [
+        "लीवनिट्ज पर्वत",
+        "माउंट एवरेस्ट",
+        "ओलंपस मॉन्स",
+        "मैक्सवेल मोंटेस"
+      ],
+      "correctAnswer": "Leibnitz Mountain",
+      "correctAnswerHi": "लीवनिट्ज पर्वत",
+      "explanation": "Leibnitz Mountain, located on the south pole of the Moon, is the highest mountain on the Moon.",
+      "explanationHi": "चन्द्रमा के दक्षिणी ध्रुव पर स्थित लीवनिट्ज पर्वत चन्द्रमा का उच्चतम पर्वत है।"
+    },
+    {
+      "question": "What is the height of Leibnitz Mountain on the Moon?",
+      "questionHi": "चन्द्रमा पर स्थित लीवनिट्ज पर्वत की ऊँचाई कितनी है?",
+      "options": [
+        "35,000 feet (10,668 meters)",
+        "29,029 feet (8,848 meters)",
+        "40,000 feet (12,192 meters)",
+        "25,000 feet (7,620 meters)"
+      ],
+      "optionsHi": [
+        "35,000 फीट (10,668 मीटर)",
+        "29,029 फीट (8,848 मीटर)",
+        "40,000 फीट (12,192 मीटर)",
+        "25,000 फीट (7,620 मीटर)"
+      ],
+      "correctAnswer": "35,000 feet (10,668 meters)",
+      "correctAnswerHi": "35,000 फीट (10,668 मीटर)",
+      "explanation": "Leibnitz Mountain is 35,000 feet (10,668 meters) high.",
+      "explanationHi": "लीवनिट्ज पर्वत की ऊँचाई 35,000 फीट (10,668 मीटर) है।"
+    },
+    {
+      "question": "Which celestial body is also known as a 'fossil planet'?",
+      "questionHi": "किस खगोलीय पिंड को 'जीवाश्म ग्रह' भी कहा जाता है?",
+      "options": [
+        "Moon",
+        "Pluto",
+        "Ceres",
+        "Mercury"
+      ],
+      "optionsHi": [
+        "चन्द्रमा",
+        "यम (Pluto)",
+        "सेरस",
+        "बुध"
+      ],
+      "correctAnswer": "Moon",
+      "correctAnswerHi": "चन्द्रमा",
+      "explanation": "The Moon is also referred to as a fossil planet.",
+      "explanationHi": "चन्द्रमा को जीवाश्म ग्रह भी कहा जाता है।"
+    },
+    {
+      "question": "How long does the Moon take to complete one revolution around the Earth?",
+      "questionHi": "चन्द्रमा पृथ्वी की एक परिक्रमा लगभग कितने समय में पूरी करता है?",
+      "options": [
+        "27 days 8 hours",
+        "29 days 12 hours",
+        "30 days",
+        "28 days"
+      ],
+      "optionsHi": [
+        "27 दिन 8 घंटे",
+        "29 दिन 12 घंटे",
+        "30 दिन",
+        "28 दिन"
+      ],
+      "correctAnswer": "27 days 8 hours",
+      "correctAnswerHi": "27 दिन 8 घंटे",
+      "explanation": "The Moon completes one revolution around the Earth in approximately 27 days and 8 hours.",
+      "explanationHi": "चन्द्रमा पृथ्वी की एक परिक्रमा लगभग 27 दिन 8 घंटे में पूरी करता है।"
+    },
+    {
+      "question": "What percentage of the Moon's surface is visible from the Earth?",
+      "questionHi": "पृथ्वी से चन्द्रमा का कितना प्रतिशत भाग देखा जा सकता है?",
+      "options": [
+        "57%",
+        "50%",
+        "43%",
+        "65%"
+      ],
+      "optionsHi": [
+        "57%",
+        "50%",
+        "43%",
+        "65%"
+      ],
+      "correctAnswer": "57%",
+      "correctAnswerHi": "57%",
+      "explanation": "Due to synchronous rotation, only about 57% of the Moon's surface is visible from Earth.",
+      "explanationHi": "पृथ्वी से चन्द्रमा का केवल 57% भाग ही देखा जा सकता है।"
+    },
+    {
+      "question": "What angle does the Moon's axis make with the Earth's axis?",
+      "questionHi": "चन्द्रमा का अक्ष तल पृथ्वी के अक्ष के साथ कितने डिग्री का कोण बनाता है?",
+      "options": [
+        "58.48°",
+        "23.5°",
+        "66.5°",
+        "45°"
+      ],
+      "optionsHi": [
+        "58.48°",
+        "23.5°",
+        "66.5°",
+        "45°"
+      ],
+      "correctAnswer": "58.48°",
+      "correctAnswerHi": "58.48°",
+      "explanation": "The Moon's axis makes an angle of 58.48° with the Earth's axis.",
+      "explanationHi": "चन्द्रमा का अक्ष तल पृथ्वी के अक्ष के साथ 58.48° का अक्ष कोण बनाता है।"
+    },
+    {
+      "question": "What is the shape of the Moon's orbital path around the Earth?",
+      "questionHi": "चन्द्रमा का परिक्रमण पथ किस आकार का है?",
+      "options": [
+        "Elliptical",
+        "Circular",
+        "Parabolic",
+        "Hyperbolic"
+      ],
+      "optionsHi": [
+        "दीर्घ वृत्ताकार",
+        "वृत्ताकार",
+        "परवलयाकार",
+        "अतिपरवलयाकार"
+      ],
+      "correctAnswer": "Elliptical",
+      "correctAnswerHi": "दीर्घ वृत्ताकार",
+      "explanation": "The orbital path of the Moon around the Earth is elliptical.",
+      "explanationHi": "चन्द्रमा का परिक्रमण पथ दीर्घ वृत्ताकार है।"
+    },
+    {
+      "question": "What is the diameter of the Moon?",
+      "questionHi": "चन्द्रमा का व्यास कितना है?",
+      "options": [
+        "3,480 km",
+        "4,878 km",
+        "6,796 km",
+        "12,756 km"
+      ],
+      "optionsHi": [
+        "3,480 किमी",
+        "4,878 किमी",
+        "6,796 किमी",
+        "12,756 किमी"
+      ],
+      "correctAnswer": "3,480 km",
+      "correctAnswerHi": "3,480 किमी",
+      "explanation": "The diameter of the Moon is 3,480 km.",
+      "explanationHi": "चन्द्रमा का व्यास 3,480 किमी है।"
+    },
+    {
+      "question": "The mass of the Moon is approximately what fraction of the Earth's mass?",
+      "questionHi": "चन्द्रमा का द्रव्यमान पृथ्वी के द्रव्यमान का लगभग कितना भाग है?",
+      "options": [
+        "1/81",
+        "1/6",
+        "1/100",
+        "1/50"
+      ],
+      "optionsHi": [
+        "1/81",
+        "1/6",
+        "1/100",
+        "1/50"
+      ],
+      "correctAnswer": "1/81",
+      "correctAnswerHi": "1/81",
+      "explanation": "The mass of the Moon is approximately 1/81 of the Earth's mass.",
+      "explanationHi": "चन्द्रमा का द्रव्यमान, पृथ्वी के द्रव्यमान का लगभग 1/81 है।"
+    },
+    {
+      "question": "What is the average distance between the Earth and the Moon?",
+      "questionHi": "चन्द्रमा एवं पृथ्वी के बीच की औसतन दूरी कितनी है?",
+      "options": [
+        "3,84,365 km",
+        "1,50,000 km",
+        "4,00,000 km",
+        "3,50,000 km"
+      ],
+      "optionsHi": [
+        "3,84,365 किमी",
+        "1,50,000 किमी",
+        "4,00,000 किमी",
+        "3,50,000 किमी"
+      ],
+      "correctAnswer": "3,84,365 km",
+      "correctAnswerHi": "3,84,365 किमी",
+      "explanation": "The average distance between the Earth and the Moon is 3,84,365 km.",
+      "explanationHi": "चन्द्रमा एवं पृथ्वी के बीच की औसतन दूरी 3,84,365 किमी है।"
+    },
+    {
+      "question": "What is the duration of a Synodic Month (चन्द्रमास)?",
+      "questionHi": "चन्द्रमास या साइनोडिक मास की अवधि कितनी होती है?",
+      "options": [
+        "29.53 days (29 days, 12 hours, 44 minutes, 2.8 seconds)",
+        "27.32 days (27 days, 7 hours, 43 minutes, 11.6 seconds)",
+        "30 days",
+        "28 days"
+      ],
+      "optionsHi": [
+        "29.53 दिन (29 दिन, 12 घंटे, 44 मिनट और 2.8 सेकंड)",
+        "27.32 दिन (27 दिन, 7 घंटे, 43 मिनट और 11.6 सेकंड)",
+        "30 दिन",
+        "28 दिन"
+      ],
+      "correctAnswer": "29.53 days (29 days, 12 hours, 44 minutes, 2.8 seconds)",
+      "correctAnswerHi": "29.53 दिन (29 दिन, 12 घंटे, 44 मिनट और 2.8 सेकंड)",
+      "explanation": "The Synodic Month (with respect to the Sun) is 29.53 days.",
+      "explanationHi": "सूर्य के संदर्भ में चन्द्रमा की परिक्रमा की अवधि 29.53 दिन होती है, जिसे चन्द्रमास या साइनोडिक मास कहते हैं।"
+    },
+    {
+      "question": "What is the duration of a Sidereal Month (नक्षत्र मास)?",
+      "questionHi": "नक्षत्र मास की अवधि कितनी होती है?",
+      "options": [
+        "27 1/2 days (27 days, 7 hours, 43 minutes, 11.6 seconds)",
+        "29.53 days (29 days, 12 hours, 44 minutes, 2.8 seconds)",
+        "28 days",
+        "30 days"
+      ],
+      "optionsHi": [
+        "27 1/2 दिन (27 दिन, 7 घंटे, 43 मिनट और 11.6 सेकंड)",
+        "29.53 दिन (29 दिन, 12 घंटे, 44 मिनट और 2.8 सेकंड)",
+        "28 दिन",
+        "30 दिन"
+      ],
+      "correctAnswer": "27 1/2 days (27 days, 7 hours, 43 minutes, 11.6 seconds)",
+      "correctAnswerHi": "27 1/2 दिन (27 दिन, 7 घंटे, 43 मिनट और 11.6 सेकंड)",
+      "explanation": "The Sidereal Month (with"
+    }
+  ]
+}

@@ -100,6 +100,7 @@ export default function MockTestPlayer() {
   const [savedQ, setSavedQ] = useState({});      // actually saved to server
   const [savingQ, setSavingQ] = useState({});    // loading state per question
   const [lang, setLang] = useState('EN');
+  const [fontScale, setFontScale] = useState(1);
   const [timeLeft, setTimeLeft] = useState(parsedTest.duration * 60);
   const [timeTaken, setTimeTaken] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -305,6 +306,24 @@ export default function MockTestPlayer() {
           style={[styles.langBtn, lang === l && styles.langBtnActive]}
         >
           <Text style={[styles.langBtnText, lang === l && styles.langBtnTextActive]}>{l}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const renderFontToggle = () => (
+    <View style={styles.fontToggleWrap}>
+      {[
+        { label: 'A-', scale: 0.92 },
+        { label: 'A', scale: 1 },
+        { label: 'A+', scale: 1.12 },
+      ].map((item) => (
+        <TouchableOpacity
+          key={item.label}
+          onPress={() => setFontScale(item.scale)}
+          style={[styles.fontBtn, fontScale === item.scale && styles.fontBtnActive]}
+        >
+          <Text style={[styles.fontBtnText, fontScale === item.scale && styles.fontBtnTextActive]}>{item.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -519,6 +538,7 @@ export default function MockTestPlayer() {
             <Text style={styles.paletteToggleText}>Palette</Text>
           </TouchableOpacity>
           {renderLangToggle()}
+          {renderFontToggle()}
           <View style={{ flex: 1 }} />
           <Text style={styles.progressDataText}>Q {current + 1}/{questions.length}</Text>
           <View style={styles.dotSep} />
@@ -557,7 +577,7 @@ export default function MockTestPlayer() {
           </View>
         </View>
 
-        <Text style={styles.questionTextMain}>{qText(q)}</Text>
+        <Text style={[styles.questionTextMain, { fontSize: 15 * fontScale, lineHeight: 23 * fontScale }]}>{qText(q)}</Text>
 
         <View style={styles.qDivider} />
 
@@ -574,7 +594,7 @@ export default function MockTestPlayer() {
                 <View style={[styles.bubble, isSelected && styles.bubbleSelected]}>
                   <Text style={[styles.bubbleText, isSelected && styles.bubbleTextSelected]}>{LABELS[i]}</Text>
                 </View>
-                <Text style={[styles.optText, isSelected && styles.optTextSelected]}>{opt}</Text>
+                <Text style={[styles.optText, isSelected && styles.optTextSelected, { fontSize: 13.5 * fontScale, lineHeight: 20 * fontScale }]}>{opt}</Text>
                 {isSelected && <Feather name="check" size={15} color={INK} />}
               </TouchableOpacity>
             );
@@ -733,6 +753,11 @@ const styles = StyleSheet.create({
   langBtnActive: { backgroundColor: INK },
   langBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4, color: INK_SOFT, fontFamily: MONO },
   langBtnTextActive: { color: PAPER_ELEV },
+  fontToggleWrap: { flexDirection: 'row', backgroundColor: PAPER, borderRadius: 7, padding: 2, borderWidth: 1, borderColor: RULE, marginLeft: 6 },
+  fontBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
+  fontBtnActive: { backgroundColor: SEAL },
+  fontBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: INK_SOFT, fontFamily: MONO },
+  fontBtnTextActive: { color: PAPER_ELEV },
 
   // ── Question body ──
   bodyScroll: { flex: 1 },

@@ -7,6 +7,7 @@ const menuItems = [
   { path: '/practice', label: 'Practice Sets', icon: 'fa-solid fa-book-open' },
   { path: '/mock-tests', label: 'Mock Tests', icon: 'fa-solid fa-clipboard-list' },
   { path: '/test-series', label: 'Test Series', icon: 'fa-solid fa-book' },
+  { path: '/generate-questions', label: 'Generate Questions', icon: 'fa-solid fa-wand-magic-sparkles' },
   { path: '/analytics', label: 'Analytics', icon: 'fa-solid fa-chart-line' },
   { path: '/settings', label: 'Settings', icon: 'fa-solid fa-gear' },
 ]

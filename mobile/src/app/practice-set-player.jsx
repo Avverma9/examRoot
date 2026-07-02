@@ -61,6 +61,7 @@ export default function PracticeSetPlayer() {
   const [bookmarked, setBookmarked] = useState({});   // { index: true/false }
   const [savingBookmark, setSavingBookmark] = useState({}); // { index: true } while API call
   const [lang, setLang] = useState('EN');
+  const [fontScale, setFontScale] = useState(1);
   const [translatedQuestions, setTranslatedQuestions] = useState(questions);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isLoadingPractice, setIsLoadingPractice] = useState(false);
@@ -206,6 +207,25 @@ export default function PracticeSetPlayer() {
     </View>
   );
 
+  const renderFontToggle = () => (
+    <View style={styles.fontToggleWrap}>
+      {[-1, 0, 1].map((step) => {
+        const scale = step === -1 ? 0.92 : step === 0 ? 1 : 1.12;
+        const label = step === -1 ? 'A-' : step === 0 ? 'A' : 'A+';
+        const active = fontScale === scale;
+        return (
+          <TouchableOpacity
+            key={label}
+            onPress={() => setFontScale(scale)}
+            style={[styles.fontBtn, active && styles.fontBtnActive]}
+          >
+            <Text style={[styles.fontBtnText, active && styles.fontBtnTextActive]}>{label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   // ─── MAIN PLAYER ─────────────────────────────────────────────────────────────
   const q = translatedQuestions[current];
   if (isLoadingPractice) {
@@ -268,6 +288,7 @@ export default function PracticeSetPlayer() {
             )}
           </View>
           {renderLangToggle()}
+          {renderFontToggle()}
           <View style={styles.statsPill}>
             <Text style={styles.statsText}>{getAttempted()}/{questions.length}</Text>
           </View>
@@ -302,7 +323,7 @@ export default function PracticeSetPlayer() {
         </View>
 
         {/* Question Text */}
-        <Text style={styles.questionText}>{qText(q)}</Text>
+        <Text style={[styles.questionText, { fontSize: 16 * fontScale, lineHeight: 26 * fontScale }]}>{qText(q)}</Text>
 
         {/* Options */}
         <View style={styles.optionsWrap}>
@@ -347,6 +368,8 @@ export default function PracticeSetPlayer() {
                   }]}>{LABELS[i]}</Text>
                 </View>
                 <Text style={[styles.optText, { 
+                  fontSize: 14 * fontScale,
+                  lineHeight: 22 * fontScale,
                   color: isAnswered && showExp && isCorrectOpt ? '#065F46' :
                          isAnswered && showExp && isSelected && !isCorrect ? '#991B1B' :
                          isSelected ? '#1E40AF' : '#334155' 
@@ -462,6 +485,11 @@ const styles = StyleSheet.create({
   langToggleWrap: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 7, padding: 2 },
   langBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   langBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  fontToggleWrap: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 7, padding: 2, marginLeft: 8 },
+  fontBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginHorizontal: 1 },
+  fontBtnActive: { backgroundColor: '#3B82F6' },
+  fontBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: '#64748B' },
+  fontBtnTextActive: { color: '#fff' },
 
   bodyScroll: { flex: 1 },
   bodyContent: { padding: 16, paddingTop: 20 },

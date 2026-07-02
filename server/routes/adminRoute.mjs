@@ -5,6 +5,7 @@ import {
   getTopContent,
   getUserGrowth,
 } from "../controllers/adminAnalyticsController.mjs";
+import { generateQuestionsFromImage } from "../controllers/adminAnalyticsController.mjs";
 
 const router = express.Router();
 
@@ -15,5 +16,6 @@ router.get("/stats",        getAdminStats);
 router.get("/activity",     getDailyActivity);
 router.get("/top-content",  getTopContent);
 router.get("/user-growth",  getUserGrowth);
+router.post("/generate-questions", generateQuestionsFromImage);
 
 export default router;
