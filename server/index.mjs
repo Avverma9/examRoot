@@ -10,9 +10,45 @@ dotenv.config();
 const app = express();
 
 const PORT = process.env.PORT || 3000;
+const allowedOrigins = new Set(
+  [
+    process.env.CORS_ORIGIN,
+    process.env.FRONTEND_URL,
+    process.env.PANEL_URL,
+    "https://examrootpanel.vercel.app",
+    "https://examroot.cc",
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ]
+    .filter(Boolean)
+    .map((origin) => origin.replace(/\/$/, ""))
+);
 
 // Middlewares
-app.use(cors());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.size === 0 || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+app.options("*", cors());
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Vary", "Origin");
+  }
+  next();
+});
 
 // ─── Raw body capture for Cashfree webhook signature verification ─────────────
 // Must be registered BEFORE express.json() for the /api/payment/webhook route
