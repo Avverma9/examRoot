@@ -10,7 +10,7 @@ dotenv.config();
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const allowedOrigins = new Set(
+const allowedExactOrigins = new Set(
   [
     process.env.CORS_ORIGIN,
     process.env.FRONTEND_URL,
@@ -24,11 +24,25 @@ const allowedOrigins = new Set(
     .map((origin) => origin.replace(/\/$/, ""))
 );
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  const normalizedOrigin = origin.replace(/\/$/, "");
+  if (allowedExactOrigins.has(normalizedOrigin)) return true;
+
+  try {
+    const url = new URL(normalizedOrigin);
+    return url.protocol === "https:" && url.hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+};
+
 // Middlewares
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.size === 0 || allowedOrigins.has(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
 
@@ -42,7 +56,7 @@ app.use(
 app.options("*", cors());
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.has(origin)) {
+  if (isAllowedOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Vary", "Origin");
