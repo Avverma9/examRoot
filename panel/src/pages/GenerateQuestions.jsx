@@ -1,26 +1,23 @@
 /**
  * GenerateQuestions.jsx
  *
- * AI-studio layout + multi-key Gemini failover
- * Reads keys from VITE_GEMINI_KEY_1 ... VITE_GEMINI_KEY_5
+ * AI-studio layout + single-key Gemini generation
+ * Reads Gemini key/model from env.
  */
 
 import { useMemo, useState, useRef, useCallback } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import { BASE_URL } from '../utils/baseUrl'
 
-const GEMINI_KEYS = [
-  import.meta.env.VITE_GEMINI_KEY_1,
-  import.meta.env.VITE_GEMINI_KEY_2,
-  import.meta.env.VITE_GEMINI_KEY_3,
-  import.meta.env.VITE_GEMINI_KEY_4,
-  import.meta.env.VITE_GEMINI_KEY_5,
-].filter(Boolean)
+const GEMINI_KEY = String(import.meta.env.VITE_GEMINI_KEY || '').trim()
+const GEMINI_MODEL = String(import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite').trim()
 
-const GEMINI_URL = (key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`
+const GEMINI_URL = (key, model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`
 
 const SERVER_GENERATE_URL = `${BASE_URL}/admin/generate-questions`
+const GEMINI_REQUEST_TIMEOUT_MS = 20000
+const SERVER_REQUEST_TIMEOUT_MS = 45000
 
 const TEMPLATES = [
   {
@@ -98,6 +95,15 @@ const stageOf = (id) => PIPELINE.find((s) => s.id === id) ?? { id: 'idle', label
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const doCopy = (text) => navigator?.clipboard?.writeText(text)
 const stripPrefix = (b64) => b64.replace(/^data:[^;]+;base64,/, '')
+async function fetchWithTimeout(url, options = {}, timeoutMs = GEMINI_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(new Error('Request timed out')), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 const buildPrompt = (schema, count) =>
   `You are an expert exam content creator. Study the uploaded image carefully and extract or generate questions from it.
@@ -120,8 +126,8 @@ Rules:
 
 CRITICAL: Output ONLY the JSON object. Nothing else.`
 
-async function callGemini(key, b64, mime, prompt) {
-  const res = await fetch(GEMINI_URL(key), {
+async function callGemini(key, model, b64, mime, prompt) {
+  const res = await fetchWithTimeout(GEMINI_URL(key, model), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -135,7 +141,35 @@ async function callGemini(key, b64, mime, prompt) {
       ],
       generationConfig: { temperature: 0.15, maxOutputTokens: 8192 },
     }),
-  })
+  }, GEMINI_REQUEST_TIMEOUT_MS)
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message ?? `HTTP ${res.status}`)
+  }
+
+  const json = await res.json()
+  const text = json?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || ''
+  if (!text) throw new Error('Empty response from Gemini')
+  return text
+}
+
+async function callGeminiText(key, model, sourceText, prompt) {
+  const res = await fetchWithTimeout(GEMINI_URL(key, model), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: sourceText },
+            { text: prompt },
+          ],
+        },
+      ],
+      generationConfig: { temperature: 0.08, maxOutputTokens: 8192 },
+    }),
+  }, GEMINI_REQUEST_TIMEOUT_MS)
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -149,7 +183,7 @@ async function callGemini(key, b64, mime, prompt) {
 }
 
 async function callServerGemini(b64, mime, prompt, schema, count) {
-  const res = await fetch(SERVER_GENERATE_URL, {
+  const res = await fetchWithTimeout(SERVER_GENERATE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -159,7 +193,24 @@ async function callServerGemini(b64, mime, prompt, schema, count) {
       questionCount: count,
       prompt,
     }),
-  })
+  }, SERVER_REQUEST_TIMEOUT_MS)
+
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`)
+  return JSON.stringify(data?.data ?? data)
+}
+
+async function callServerTextGemini(sourceText, prompt, schema, count) {
+  const res = await fetchWithTimeout(SERVER_GENERATE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sourceText,
+      targetJson: schema,
+      questionCount: count,
+      prompt,
+    }),
+  }, SERVER_REQUEST_TIMEOUT_MS)
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`)
@@ -182,26 +233,32 @@ export default function GenerateQuestions() {
   const [imageFile, setImageFile] = useState(null)
   const [imageB64, setImageB64] = useState('')
   const [imageMime, setImageMime] = useState('image/png')
+  const [sourceText, setSourceText] = useState('')
+  const [inputMode, setInputMode] = useState('text')
   const [isDragging, setIsDragging] = useState(false)
   const [tplIdx, setTplIdx] = useState(0)
   const [jsonText, setJsonText] = useState(JSON.stringify(TEMPLATES[0].value, null, 2))
-  const [qCount, setQCount] = useState(20)
+  const [qCount, setQCount] = useState(80)
   const [stage, setStage] = useState('idle')
   const [loading, setLoading] = useState(false)
-  const [activeKey, setActiveKey] = useState(0)
-  const [keyLog, setKeyLog] = useState([])
+  const [connectionState, setConnectionState] = useState('')
   const [result, setResult] = useState('')
   const [meta, setMeta] = useState(null)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState('')
-  const hasPanelKeys = GEMINI_KEYS.length > 0
+  const [attempts, setAttempts] = useState([])
+  const hasPanelKey = Boolean(GEMINI_KEY)
 
   const stageInfo = stageOf(stage)
   const pct = stage === 'idle' ? 0 : stageInfo.pct
 
   const canGenerate = useMemo(
-    () => !loading && !!imageB64 && jsonText.trim().length > 2 && Number(qCount) > 0,
-    [loading, imageB64, jsonText, qCount]
+    () =>
+      !loading &&
+      jsonText.trim().length > 2 &&
+      Number(qCount) > 0 &&
+      ((inputMode === 'image' && !!imageB64) || (inputMode === 'text' && sourceText.trim().length > 0)),
+    [loading, imageB64, jsonText, qCount, inputMode, sourceText]
   )
 
   const selectTemplate = useCallback((idx) => {
@@ -248,9 +305,8 @@ export default function GenerateQuestions() {
     setError('')
     setResult('')
     setMeta(null)
-    setKeyLog([])
-    setActiveKey(0)
-
+    setConnectionState('')
+    setAttempts([])
     try {
       setStage('validating')
       await sleep(180)
@@ -263,14 +319,10 @@ export default function GenerateQuestions() {
 
       setStage('prompt')
       await sleep(220)
-      const prompt = buildPrompt(schema, Number(qCount))
-
       const totalCount = Number(qCount)
       const batchSize = Math.min(10, totalCount)
       const totalBatches = Math.ceil(totalCount / batchSize)
-      const log = []
       const allQuestions = []
-      let winningKey = null
 
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex += 1) {
         const startIndex = batchIndex * batchSize + 1
@@ -284,42 +336,33 @@ export default function GenerateQuestions() {
         await sleep(100)
 
         let batchText = null
-        if (hasPanelKeys) {
-          for (let i = 0; i < GEMINI_KEYS.length; i++) {
-            const keyNum = i + 1
-            setActiveKey(keyNum)
-            log.push({ idx: keyNum, status: 'trying', msg: `batch ${batchIndex + 1}/${totalBatches}` })
-            setKeyLog([...log])
-            await sleep(80)
-
-            try {
-              setStage('generating')
-              batchText = await callGemini(
-                GEMINI_KEYS[i],
-                imageB64,
-                imageMime,
-                buildPrompt(batchSchema, currentBatchSize)
-              )
-              log[log.length - 1] = { ...log[log.length - 1], status: 'success' }
-              setKeyLog([...log])
-              winningKey = keyNum
-              break
-            } catch (err) {
-              log[log.length - 1] = { ...log[log.length - 1], status: 'failed', msg: err.message }
-              setKeyLog([...log])
-            }
-          }
+        const prompt = buildPrompt(schema, currentBatchSize)
+        if (hasPanelKey) {
+          setStage('generating')
+          setConnectionState(`client key · ${GEMINI_MODEL}`)
+          batchText = inputMode === 'image'
+            ? await callGemini(GEMINI_KEY, GEMINI_MODEL, imageB64, imageMime, prompt)
+            : await callGeminiText(GEMINI_KEY, GEMINI_MODEL, sourceText, prompt)
+          setAttempts((prev) => [...prev, { key: 1, model: GEMINI_MODEL, status: 'success', batch: `${startIndex}-${endIndex}` }])
         }
 
         if (!batchText) {
-          batchText = await callServerGemini(
-            imageB64,
-            imageMime,
-            buildPrompt(batchSchema, currentBatchSize),
-            batchSchema,
-            currentBatchSize
-          )
-          winningKey = 0
+          setConnectionState('server fallback')
+          batchText = inputMode === 'image'
+            ? await callServerGemini(
+                imageB64,
+                imageMime,
+                prompt,
+                batchSchema,
+                currentBatchSize
+              )
+            : await callServerTextGemini(
+                sourceText,
+                prompt,
+                batchSchema,
+                currentBatchSize
+              )
+          setAttempts((prev) => [...prev, { key: 0, model: 'server', status: 'success', batch: `${startIndex}-${endIndex}` }])
         }
 
         setStage('parsing')
@@ -347,7 +390,7 @@ export default function GenerateQuestions() {
         title: root?.title ?? schema?.[0]?.title ?? 'Generated',
         group: root?.group ?? schema?.[0]?.group ?? '—',
         count: allQuestions.slice(0, totalCount).length,
-        key: winningKey,
+        key: hasPanelKey ? 1 : 0,
       })
       setStage('done')
     } catch (err) {
@@ -355,7 +398,6 @@ export default function GenerateQuestions() {
       setStage('error')
     } finally {
       setLoading(false)
-      setActiveKey(0)
     }
   }
 
@@ -499,8 +541,8 @@ export default function GenerateQuestions() {
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
             <span>🤖</span> Generate Questions
           </h1>
-          <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
-            Image → structured JSON via Gemini · <strong style={{ color: hasPanelKeys ? '#059669' : '#0F172A' }}>{hasPanelKeys ? `${GEMINI_KEYS.length} key${GEMINI_KEYS.length !== 1 ? 's' : ''} configured` : 'server fallback mode'}</strong> · automatic failover
+      <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
+            Text-first generation → structured JSON via Gemini · <strong style={{ color: hasPanelKey ? '#059669' : '#0F172A' }}>{hasPanelKey ? 'single key configured' : 'server fallback mode'}</strong> · no multikey failover
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -523,9 +565,9 @@ export default function GenerateQuestions() {
                 {stage === 'done' ? '✅ Generation complete' : stage === 'error' ? '❌ Generation failed' : <span className="gq-blink">⚡</span>}
                 {stage !== 'done' && stage !== 'error' && <span style={{ marginLeft: 6 }}>{stageInfo.label}…</span>}
               </div>
-              {activeKey > 0 && (
+              {connectionState && (
                 <div style={{ fontSize: 11, color: '#F59E0B', fontWeight: 700, marginTop: 3 }}>
-                  🔑 Trying Key {activeKey} of {GEMINI_KEYS.length}
+                  🔑 {connectionState}
                 </div>
               )}
             </div>
@@ -554,22 +596,17 @@ export default function GenerateQuestions() {
               )
             })}
           </div>
-          {keyLog.length > 0 && (
+          {connectionState && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>Keys:</span>
-              {keyLog.map((k) => (
-                <span
-                  key={k.idx}
-                  title={k.msg || ''}
-                  className="gq-key-badge"
-                  style={{
-                    background: k.status === 'success' ? '#D1FAE5' : k.status === 'failed' ? '#FEE2E2' : '#FEF3C7',
-                    color: k.status === 'success' ? '#059669' : k.status === 'failed' ? '#DC2626' : '#92400E',
-                  }}
-                >
-                  K{k.idx}&nbsp;{k.status === 'success' ? '✓' : k.status === 'failed' ? '✗' : <span className="gq-blink">…</span>}
-                </span>
-              ))}
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>Connection:</span>
+              <span className="gq-key-badge" style={{ background: '#EEF2FF', color: '#4338CA' }}>
+                {connectionState}
+              </span>
+            </div>
+          )}
+          {attempts.length > 0 && (
+            <div style={{ marginTop: 10, fontSize: 11, color: '#64748B', lineHeight: 1.6 }}>
+              Latest attempts: {attempts.slice(-6).map((a, i) => `${a.key === 0 ? 'server' : `K${a.key}`} / ${a.model} / ${a.status}`).join(' · ')}
             </div>
           )}
         </div>
@@ -595,6 +632,42 @@ export default function GenerateQuestions() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
+              <span style={labelStyle}>Input Type</span>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                {[
+                  { id: 'text', label: 'Text Input' },
+                  { id: 'image', label: 'Image Input' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    className={`gq-tpl-btn${inputMode === item.id ? ' active' : ''}`}
+                    onClick={() => setInputMode(item.id)}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {inputMode === 'text' ? (
+                <div>
+                  <span style={{ ...labelStyle, marginBottom: 7 }}>Source Text *</span>
+                  <textarea
+                    className="gq-json-editor"
+                    rows={10}
+                    value={sourceText}
+                    onChange={(e) => setSourceText(e.target.value)}
+                    placeholder="Paste chapter notes, passage, OCR text, or topic summary here..."
+                    spellCheck={false}
+                    style={{ minHeight: 220 }}
+                  />
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#94A3B8' }}>
+                    Faster mode. Best for OCR text, chapter notes, or question bank content.
+                  </div>
+                </div>
+              ) : (
+                <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
                 <span style={{ ...labelStyle, marginBottom: 0 }}>Question Image *</span>
                 {imageFile && (
@@ -635,6 +708,8 @@ export default function GenerateQuestions() {
                 )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+                </>
+              )}
             </div>
 
             <div style={{ marginBottom: 20 }}>
@@ -683,12 +758,14 @@ export default function GenerateQuestions() {
               />
             </div>
 
-            <div style={{ borderRadius: 10, padding: '10px 14px', marginBottom: 16, background: GEMINI_KEYS.length > 0 ? '#F0FDF4' : '#FFF7ED', border: `1px solid ${GEMINI_KEYS.length > 0 ? '#BBF7D0' : '#FED7AA'}` }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: GEMINI_KEYS.length > 0 ? '#059669' : '#EA580C' }}>
-                {hasPanelKeys ? `🔑 ${GEMINI_KEYS.length} API Key${GEMINI_KEYS.length !== 1 ? 's' : ''} Loaded` : '🟦 Using Server Fallback'}
+            <div style={{ borderRadius: 10, padding: '10px 14px', marginBottom: 16, background: hasPanelKey ? '#F0FDF4' : '#FFF7ED', border: `1px solid ${hasPanelKey ? '#BBF7D0' : '#FED7AA'}` }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: hasPanelKey ? '#059669' : '#EA580C' }}>
+                {hasPanelKey ? '🔑 Gemini key loaded' : '🟦 Using Server Fallback'}
               </div>
               <div style={{ fontSize: 11, color: '#64748B', marginTop: 3, lineHeight: 1.5 }}>
-                {hasPanelKeys ? 'Keys tried in order - automatic failover on error or quota limit' : 'No panel keys found, so requests will go through server/.env GEMINI_API_KEY'}
+                {inputMode === 'text'
+                  ? `Text mode enabled - model: ${GEMINI_MODEL}`
+                  : `Image mode enabled - model: ${GEMINI_MODEL}`}
               </div>
             </div>
 
@@ -718,14 +795,14 @@ export default function GenerateQuestions() {
                   <div style={{ fontSize: 44 }} className="gq-spin">⚙</div>
                   <div style={{ color: '#93C5FD', fontWeight: 800, fontSize: 16 }}>Processing…</div>
                   <div style={{ color: '#64748B', fontSize: 13 }}>{stageInfo.label}</div>
-                  {activeKey > 0 && (
+                  {hasPanelKey && connectionState && (
                     <div style={{ color: '#F59E0B', fontSize: 12, fontWeight: 700 }}>
-                      Using Gemini Key {activeKey} / {GEMINI_KEYS.length}
+                      {connectionState}
                     </div>
                   )}
-                  {activeKey === 0 && !hasPanelKeys && (
+                  {!hasPanelKey && connectionState && (
                     <div style={{ color: '#2563EB', fontSize: 12, fontWeight: 700 }}>
-                      Using server fallback Gemini key
+                      {connectionState}
                     </div>
                   )}
                 </div>
@@ -735,7 +812,9 @@ export default function GenerateQuestions() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 420, gap: 8 }}>
                   <div style={{ fontSize: 44, opacity: 0.15 }}>📄</div>
                   <div style={{ color: '#475569', fontSize: 14, fontWeight: 600 }}>No output yet</div>
-                  <div style={{ color: '#334155', fontSize: 12 }}>Upload an image and click Generate JSON Data</div>
+                  <div style={{ color: '#334155', fontSize: 12 }}>
+                    {inputMode === 'text' ? 'Paste source text and click Generate JSON Data' : 'Upload an image and click Generate JSON Data'}
+                  </div>
                 </div>
               )}
             </div>

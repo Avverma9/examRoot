@@ -472,3 +472,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
 });
+
+
+// here it is internal css 
+// later will comvert to tailwind

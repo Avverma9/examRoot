@@ -7,24 +7,12 @@ import PracticeSet from "../models/PracticeSet.mjs";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-const resolveGeminiApiKey = () => {
-  const candidates = [
-    process.env.GEMINI_API_KEY,
-    process.env.GEMINI_API_KEY_1,
-    process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY_3,
-    process.env.VITE_GEMINI_KEY_1,
-    process.env.VITE_GEMINI_KEY_2,
-    process.env.VITE_GEMINI_KEY_3,
-  ].filter(Boolean);
+const GEMINI_MODEL_NAME = String(process.env.GEMINI_MODEL || "gemini-2.0-flash-lite").trim();
+const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || "").trim();
 
-  const key = candidates.find((value) => {
-    const normalized = String(value).trim();
-    return normalized && !normalized.includes('your_gemini_api_key_here');
-  });
-
-  return key || null;
+const createModel = (apiKey, modelName) => {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({ model: modelName });
 };
 
 const buildQuestionSchema = (targetJson, questionCount) => {
@@ -116,6 +104,11 @@ const generateWithRetry = async (model, payload, retries = 2) => {
   throw lastError;
 };
 
+const generateOnce = async ({ payload, retries = 2 }) => {
+  const model = createModel(GEMINI_API_KEY, GEMINI_MODEL_NAME);
+  return generateWithRetry(model, payload, retries);
+};
+
 const repairMalformedJson = async (model, rawText, templateJson) => {
   const repairPrompt = `
 You are a JSON repair tool.
@@ -145,26 +138,35 @@ ${rawText}
   return repairResult?.response?.text?.() || repairResult?.response?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "{}";
 };
 
-const generateBatchPrompt = (template, batchSize, startIndex, endIndex) => `
-You are generating structured exam questions from a source image.
+const generateBatchPrompt = ({
+  template,
+  batchSize,
+  startIndex,
+  endIndex,
+  sourceText,
+}) => `
+You are generating structured exam questions.
 Return ONLY valid JSON.
+
+Use this source material:
+${sourceText?.trim() ? sourceText.trim() : "[No source text provided - infer from image]"}
 
 Rules:
 - Match the shape of the provided target JSON exactly, including whether it is an array or object.
 - Generate exactly ${batchSize} questions for question numbers ${startIndex} to ${endIndex}.
-- Each question must contain question, options, correctAnswer, explanation.
+- Keep output concise, accurate, and directly based on source material.
 - If target JSON has Hindi fields, include them too.
-- Keep the output strictly machine-readable. No markdown, no explanation.
 - Preserve the top-level structure from the template.
 - Make sure options are unique and correctAnswer matches one of the options.
 - Do not include questions outside the requested range.
+- Return only machine-readable JSON, no markdown, no commentary.
 
 Target JSON template:
 ${JSON.stringify(template, null, 2)}
 `.trim();
 
-const generateQuestionsChunk = async ({ model, base64Data, mimeType, template, batchSize, startIndex, endIndex, tries = 2 }) => {
-  const prompt = generateBatchPrompt(template, batchSize, startIndex, endIndex);
+const generateQuestionsChunk = async ({ model, base64Data, mimeType, template, batchSize, startIndex, endIndex, sourceText = "", tries = 1 }) => {
+  const prompt = generateBatchPrompt({ template, batchSize, startIndex, endIndex, sourceText });
   const result = await generateWithRetry(model, {
     contents: [
       {
@@ -181,7 +183,7 @@ const generateQuestionsChunk = async ({ model, base64Data, mimeType, template, b
       },
     ],
     generationConfig: {
-      temperature: 0.25,
+      temperature: 0.1,
       responseMimeType: "application/json",
       maxOutputTokens: 8192,
     },
@@ -403,15 +405,20 @@ export const getUserGrowth = async (req, res) => {
 
 export const generateQuestionsFromImage = async (req, res) => {
   try {
-    const { imageBase64, imageName, targetJson, questionCount } = req.body || {};
+  const { imageBase64, imageName, targetJson, questionCount, sourceText } = req.body || {};
 
-    const apiKey = resolveGeminiApiKey();
-    if (!apiKey) {
-      return res.status(500).json({ success: false, message: "GEMINI_API_KEY is not set" });
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "No Gemini API key found",
+        attempts: [],
+      });
     }
 
     if (!imageBase64) {
-      return res.status(400).json({ success: false, message: "Image is required" });
+      if (!sourceText || !String(sourceText).trim()) {
+        return res.status(400).json({ success: false, message: "Image or sourceText is required" });
+      }
     }
 
     const count = Number(questionCount);
@@ -420,16 +427,16 @@ export const generateQuestionsFromImage = async (req, res) => {
     }
 
     const parsedTarget = targetJson && typeof targetJson === "object" ? targetJson : {};
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-
-    const base64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
+    const base64Data = typeof imageBase64 === "string" && imageBase64.includes(",")
+      ? imageBase64.split(",")[1]
+      : (typeof imageBase64 === "string" ? imageBase64 : "");
     const mimeType = imageName?.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
     const fullTemplate = buildQuestionSchema(parsedTarget, count);
     const templateRoot = Array.isArray(fullTemplate) ? fullTemplate[0] : fullTemplate;
     const batchSize = Math.min(10, count);
     const totalBatches = Math.ceil(count / batchSize);
     const allQuestions = [];
+    const attempts = [];
 
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex += 1) {
       const startIndex = batchIndex * batchSize + 1;
@@ -439,15 +446,69 @@ export const generateQuestionsFromImage = async (req, res) => {
         ? [{ ...templateRoot, questions: Array.from({ length: currentBatchSize }, () => ({ ...templateRoot.questions?.[0] })) }]
         : { ...templateRoot, questions: Array.from({ length: currentBatchSize }, () => ({ ...templateRoot.questions?.[0] })) };
 
-      const batchData = await generateQuestionsChunk({
-        model,
-        base64Data,
-        mimeType,
-        template: batchTemplate,
-        batchSize: currentBatchSize,
-        startIndex,
-        endIndex,
-      });
+      let batchData = null;
+      let lastBatchError = null;
+
+      try {
+        const payloadParts = [{ text: generateBatchPrompt({ template: batchTemplate, batchSize: currentBatchSize, startIndex, endIndex, sourceText }) }];
+        if (base64Data) {
+          payloadParts.push({
+            inlineData: {
+              mimeType,
+              data: base64Data,
+            },
+          });
+        }
+
+        const payload = {
+          contents: [
+            {
+              role: "user",
+              parts: payloadParts,
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+            maxOutputTokens: 8192,
+          },
+        };
+
+        const generated = await generateOnce({ payload });
+        attempts.push({
+          key: "GEMINI_API_KEY",
+          model: GEMINI_MODEL_NAME,
+          batch: `${startIndex}-${endIndex}`,
+          status: "success",
+        });
+
+        const text = generated?.response?.text?.() || generated?.response?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "{}";
+        try {
+          batchData = safeJsonParse(text);
+        } catch {
+          const repairedText = await repairMalformedJson(
+            createModel(GEMINI_API_KEY, GEMINI_MODEL_NAME),
+            text,
+            batchTemplate
+          );
+          batchData = safeJsonParse(repairedText);
+        }
+      } catch (error) {
+        lastBatchError = error;
+        attempts.push({
+          key: "GEMINI_API_KEY",
+          model: GEMINI_MODEL_NAME,
+          batch: `${startIndex}-${endIndex}`,
+          status: "failed",
+          message: error?.message || "Unknown Gemini error",
+        });
+      }
+
+      if (!batchData) {
+        const err = new Error(lastBatchError?.message || "Gemini request failed");
+        err.attempts = attempts;
+        throw err;
+      }
 
       const batchRoot = Array.isArray(batchData) ? batchData[0] : batchData;
       const batchQuestions = Array.isArray(batchRoot?.questions) ? batchRoot.questions : [];
@@ -461,12 +522,15 @@ export const generateQuestionsFromImage = async (req, res) => {
     return res.status(200).json({
       success: true,
       data,
+      attempts,
+      modelCandidates: [GEMINI_MODEL_NAME],
     });
   } catch (error) {
     console.error("generateQuestionsFromImage error:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to generate questions",
+      attempts: error?.attempts || [],
     });
   }
 };
