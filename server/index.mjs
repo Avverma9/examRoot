@@ -38,6 +38,17 @@ const isAllowedOrigin = (origin) => {
   }
 };
 
+const setCorsHeaders = (req, res) => {
+  const origin = req.headers.origin;
+  if (!origin || !isAllowedOrigin(origin)) return;
+
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  res.setHeader("Vary", "Origin");
+};
+
 // Middlewares
 app.use(
   cors({
@@ -59,14 +70,7 @@ app.use((req, res, next) => {
   return cors()(req, res, next);
 });
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (isAllowedOrigin(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
-    res.setHeader("Vary", "Origin");
-  }
+  setCorsHeaders(req, res);
   next();
 });
 
@@ -117,14 +121,7 @@ app.get("/", (req, res) => {
 app.use((err, _req, res, next) => {
   if (!err) return next();
 
-  const origin = _req.headers.origin;
-  if (isAllowedOrigin(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
-    res.setHeader("Vary", "Origin");
-  }
+  setCorsHeaders(_req, res);
 
   if (err.type === "entity.too.large" || err instanceof SyntaxError && err.status === 413) {
     return res.status(413).json({
