@@ -53,7 +53,11 @@ app.use(
     credentials: true,
   })
 );
-app.options("*", cors());
+app.use((req, res, next) => {
+  if (req.method !== "OPTIONS") return next();
+
+  return cors()(req, res, next);
+});
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (isAllowedOrigin(origin)) {
