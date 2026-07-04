@@ -1,6 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, exchangeCodeAsync, loadAsync, ResponseType } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 // NOTE: maybeCompleteAuthSession() is called in oauth2redirect.jsx screen
@@ -14,8 +15,9 @@ const discovery = {
 };
 
 // ── Client IDs (from .env) ────────────────────────────────────────────────────
-const WEB_CLIENT_ID     = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+const publicConfig = Constants.expoConfig?.extra?.publicConfig || {};
+const WEB_CLIENT_ID = publicConfig.googleClientId;
+const ANDROID_CLIENT_ID = publicConfig.googleAndroidClientId;
 
 // ── Redirect URI ──────────────────────────────────────────────────────────────
 // Android → native com.googleusercontent scheme
@@ -54,7 +56,7 @@ export const signInWithGoogle = async () => {
       : WEB_CLIENT_ID;
 
     if (!clientId) {
-      throw new Error('Google Client ID not set. Add EXPO_PUBLIC_GOOGLE_CLIENT_ID to .env');
+      throw new Error('Google Client ID not set in app config.');
     }
 
     const redirectUri = getRedirectUri();

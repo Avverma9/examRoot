@@ -8,6 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { requestOTP, googleLoginApi } from '../services/authApi';
 import { loginSuccess } from '../store/slices/authSlice';
 import { fetchSubscriptions } from '../store/slices/paymentSlice';
@@ -35,7 +36,7 @@ export default function LoginScreen() {
     const initGoogleSignIn = async () => {
       try {
         const { configureGoogleSignIn } = await import('../utils/googleSignIn');
-        const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+        const googleClientId = Constants.expoConfig?.extra?.publicConfig?.googleClientId;
         if (googleClientId) {
           await configureGoogleSignIn(googleClientId);
         }

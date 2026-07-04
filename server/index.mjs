@@ -46,7 +46,7 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      return callback(null, false);
     },
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -59,6 +59,8 @@ app.use((req, res, next) => {
   if (isAllowedOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
     res.setHeader("Vary", "Origin");
   }
   next();
@@ -110,6 +112,15 @@ app.get("/", (req, res) => {
 // Central error handler so oversized/invalid payloads return JSON instead of HTML
 app.use((err, _req, res, next) => {
   if (!err) return next();
+
+  const origin = _req.headers.origin;
+  if (isAllowedOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.setHeader("Vary", "Origin");
+  }
 
   if (err.type === "entity.too.large" || err instanceof SyntaxError && err.status === 413) {
     return res.status(413).json({

@@ -1,9 +1,7 @@
-import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 
-// URL resolution priority:
-// 1. EXPO_PUBLIC_API_BASE_URL from .env
-// 2. Localhost fallback only for development
-// 3. Web current origin for web
+// API base URL is sourced from Expo app config.
+// Build will fail fast if the env-backed config is missing.
 
 const normalizeApiUrl = (value) => {
   if (!value) return null
@@ -11,29 +9,16 @@ const normalizeApiUrl = (value) => {
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
 }
 
-const ENV_URL = normalizeApiUrl(process.env.EXPO_PUBLIC_API_BASE_URL)
+const appConfig = Constants.expoConfig?.extra?.publicConfig || {}
+const ENV_URL = normalizeApiUrl(appConfig.apiBaseUrl)
 
 export const BASE_URL = (() => {
   if (ENV_URL) {
-    console.log('🌐 API URL (from .env):', ENV_URL)
+    console.log('🌐 API URL (from env):', ENV_URL)
     return ENV_URL
   }
 
-  if (__DEV__ && Platform.OS !== 'web') {
-    const localhostUrl = normalizeApiUrl('http://localhost:3000')
-    console.log('🌐 API URL (localhost fallback):', localhostUrl)
-    return localhostUrl
-  }
-
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
-    const originUrl = normalizeApiUrl(window.location.origin)
-    console.log('🌐 API URL (web origin fallback):', originUrl)
-    return originUrl
-  }
-
-  const productionFallback = normalizeApiUrl('https://backend.examroot.cc')
-  console.log('🌐 API URL (production fallback):', productionFallback)
-  return productionFallback
+  throw new Error('EXPO_PUBLIC_API_BASE_URL is missing from app config.')
 })()
 
 export const API_BASE_URL = BASE_URL
