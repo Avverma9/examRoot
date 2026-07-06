@@ -8,85 +8,48 @@ import routes from "./routes/index.mjs";
 dotenv.config();
 
 const app = express();
-
 const PORT = process.env.PORT || 3000;
-const allowedExactOrigins = new Set(
-  [
-    process.env.CORS_ORIGIN,
-    process.env.FRONTEND_URL,
-    process.env.PANEL_URL,
-    "https://examrootpanel.vercel.app",
-    "https://examroot.cc",
-    "http://localhost:3000",
-    "http://localhost:5173",
-  ]
-    .filter(Boolean)
-    .map((origin) => origin.replace(/\/$/, ""))
-);
 
-const isAllowedOrigin = (origin) => {
-  if (!origin) return true;
-
-  const normalizedOrigin = origin.replace(/\/$/, "");
-  if (allowedExactOrigins.has(normalizedOrigin)) return true;
-
-  try {
-    const url = new URL(normalizedOrigin);
-    return url.protocol === "https:" && url.hostname.endsWith(".vercel.app");
-  } catch {
-    return false;
-  }
-};
-
-const setCorsHeaders = (req, res) => {
-  const origin = req.headers.origin;
-  if (!origin || !isAllowedOrigin(origin)) return;
-
-  res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
-  res.setHeader("Vary", "Origin");
-};
-
-// Middlewares
+// ==============================
+// CORS (Allow All Origins)
+// ==============================
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (isAllowedOrigin(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(null, false);
-    },
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: true,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.use((req, res, next) => {
-  if (req.method !== "OPTIONS") return next();
 
-  return cors()(req, res, next);
-});
-app.use((req, res, next) => {
-  setCorsHeaders(req, res);
-  next();
-});
+app.options("*", cors());
 
-// ─── Raw body capture for Cashfree webhook signature verification ─────────────
-// Must be registered BEFORE express.json() for the /api/payment/webhook route
-app.use("/api/payment/webhook", express.raw({ type: "application/json" }), (req, _res, next) => {
-  req.rawBody = req.body.toString("utf8");
-  next();
-});
+// ==============================
+// Raw Body (Cashfree Webhook)
+// ==============================
+app.use(
+  "/api/payment/webhook",
+  express.raw({ type: "application/json", limit: "200mb" }),
+  (req, _res, next) => {
+    req.rawBody = req.body.toString("utf8");
+    next();
+  }
+);
 
-app.use(express.json({ limit: "50mb" }));
+// ==============================
+// Body Parser
+// ==============================
+app.use(express.json({ limit: "200mb" }));
+app.use(express.urlencoded({ extended: true, limit: "200mb" }));
 
+// ==============================
 // Routes
+// ==============================
 app.use("/api", routes);
 
+// ==============================
 // MongoDB Connection
+// ==============================
 async function connectDB() {
   let uri = process.env.MONGO_URI;
 
@@ -112,30 +75,35 @@ async function connectDB() {
 
 connectDB();
 
-// Test Route
+// ==============================
+// Health Check
+// ==============================
 app.get("/", (req, res) => {
-  res.send("Server is running...");
+  res.send("🚀 Server is running...");
 });
 
-// Central error handler so oversized/invalid payloads return JSON instead of HTML
-app.use((err, _req, res, next) => {
+// ==============================
+// Error Handler
+// ==============================
+app.use((err, req, res, next) => {
   if (!err) return next();
 
-  setCorsHeaders(_req, res);
-
-  if (err.type === "entity.too.large" || err instanceof SyntaxError && err.status === 413) {
+  if (err.type === "entity.too.large") {
     return res.status(413).json({
       success: false,
-      message: "Request body is too large. Please reduce the JSON size or split it into smaller parts.",
+      message:
+        "Request body is too large. Please reduce the JSON size or split it into smaller parts.",
     });
   }
 
   if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
     return res.status(400).json({
       success: false,
-      message: "Invalid JSON syntax. Please check the pasted data and try again.",
+      message: "Invalid JSON syntax.",
     });
   }
+
+  console.error(err);
 
   return res.status(err.status || 500).json({
     success: false,
@@ -143,7 +111,9 @@ app.use((err, _req, res, next) => {
   });
 });
 
+// ==============================
 // Start Server
+// ==============================
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
