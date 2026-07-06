@@ -1,0 +1,6 @@
+{
+  "name": "ExamRoot",
+  "description": "A mobile-first learning application for government exam preparation featuring mock tests, practice sessions, video lectures, and performance tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

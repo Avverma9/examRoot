@@ -3,7 +3,7 @@ import { useState } from 'react'
 export default function Settings() {
   const [settings, setSettings] = useState({
     siteName: 'ExamRoot',
-    adminEmail: 'admin@examroot.com',
+    adminEmail: 'admin@examroot.cc',
     maintenanceMode: false,
     allowRegistration: true,
     defaultTestDuration: 60,
