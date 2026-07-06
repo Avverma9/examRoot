@@ -13,16 +13,16 @@ const PORT = process.env.PORT || 3000;
 // ==============================
 // CORS (Allow All Origins)
 // ==============================
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors({
+  origin: [
+    "https://examrootpanel.vercel.app",
+    "https://examroot.cc",
+    "https://www.examroot.cc"
+  ],
+  credentials: true
+}));
 
-app.options("*", cors());
+
 
 // ==============================
 // Raw Body (Cashfree Webhook)
