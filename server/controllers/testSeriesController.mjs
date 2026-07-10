@@ -61,9 +61,9 @@ export const getAllTestSeries = async (req, res) => {
       { author:   new RegExp(search, "i") },
     ];
 
-    const query = TestSeries.find(filter).sort({ createdAt: -1 });
-    if (includeQuestions !== "true") query.select("-tests.questions");
-    const series = await query;
+    let query = TestSeries.find(filter).sort({ createdAt: -1 });
+    if (includeQuestions !== "true") query = query.select("-tests.questions");
+    const series = await query.lean();
 
     res.status(200).json({ success: true, total: series.length, data: series });
   } catch (error) {
@@ -74,9 +74,9 @@ export const getAllTestSeries = async (req, res) => {
 // ─── GET SERIES DETAIL (tests list — no questions) ───────────────────────────
 export const getTestSeriesById = async (req, res) => {
   try {
-    const query = TestSeries.findById(req.params.id);
-    if (req.query.includeQuestions !== "true") query.select("-tests.questions");
-    const series = await query;
+    let query = TestSeries.findById(req.params.id);
+    if (req.query.includeQuestions !== "true") query = query.select("-tests.questions");
+    const series = await query.lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
     res.status(200).json({ success: true, data: series });
   } catch (error) {
@@ -87,10 +87,14 @@ export const getTestSeriesById = async (req, res) => {
 // ─── GET SINGLE TEST WITH QUESTIONS (for player) ─────────────────────────────
 export const getTestById = async (req, res) => {
   try {
-    const series = await TestSeries.findById(req.params.seriesId);
+    // Fetch only series metadata + the matched test (positional projection)
+    const series = await TestSeries.findOne({ _id: req.params.seriesId, "tests._id": req.params.testId })
+      .select("isPaid discountedPrice price _id tests.$")
+      .lean();
+
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
 
-    const test = series.tests.id(req.params.testId);
+    const test = (series.tests && series.tests[0]) || null;
     if (!test) return res.status(404).json({ success: false, message: "Test not found" });
 
     // Free series → serve all tests without any check
@@ -100,10 +104,9 @@ export const getTestById = async (req, res) => {
     if (test.isFree) return res.status(200).json({ success: true, data: test });
 
     // Paid test — check active subscription
-    // req.userId is set by authMiddleware if token is provided (optional auth)
     const userId = req.userId;
     if (userId) {
-      const user = await User.findById(userId).select("subscriptions");
+      const user = await User.findById(userId).select("subscriptions").lean();
       if (user && hasActiveSubscription(user, series._id)) {
         return res.status(200).json({ success: true, data: test });
       }
@@ -180,7 +183,7 @@ export const getTestsMeta = async (req, res) => {
   try {
     const series = await TestSeries.findById(req.params.id).select(
       "title subject category language tests._id tests.title tests.totalQuestions tests.description"
-    );
+    ).lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
     res.status(200).json({ success: true, data: series });
   } catch (error) {

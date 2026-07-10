@@ -160,6 +160,7 @@ function Footer() {
               <li><Link to="/#features" className="hover:text-white transition-colors">Features</Link></li>
               <li><Link to="/#faq" className="hover:text-white transition-colors">FAQs</Link></li>
               <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/data-safety" className="hover:text-white transition-colors">Data Safety</Link></li>
               <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
@@ -187,11 +188,306 @@ function Footer() {
           <p>&copy; {new Date().getFullYear()} ExamRoot. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
             <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link to="/data-safety" className="hover:text-white transition-colors">Data Safety</Link>
             <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+function DataSafetyPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [activeAction, setActiveAction] = useState<'sendOtp' | 'review' | 'deleteOtp' | 'deletePassword' | null>(null);
+  const [reviewData, setReviewData] = useState<any>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const apiBase = "http://localhost:5000/api";
+  const hasEmail = email.trim().length > 0;
+  const hasOtp = otp.trim().length > 0;
+  const isIdle = activeAction === null;
+  const canSendOtp = isIdle && hasEmail;
+  const canUseOtpActions = isIdle && hasEmail && hasOtp && otpSent;
+  const canDeleteWithPassword = isIdle && hasEmail && password.trim().length > 0;
+  const sendingOtp = activeAction === 'sendOtp';
+  const verifyingOtp = activeAction === 'review';
+  const deletingOtp = activeAction === 'deleteOtp';
+  const deletingPassword = activeAction === 'deletePassword';
+
+  const handleSendOtp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setActiveAction('sendOtp');
+    setMessage(null);
+    setReviewData(null);
+
+    try {
+      const response = await fetch(`${apiBase}/auth/data-request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to send OTP');
+      setOtpSent(true);
+      setMessage({ type: 'success', text: data.message });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Unable to send OTP' });
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  const handleReview = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!hasEmail || !hasOtp) {
+      setMessage({ type: 'error', text: 'Please enter both email and OTP before reviewing data.' });
+      return;
+    }
+
+    setActiveAction('review');
+    setMessage(null);
+
+    try {
+      const response = await fetch(`${apiBase}/auth/data-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), otp: otp.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to review your data');
+      setReviewData(data.data);
+      setMessage({ type: 'success', text: data.message });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Unable to review your data' });
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  const handleDelete = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!hasEmail || !hasOtp) {
+      setMessage({ type: 'error', text: 'Please enter both email and OTP before deleting data.' });
+      return;
+    }
+
+    setActiveAction('deleteOtp');
+    setMessage(null);
+
+    try {
+      const response = await fetch(`${apiBase}/auth/data-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), otp: otp.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to delete your data');
+      setReviewData(null);
+      setOtp('');
+      setOtpSent(false);
+      setMessage({ type: 'success', text: data.message });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Unable to delete your data' });
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  const handleDirectDelete = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!hasEmail || !password.trim()) {
+      setMessage({ type: 'error', text: 'Please enter both email and password before deleting data.' });
+      return;
+    }
+
+    setActiveAction('deletePassword');
+    setMessage(null);
+
+    try {
+      const response = await fetch(`${apiBase}/auth/data-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to delete your data');
+      setReviewData(null);
+      setPassword('');
+      setOtp('');
+      setOtpSent(false);
+      setMessage({ type: 'success', text: data.message });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Unable to delete your data' });
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-12 pt-32 pb-24 min-h-[80vh]">
+      <Helmet>
+        <title>Data Safety | ExamRoot</title>
+        <meta name="description" content="Review or delete your personal data from ExamRoot using email and OTP or email and password." />
+        <meta property="og:title" content="Data Safety | ExamRoot" />
+        <meta property="og:description" content="Review or delete your personal data from ExamRoot using email and OTP or email and password." />
+        <link rel="canonical" href="https://examroot.cc/data-safety" />
+      </Helmet>
+
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-600">Data Control Center</p>
+            <h1 className="mt-3 text-4xl font-extrabold text-slate-900 sm:text-5xl">Review or remove your personal data</h1>
+          </div>
+          <Link to="/" className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <ArrowLeft size={18} /> Back to Home
+          </Link>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.85fr]">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/40 sm:p-8">
+            <div className="space-y-3 pb-6 border-b border-slate-200">
+              <p className="text-slate-500">Secure account verification with email OTP or password confirmation.</p>
+              <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">OTP flow</p>
+                  <p className="text-sm text-slate-600">Send OTP to your email and review or delete data after verification.</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Password flow</p>
+                  <p className="text-sm text-slate-600">Directly delete account data if your password is configured.</p>
+                </div>
+              </div>
+            </div>
+
+            {message && (
+              <div className={`mt-6 rounded-3xl border px-5 py-4 text-sm ${message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                {message.text}
+              </div>
+            )}
+
+            <div className="mt-6 grid gap-6">
+              <form onSubmit={handleSendOtp} className="space-y-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+                <p className="font-semibold text-slate-900">Step 1: Request OTP</p>
+                <label className="text-sm font-medium text-slate-700">Email address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  required
+                />
+                <button type="submit" disabled={!canSendOtp} className="w-full rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70">
+                  {sendingOtp ? 'Sending OTP...' : 'Send OTP'}
+                </button>
+              </form>
+
+              {otpSent && (
+                <form onSubmit={handleReview} className="space-y-4 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="font-semibold text-slate-900">Step 2: Verify OTP</p>
+                  <label className="text-sm font-medium text-slate-700">Enter OTP</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={otp}
+                    onChange={(event) => setOtp(event.target.value)}
+                    placeholder="123456"
+                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    required
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button type="submit" disabled={!canUseOtpActions} className="rounded-3xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70">
+                      {verifyingOtp ? 'Verifying...' : 'Review my data'}
+                    </button>
+                    <button type="button" onClick={handleDelete} disabled={!canUseOtpActions} className="rounded-3xl border border-rose-200 bg-white px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70">
+                      {deletingOtp ? 'Deleting...' : 'Delete my data'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="font-semibold text-slate-900">Password delete</p>
+                <p className="mt-2 text-sm text-slate-600">If your account already has a password, you can delete it directly without waiting for OTP.</p>
+                <form onSubmit={handleDirectDelete} className="mt-4 space-y-4">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    required
+                  />
+                  <button type="submit" disabled={!canDeleteWithPassword} className="w-full rounded-3xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-70">
+                    {deletingPassword ? 'Deleting...' : 'Delete account data'}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {reviewData && (
+              <div className="mt-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-slate-900">Your account summary</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Name</p>
+                    <p className="mt-2 font-semibold text-slate-900">{reviewData.name}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Email</p>
+                    <p className="mt-2 font-semibold text-slate-900">{reviewData.email}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Password set</p>
+                    <p className="mt-2 font-semibold text-slate-900">{reviewData.hasPassword ? 'Yes' : 'No'}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Saved questions</p>
+                    <p className="mt-2 font-semibold text-slate-900">{reviewData.savedQuestionCount}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Tracked records</p>
+                    <p className="mt-2 font-semibold text-slate-900">{reviewData.trackingCount}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Transactions</p>
+                    <p className="mt-2 font-semibold text-slate-900">{reviewData.transactionCount}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-6">
+            <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-600 p-8 text-white shadow-2xl">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-300">Privacy first</p>
+              <h2 className="mt-4 text-3xl font-extrabold">Your data is controlled by you</h2>
+              <p className="mt-4 text-sm leading-7 text-slate-200">We only process deletion requests after verifying your ownership via email OTP or password. This protects your account from accidental or unauthorized removal.</p>
+            </div>
+            <div className="grid gap-4 rounded-[2rem] bg-white border border-slate-200 p-6 shadow-sm">
+              <div className="rounded-3xl bg-slate-50 p-6">
+                <p className="text-sm font-semibold text-slate-900">What gets removed</p>
+                <ul className="mt-4 space-y-3 text-slate-600 text-sm">
+                  <li>Account details and credentials</li>
+                  <li>Saved questions and progress</li>
+                  <li>Activity and tracking logs</li>
+                  <li>Transaction metadata</li>
+                </ul>
+              </div>
+              <div className="rounded-3xl bg-slate-50 p-6">
+                <p className="text-sm font-semibold text-slate-900">Need help?</p>
+                <p className="mt-3 text-slate-600 text-sm">Contact our privacy team at <a href="mailto:privacy@examroot.cc" className="font-semibold text-indigo-700 underline">privacy@examroot.cc</a> for support.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -569,6 +865,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/data-safety" element={<DataSafetyPage />} />
             <Route path="/terms" element={<TermsPage />} />
           </Routes>
           

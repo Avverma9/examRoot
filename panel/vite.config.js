@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // allow cross-origin requests during development
+    cors: true,
     port: 5173,
     proxy: {
       '/api': {

@@ -1,9 +1,11 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import compression from "compression";
 import dotenv from "dotenv";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import routes from "./routes/index.mjs";
+import User from "./models/User.mjs";
 
 dotenv.config();
 
@@ -11,18 +13,23 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ==============================
-// CORS (Allow All Origins)
+// CORS
 // ==============================
-app.use(cors({
-  origin: [
-    "https://examrootpanel.vercel.app",
-    "https://examroot.cc",
-    "https://www.examroot.cc"
-  ],
-  credentials: true
-}));
+const allowedOrigins = [
+  "https://examrootpanel.vercel.app",
+  "https://examroot.cc",
+  "https://www.examroot.cc",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5000",
+  "http://127.0.0.1:5000"
+];
 
-
+// Allow all origins (relaxed for frontend/panel access) and enable compression for large responses
+app.use(cors());
+app.use(compression());
 
 // ==============================
 // Raw Body (Cashfree Webhook)
@@ -50,6 +57,35 @@ app.use("/api", routes);
 // ==============================
 // MongoDB Connection
 // ==============================
+async function ensureDummyTestUser() {
+  try {
+    const email = "test@examroot.com";
+    const existing = await User.findOne({ email });
+    if (existing) {
+      if (!existing.hasPassword) {
+        existing.password = "ExamRoot@123";
+        existing.loginMethod = "email";
+        await existing.save();
+      }
+      console.log("✅ Dummy test user exists:", email);
+      return;
+    }
+
+    await User.create({
+      email,
+      name: "ExamRoot Test User",
+      password: "ExamRoot@123",
+      isVerified: true,
+      loginMethod: "email",
+      preferredLanguage: "en",
+      lastLogin: new Date(),
+    });
+    console.log("✅ Created dummy test user:", email);
+  } catch (error) {
+    console.error("Failed to create dummy test user:", error);
+  }
+}
+
 async function connectDB() {
   let uri = process.env.MONGO_URI;
 
@@ -73,7 +109,12 @@ async function connectDB() {
   }
 }
 
-connectDB();
+const bootstrap = async () => {
+  await connectDB();
+  await ensureDummyTestUser();
+};
+
+bootstrap();
 
 // ==============================
 // Health Check

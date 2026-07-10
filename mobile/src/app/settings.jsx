@@ -12,10 +12,10 @@ import {
   StatusBar,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useSelector, useDispatch } from 'react-redux';
+import { useRouter } from 'expo-router'; 
+import { useSelector, useDispatch } from 'react-redux'; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { updateProfile } from '../services/authApi';
+import { updateProfile, updatePassword } from '../services/authApi';
 import { setUser } from '../store/slices/authSlice';
 
 const APP_VERSION = '1.0.0';
@@ -55,6 +55,14 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [saving,       setSaving]       = useState(false);
 
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword,     setNewPassword]     = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving,  setPasswordSaving]  = useState(false);
+  const [passwordError,   setPasswordError]   = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Validation', 'Name cannot be empty.');
@@ -74,6 +82,41 @@ export default function SettingsScreen() {
       Alert.alert('Error', err.message || 'Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 6) {
+      return setPasswordError('Password must be at least 6 characters long.');
+    }
+    if (newPassword !== confirmPassword) {
+      return setPasswordError('New passwords do not match.');
+    }
+    if (user?.hasPassword && !currentPassword) {
+      return setPasswordError('Please enter your current password to set a new one.');
+    }
+
+    try {
+      setPasswordSaving(true);
+      const payload = { newPassword };
+      if (user?.hasPassword) {
+        payload.currentPassword = currentPassword;
+      }
+
+      const res = await updatePassword(token, payload);
+      dispatch(setUser(res.user)); // Update user in store (e.g., hasPassword flag)
+      setPasswordSuccess('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(''), 4000);
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to update password.');
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -171,6 +214,70 @@ export default function SettingsScreen() {
               trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
               thumbColor="#ffffff"
             />
+          </View>
+        </View>
+
+        {/* ── Security ── */}
+        <SectionHeader title="Security" />
+        <View className="bg-white rounded-2xl mx-4 overflow-hidden border border-gray-100 shadow-sm">
+          {user?.hasPassword && (
+            <View className="px-4 pt-4 pb-3 border-b border-gray-50">
+              <Text className="text-xs text-gray-400 mb-1">Current Password</Text>
+              <TextInput
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Enter your current password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                className="text-gray-800 text-sm font-medium border-b border-gray-200 pb-2"
+              />
+            </View>
+          )}
+          <View className="px-4 pt-4 pb-3 border-b border-gray-50">
+            <Text className="text-xs text-gray-400 mb-1">New Password</Text>
+            <TextInput
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="At least 6 characters"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+              className="text-gray-800 text-sm font-medium border-b border-gray-200 pb-2"
+            />
+          </View>
+          <View className="px-4 pt-4 pb-3">
+            <Text className="text-xs text-gray-400 mb-1">Confirm New Password</Text>
+            <TextInput
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Re-enter new password"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+              className="text-gray-800 text-sm font-medium border-b border-gray-200 pb-2"
+            />
+          </View>
+          {!!passwordError && (
+            <Text className="text-red-500 text-xs px-4 pt-2 pb-2">{passwordError}</Text>
+          )}
+          {!!passwordSuccess && (
+            <Text className="text-green-600 text-xs px-4 pt-2 pb-2">{passwordSuccess}</Text>
+          )}
+          <View className="p-4 border-t border-gray-50">
+            <TouchableOpacity
+              onPress={handlePasswordUpdate}
+              disabled={passwordSaving}
+              className="bg-gray-800 py-3 rounded-xl items-center justify-center flex-row"
+            >
+              {passwordSaving ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <>
+                  <Feather name="key" size={14} color="#ffffff" />
+                  <Text className="text-white font-bold text-sm ml-2">
+                    {user?.hasPassword ? 'Change Password' : 'Set Password'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 

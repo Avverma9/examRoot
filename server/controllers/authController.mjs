@@ -2,6 +2,8 @@
 import User from "../models/User.mjs";
 import OTP from "../models/OTP.mjs";
 import Tracking from "../models/Tracking.mjs";
+import SavedQuestion from "../models/SavedQuestion.mjs";
+import Transaction from "../models/Transaction.mjs";
 import { sendOTPEmail, sendWelcomeEmail } from "../utils/email.mjs";
 import { sendSMSOTP } from "../utils/sms.mjs";
 
@@ -36,16 +38,203 @@ const makeJWT = (user) =>
   );
 
 const safeUserPayload = (user) => ({
-  _id:          user._id,
-  email:        user.email,
-  name:         user.name,
-  phone:        user.phone,
-  isVerified:   user.isVerified,
-  testsTaken:   user.totalMockTestsTaken,
-  accuracy:     user.accuracy,
-  streak:       user.streak,
-  profileImage: user.profileImage || null,
+  _id:               user._id,
+  email:             user.email,
+  name:              user.name,
+  phone:             user.phone,
+  isVerified:        user.isVerified,
+  hasPassword:       !!user.hasPassword,
+  loginMethod:       user.loginMethod || 'otp',
+  preferredLanguage: user.preferredLanguage || 'en',
+  testsTaken:        user.testsTaken ?? user.totalMockTestsTaken ?? 0,
+  accuracy:          user.accuracy ?? 0,
+  streak:            user.streak ?? 0,
+  profileImage:      user.profileImage || null,
 });
+
+const getPersonalDataSummary = async (user) => {
+  const [trackingCount, savedQuestionCount, transactionCount] = await Promise.all([
+    Tracking.countDocuments({ userId: user._id }),
+    SavedQuestion.countDocuments({ userId: user._id }),
+    Transaction.countDocuments({ userId: user._id }),
+  ]);
+
+  return {
+    name: user.name,
+    email: user.email,
+    hasPassword: !!user.hasPassword,
+    trackingCount,
+    savedQuestionCount,
+    transactionCount,
+  };
+};
+
+const deletePersonalDataAndAccount = async (user) => {
+  await Promise.all([
+    Tracking.deleteMany({ userId: user._id }),
+    SavedQuestion.deleteMany({ userId: user._id }),
+    Transaction.deleteMany({ userId: user._id }),
+    OTP.deleteMany({ email: user.email }),
+  ]);
+
+  await User.deleteOne({ _id: user._id });
+};
+
+export const requestDataDeletionOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: "A valid email is required" });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No account found for this email" });
+    }
+
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await OTP.deleteMany({ email: normalizedEmail });
+    await OTP.create({ email: normalizedEmail, otp, expiresAt });
+
+    try {
+      await sendOTPEmail(normalizedEmail, otp);
+    } catch (mailErr) {
+      console.warn("Data deletion OTP email could not be sent:", mailErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent to your email. Use it to review or delete your personal data.",
+    });
+  } catch (error) {
+    console.error("requestDataDeletionOTP error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to send OTP" });
+  }
+};
+
+export const reviewPersonalData = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const otpRecord = await OTP.findOne({ email: normalizedEmail });
+
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: "OTP not found or expired. Request a new one." });
+    }
+
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts += 1;
+      if (otpRecord.attempts >= otpRecord.maxAttempts) {
+        await OTP.deleteOne({ _id: otpRecord._id });
+        return res.status(400).json({ success: false, message: "Maximum attempts exceeded. Request a new OTP." });
+      }
+      await otpRecord.save();
+      const remaining = otpRecord.maxAttempts - otpRecord.attempts;
+      return res.status(400).json({ success: false, message: `Invalid OTP. ${remaining} attempt(s) left.` });
+    }
+
+    if (new Date() > otpRecord.expiresAt) {
+      await OTP.deleteOne({ _id: otpRecord._id });
+      return res.status(400).json({ success: false, message: "OTP expired. Request a new OTP." });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No account found for this email" });
+    }
+
+    const summary = await getPersonalDataSummary(user);
+    return res.status(200).json({
+      success: true,
+      message: "We found your account. Review the personal data that can be deleted.",
+      data: summary,
+    });
+  } catch (error) {
+    console.error("reviewPersonalData error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to review personal data" });
+  }
+};
+
+export const deletePersonalData = async (req, res) => {
+  try {
+    const { email, otp, password } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    let user;
+
+    if (password) {
+      user = await User.findOne({ email: normalizedEmail }).select("+password");
+      if (!user) {
+        return res.status(404).json({ success: false, message: "No account found for this email" });
+      }
+
+      if (!user.hasPassword) {
+        return res.status(400).json({ success: false, message: "This account has no password set for direct deletion" });
+      }
+
+      const passwordMatch = await user.matchPassword(password);
+      if (!passwordMatch) {
+        return res.status(401).json({ success: false, message: "Invalid email or password" });
+      }
+    } else {
+      if (!otp) {
+        return res.status(400).json({ success: false, message: "OTP is required to delete your data" });
+      }
+
+      const otpRecord = await OTP.findOne({ email: normalizedEmail });
+      if (!otpRecord) {
+        return res.status(400).json({ success: false, message: "OTP not found or expired. Request a new one." });
+      }
+
+      if (otpRecord.otp !== otp) {
+        otpRecord.attempts += 1;
+        if (otpRecord.attempts >= otpRecord.maxAttempts) {
+          await OTP.deleteOne({ _id: otpRecord._id });
+          return res.status(400).json({ success: false, message: "Maximum attempts exceeded. Request a new OTP." });
+        }
+        await otpRecord.save();
+        const remaining = otpRecord.maxAttempts - otpRecord.attempts;
+        return res.status(400).json({ success: false, message: `Invalid OTP. ${remaining} attempt(s) left.` });
+      }
+
+      if (new Date() > otpRecord.expiresAt) {
+        await OTP.deleteOne({ _id: otpRecord._id });
+        return res.status(400).json({ success: false, message: "OTP expired. Request a new OTP." });
+      }
+
+      user = await User.findOne({ email: normalizedEmail });
+      if (!user) {
+        return res.status(404).json({ success: false, message: "No account found for this email" });
+      }
+
+      await OTP.deleteOne({ _id: otpRecord._id });
+    }
+
+    await deletePersonalDataAndAccount(user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Your personal data has been deleted successfully.",
+    });
+  } catch (error) {
+    console.error("deletePersonalData error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to delete personal data" });
+  }
+};
 
 // â”€â”€â”€ REQUEST OTP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // POST /api/auth/request-otp
@@ -278,7 +467,111 @@ export const resendOTP = async (req, res) => {
   }
 };
 
-// â”€â”€â”€ GET CURRENT USER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€ EMAIL + PASSWORD LOGIN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const loginWithEmailPassword = async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email format" });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    let user = await User.findOne({ email: normalizedEmail }).select('+password');
+
+    if (user) {
+      if (!user.hasPassword) {
+        return res.status(401).json({
+          success: false,
+          message:
+            "This account does not have a password set. Please login with Google/OTP and set a password from Settings.",
+        });
+      }
+
+      const passwordMatch = await user.matchPassword(password);
+      if (!passwordMatch) {
+        return res.status(401).json({ success: false, message: "Invalid email or password" });
+      }
+
+      user.loginMethod = 'email';
+      user.lastLogin = new Date();
+      await user.save();
+    } else {
+      const derivedName = (name && name.trim()) || normalizedEmail.split('@')[0] || 'ExamRoot User';
+      user = await User.create({
+        email:         normalizedEmail,
+        name:          derivedName,
+        password,
+        isVerified:    true,
+        loginMethod:   'email',
+        lastLogin:     new Date(),
+      });
+      try { await sendWelcomeEmail(user.email, user.name); } catch (_) {}
+    }
+
+    const token = makeJWT(user);
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: safeUserPayload(user),
+    });
+  } catch (error) {
+    console.error("loginWithEmailPassword error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to login" });
+  }
+};
+
+// â”€â”€â”€ UPDATE PASSWORD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const updatePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 6 characters long",
+      });
+    }
+
+    const user = await User.findById(req.userId).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (user.hasPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Current password is required to change your password",
+        });
+      }
+
+      const passwordMatch = await user.matchPassword(currentPassword);
+      if (!passwordMatch) {
+        return res.status(401).json({ success: false, message: "Current password is incorrect" });
+      }
+    }
+
+    user.password = newPassword;
+    user.loginMethod = 'email';
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully",
+      user: safeUserPayload(user),
+    });
+  } catch (error) {
+    console.error("updatePassword error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to update password" });
+  }
+};
+
+// â”€â”€â”€ GET CURRENT USER”€â”€â”€â”€â”€â”€â”€â”€â”€
 // GET /api/auth/me   (requires auth)
 export const getCurrentUser = async (req, res) => {
   try {
@@ -431,6 +724,8 @@ export const updateUserProfile = async (req, res) => {
         phone:             user.phone,
         profileImage:      user.profileImage,
         preferredLanguage: user.preferredLanguage,
+        hasPassword:       !!user.hasPassword,
+        loginMethod:       user.loginMethod || 'otp',
       },
     });
   } catch (error) {

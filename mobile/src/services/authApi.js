@@ -57,6 +57,29 @@ export const googleLoginApi = async (idToken) => {
   return parseApiResponse(response, 'Google login failed');
 };
 
+export const passwordLogin = async ({ email, password, name }) => {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, name }),
+  });
+  return parseApiResponse(response, 'Login failed');
+};
+
+export const updatePassword = async (token, { currentPassword, newPassword }) => {
+  const payload = { newPassword };
+  if (currentPassword) {
+    payload.currentPassword = currentPassword;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auth/password`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  return parseApiResponse(response, 'Failed to update password');
+};
+
 export const getCurrentUser = async (token) => {
   const response = await fetch(`${API_BASE_URL}/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },

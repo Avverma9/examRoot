@@ -1,74 +1,38 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-const userSchema = new mongoose.Schema(
-  {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    name: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    phone: {
-      type: String,
-      default: "",
-    },
-    profileImage: {
-      type: String,
-      default: "",
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    lastLogin: {
-      type: Date,
-      default: null,
-    },
-    totalMockTestsTaken: {
-      type: Number,
-      default: 0,
-    },
-    totalPracticeSetsTaken: {
-      type: Number,
-      default: 0,
-    },
-    accuracy: {
-      type: Number,
-      default: 0,
-    },
-    streak: {
-      type: Number,
-      default: 0,
-    },
-    preferredLanguage: {
-      type: String,
-      default: "en",
-      enum: ["en", "hi"],
-    },
-    // ─── Google OAuth ───────────────────────────────────────────────────────
-    googleId: {
-      type: String,
-      default: "",
-    },
-    // ─── Subscriptions ─────────────────────────────────────────────────────────
-    subscriptions: [
-      {
-        seriesId:  { type: mongoose.Schema.Types.ObjectId, ref: "TestSeries", required: true },
-        orderId:   { type: String, required: true },   // Cashfree order_id
-        startDate: { type: Date, required: true },
-        endDate:   { type: Date, required: true },      // startDate + 30 days
-        isActive:  { type: Boolean, default: true },
-        amount:    { type: Number, required: true },
-      },
-    ],
-  },
-  { timestamps: true }
-);
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, select: false }, // `select: false` to not send it by default
+  hasPassword: { type: Boolean, default: false },
+  googleId: { type: String },
+  loginMethod: { type: String, enum: ['email', 'google', 'otp'], default: 'otp' },
+  
+  // Fields from other parts of the app
+  preferredLanguage: { type: String, default: 'en' },
+  testsTaken: { type: Number, default: 0 },
+  accuracy: { type: Number, default: 0 },
+  streak: { type: Number, default: 0 },
 
-export default mongoose.model("User", userSchema);
+}, { timestamps: true });
+
+// Hash password before saving if it's modified
+userSchema.pre('save', async function () {
+  if (!this.isModified('password') || !this.password) {
+    return;
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  this.hasPassword = true; // Mark that user now has a password
+});
+ 
+// Method to compare entered password with the hashed one in the DB
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+const User = mongoose.model('User', userSchema);
+export default User;
