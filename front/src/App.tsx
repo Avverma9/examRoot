@@ -206,7 +206,8 @@ function DataSafetyPage() {
   const [reviewData, setReviewData] = useState<any>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const apiBase = "http://localhost:5000/api";
+  const apiBase = "https://backend.examroot.cc/api";
+  // const apiBase = "http://localhost/api";
   const hasEmail = email.trim().length > 0;
   const hasOtp = otp.trim().length > 0;
   const isIdle = activeAction === null;
