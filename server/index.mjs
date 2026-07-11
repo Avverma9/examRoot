@@ -1,3 +1,5 @@
+import cluster from "cluster";
+import os from "os";
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -11,6 +13,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const WORKER_COUNT = Number(process.env.WORKER_COUNT) || os.cpus().length;
+const USE_CLUSTER = process.env.USE_CLUSTER === "true" && Boolean(process.env.MONGO_URI);
 
 // ==============================
 // CORS
@@ -114,15 +118,35 @@ const bootstrap = async () => {
   await ensureDummyTestUser();
 };
 
-bootstrap();
+const startServer = async () => {
+  await bootstrap();
+  app.get("/", (req, res) => {
+    res.send("🚀 Server is running...");
+  });
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT} (pid: ${process.pid})`);
+  });
+};
+
+if (USE_CLUSTER && cluster.isPrimary) {
+  console.log(`🚀 Primary process ${process.pid} starting ${WORKER_COUNT} workers`);
+  for (let i = 0; i < WORKER_COUNT; i += 1) {
+    cluster.fork();
+  }
+
+  cluster.on("exit", (worker, code, signal) => {
+    console.warn(`⚠️ Worker ${worker.process.pid} exited with code ${code} signal ${signal}. Restarting...`);
+    cluster.fork();
+  });
+} else {
+  if (USE_CLUSTER) {
+    console.log(`🧱 Worker process ${process.pid} started`);
+  }
+  startServer();
+}
 
 // ==============================
-// Health Check
-// ==============================
-app.get("/", (req, res) => {
-  res.send("🚀 Server is running...");
-});
-
+// Error Handler
 // ==============================
 // Error Handler
 // ==============================
@@ -150,11 +174,4 @@ app.use((err, req, res, next) => {
     success: false,
     message: err.message || "Internal Server Error",
   });
-});
-
-// ==============================
-// Start Server
-// ==============================
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
 });

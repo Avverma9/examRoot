@@ -1,9 +1,9 @@
-﻿import { useState } from 'react'
+﻿import { useRef, useState } from 'react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import {
   useGetAllTestSeriesQuery,
-  useGetTestsMetaQuery,
+  useLazyGetTestSeriesByIdQuery,
   useCreateTestSeriesMutation,
   useBulkCreateTestSeriesMutation,
   useUpdateTestSeriesMutation,
@@ -58,12 +58,13 @@ const emptySeries = {
 
 export default function TestSeries() {
   const { data, isLoading, isError, refetch } = useGetAllTestSeriesQuery()
-  const [createTestSeries] = useCreateTestSeriesMutation()
+  const [createTestSeries, { isLoading: isCreateLoading }] = useCreateTestSeriesMutation()
   const [bulkCreateTestSeries, { isLoading: isBulkLoading }] = useBulkCreateTestSeriesMutation()
-  const [updateTestSeries] = useUpdateTestSeriesMutation()
+  const [updateTestSeries, { isLoading: isUpdateLoading }] = useUpdateTestSeriesMutation()
   const [deleteTestSeries] = useDeleteTestSeriesMutation()
   const [generateMockTest, { isLoading: isMockGenerating }] = useGenerateMockTestMutation()
   const [generatePracticeSet, { isLoading: isPracticeGenerating }] = useGeneratePracticeSetMutation()
+  const [fetchSeriesById] = useLazyGetTestSeriesByIdQuery()
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -80,6 +81,24 @@ export default function TestSeries() {
   const [testBulkResult, setTestBulkResult] = useState(null)
   const [testBulkError, setTestBulkError] = useState('')
   const [testBulkInfo, setTestBulkInfo] = useState('')
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
+  const toastTimerRef = useRef(null)
+  const [originalSeries, setOriginalSeries] = useState(null)
+  const [isTestsModified, setIsTestsModified] = useState(false)
+
+  const getErrorMessage = (error) =>
+    error?.data?.message || error?.error || error?.message || 'Unknown error'
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current)
+    }
+    setToast({ visible: true, message, type })
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast((current) => ({ ...current, visible: false }))
+      toastTimerRef.current = null
+    }, 3000)
+  }
 
   // --- Generate modal state -------------------------------------------------
   const [generateModal, setGenerateModal] = useState(null) // { seriesId, seriesTitle, type: 'mock'|'practice' }
@@ -95,6 +114,7 @@ export default function TestSeries() {
   const [genError, setGenError] = useState('')
 
   const seriesList = data?.data || []
+  const isSaving = isCreateLoading || isUpdateLoading
 
   // --- Generate modal helpers -----------------------------------------------
   const openGenerateModal = (series, type) => {
@@ -351,6 +371,8 @@ export default function TestSeries() {
     setEditingTestIndex(null)
     setEditingQuestionIndex(null)
     setEditingId(null)
+    setOriginalSeries(null)
+    setIsTestsModified(false)
     setShowForm(false)
   }
 
@@ -367,6 +389,85 @@ export default function TestSeries() {
       totalQuestions: test.questions?.length || 0,
     })),
   })
+
+  const buildUpdatePayload = (normalized) => {
+    if (!editingId || !originalSeries) return normalized
+
+    const payload = {}
+    const fields = [
+      'title', 'description', 'bookName', 'author', 'publisher',
+      'subject', 'category', 'coverImage', 'language', 'isPaid',
+      'price', 'discountedPrice', 'freeTestsCount', 'isPublished', 'tags',
+    ]
+
+    for (const field of fields) {
+      const current = normalized[field]
+      const original = field === 'tags'
+        ? Array.isArray(originalSeries.tags) ? originalSeries.tags : []
+        : originalSeries[field]
+
+      if (Array.isArray(current) && Array.isArray(original)) {
+        if (JSON.stringify(current) !== JSON.stringify(original)) {
+          payload[field] = current
+        }
+      } else if (current !== original) {
+        payload[field] = current
+      }
+    }
+
+    if (isTestsModified) {
+      payload.tests = normalized.tests
+      payload.totalTests = normalized.tests.length
+    }
+
+    return payload
+  }
+
+  const diffFieldLabels = {
+    title: 'Title',
+    description: 'Description',
+    bookName: 'Book Name',
+    author: 'Author',
+    publisher: 'Publisher',
+    subject: 'Subject',
+    category: 'Category',
+    coverImage: 'Cover Image',
+    language: 'Language',
+    isPaid: 'Paid Status',
+    price: 'Price',
+    discountedPrice: 'Discounted Price',
+    freeTestsCount: 'Free Tests Count',
+    isPublished: 'Published Status',
+    tags: 'Tags',
+  }
+
+  const getDiffFields = () => {
+    if (!editingId || !originalSeries) return []
+    const normalized = normalizeForm()
+    const diffFields = []
+    const fields = Object.keys(diffFieldLabels)
+
+    for (const field of fields) {
+      const current = normalized[field]
+      const original = field === 'tags'
+        ? Array.isArray(originalSeries.tags) ? originalSeries.tags : []
+        : originalSeries[field]
+
+      if (Array.isArray(current) && Array.isArray(original)) {
+        if (JSON.stringify(current) !== JSON.stringify(original)) {
+          diffFields.push(diffFieldLabels[field])
+        }
+      } else if (current !== original) {
+        diffFields.push(diffFieldLabels[field])
+      }
+    }
+
+    if (isTestsModified) {
+      diffFields.push('Tests')
+    }
+
+    return diffFields
+  }
 
   const handleBulkImport = async () => {
     setBulkError('')
@@ -394,7 +495,14 @@ export default function TestSeries() {
   }
 
   const addTest = () => {
-    if (!testInput.title || testInput.questions.length === 0) return
+    if (!testInput.title) {
+      showToast('Please enter a test title before adding.', 'error')
+      return
+    }
+    if (!testInput.questions.length) {
+      showToast('Please add at least one question for this test.', 'error')
+      return
+    }
     const nextTest = {
       ...testInput,
       group: testInput.group.trim(),
@@ -409,6 +517,8 @@ export default function TestSeries() {
     setQuestionInput(emptyQuestion)
     setEditingTestIndex(null)
     setEditingQuestionIndex(null)
+    setIsTestsModified(true)
+    showToast(`Test ${editingTestIndex != null ? 'updated' : 'added'} successfully`, 'success')
   }
 
   const handleTestBulkImport = async () => {
@@ -436,6 +546,7 @@ export default function TestSeries() {
       setTestBulkResult({ totalInserted: normalizedTests.length, totalReceived: items.length })
       setTestBulkText('')
       setTestBulkInfo('Bulk tests added to current series draft')
+      setIsTestsModified(true)
     } catch (err) {
       setTestBulkError(err.data?.message || err.message || 'Bulk test import failed')
     }
@@ -444,6 +555,7 @@ export default function TestSeries() {
   const removeTest = (index) => {
     const tests = form.tests.filter((_, i) => i !== index).map((test, i) => ({ ...test, order: i }))
     setForm({ ...form, tests, totalTests: tests.length })
+    setIsTestsModified(true)
     if (editingTestIndex === index) {
       setTestInput(emptyTest)
       setQuestionInput(emptyQuestion)
@@ -468,21 +580,40 @@ export default function TestSeries() {
   }
 
   const addQuestionToTest = () => {
-    if (!questionInput.question || !questionInput.correctAnswer) return
+    if (!questionInput.question?.trim()) {
+      showToast('Please enter the question text.', 'error')
+      return
+    }
+    if (!questionInput.correctAnswer?.trim()) {
+      showToast('Please enter the correct answer for this question.', 'error')
+      return
+    }
     const questions = [...testInput.questions, { ...questionInput }]
     setTestInput({ ...testInput, questions, totalQuestions: questions.length })
     setQuestionInput(emptyQuestion)
     setEditingQuestionIndex(null)
+    showToast('Question added to test draft.', 'success')
   }
 
   const saveQuestionEdit = () => {
-    if (!questionInput.question || !questionInput.correctAnswer) return
+    if (!questionInput.question?.trim()) {
+      showToast('Please enter the question text.', 'error')
+      return
+    }
+    if (!questionInput.correctAnswer?.trim()) {
+      showToast('Please enter the correct answer for this question.', 'error')
+      return
+    }
     const questions = [...testInput.questions]
-    if (editingQuestionIndex == null || !questions[editingQuestionIndex]) return
+    if (editingQuestionIndex == null || !questions[editingQuestionIndex]) {
+      showToast('No question selected for editing.', 'error')
+      return
+    }
     questions[editingQuestionIndex] = { ...questionInput }
     setTestInput({ ...testInput, questions, totalQuestions: questions.length })
     setQuestionInput(emptyQuestion)
     setEditingQuestionIndex(null)
+    showToast('Question updated.', 'success')
   }
 
   const removeQuestionFromTestDraft = (index) => {
@@ -497,46 +628,60 @@ export default function TestSeries() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      const payload = normalizeForm()
+      const normalized = normalizeForm()
+      const payload = editingId ? buildUpdatePayload(normalized) : normalized
       if (editingId) {
         await updateTestSeries({ id: editingId, ...payload }).unwrap()
+        showToast('Test series updated successfully', 'success')
       } else {
         await createTestSeries(payload).unwrap()
+        showToast('Test series created successfully', 'success')
       }
       resetForm()
       refetch()
     } catch (err) {
-      alert('Error: ' + (err.data?.message || err.message))
+      const message = getErrorMessage(err)
+      showToast(`Failed to save test series: ${message}`, 'error')
     }
   }
 
-  const handleEdit = (series) => {
-    setForm({
-      ...emptySeries,
-      ...series,
-      tags: (series.tags || []).join(', '),
-      tests: (series.tests || []).map((test, index) => ({
-        ...emptyTest,
-        ...test,
-        group: test.group || '',
-        order: test.order ?? index,
-      })),
-      isPublished: series.isPublished !== false,
-      isPaid: series.isPaid === true,
-    })
-    setEditingId(series._id)
-    setShowForm(true)
-    setEditingTestIndex(null)
-    setEditingQuestionIndex(null)
+  const handleEdit = async (series) => {
+    try {
+      const result = await fetchSeriesById(series._id).unwrap()
+      const fullSeries = result?.data || series
+      setForm({
+        ...emptySeries,
+        ...fullSeries,
+        tags: (fullSeries.tags || []).join(', '),
+        tests: (fullSeries.tests || []).map((test, index) => ({
+          ...emptyTest,
+          ...test,
+          group: test.group || '',
+          order: test.order ?? index,
+        })),
+        isPublished: fullSeries.isPublished !== false,
+        isPaid: fullSeries.isPaid === true,
+      })
+      setOriginalSeries(fullSeries)
+      setIsTestsModified(false)
+      setEditingId(fullSeries._id)
+      setShowForm(true)
+      setEditingTestIndex(null)
+      setEditingQuestionIndex(null)
+    } catch (err) {
+      const message = getErrorMessage(err)
+      showToast(`Failed to load full test series: ${message}`, 'error')
+    }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this test series?')) return
     try {
       await deleteTestSeries(id).unwrap()
-      refetch()
+      showToast('Test series deleted successfully', 'success')
     } catch (err) {
-      alert('Error: ' + (err.data?.message || err.message))
+      const message = getErrorMessage(err)
+      showToast(`Failed to delete test series: ${message}`, 'error')
     }
   }
 
@@ -554,6 +699,12 @@ export default function TestSeries() {
           <i className="fa-solid fa-plus"></i> {showForm ? 'Cancel' : 'Add Series'}
         </button>
       </div>
+
+      {toast.visible && (
+        <div className={`toast ${toast.type === 'error' ? 'toast-error' : 'toast-success'}`}>
+          {toast.message}
+        </div>
+      )}
 
       <div className="form-card">
         <h3>Bulk Import</h3>
@@ -616,7 +767,18 @@ export default function TestSeries() {
 
       {showForm && (
         <form className="form-card" onSubmit={handleSubmit}>
+          {isSaving && <div className="form-toast">Saving test series, please wait...</div>}
           <h3>{editingId ? 'Edit Test Series' : 'Add New Test Series'}</h3>
+          {editingId && (
+            <div className="diff-summary">
+              <strong>Pending changes:</strong>
+              {getDiffFields().length > 0 ? (
+                getDiffFields().map((field) => <span key={field}>{field}</span>)
+              ) : (
+                <span>No visible field changes yet.</span>
+              )}
+            </div>
+          )}
           <div className="form-grid">
             <div className="form-group">
               <label>Series Title</label>
@@ -880,7 +1042,13 @@ export default function TestSeries() {
 
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{editingId ? 'Update' : 'Create'}</button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isCreateLoading || isUpdateLoading}
+            >
+              {editingId ? (isUpdateLoading ? 'Updating...' : 'Update') : (isCreateLoading ? 'Creating...' : 'Create')}
+            </button>
           </div>
         </form>
       )}

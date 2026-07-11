@@ -25,11 +25,14 @@ export const testSeriesApi = createApi({
   tagTypes: ['TestSeries', 'MockTest', 'PracticeSet'],
   endpoints: (builder) => ({
     getAllTestSeries: builder.query({
-      query: () => '/test-series?includeDrafts=true&includeQuestions=true',
+      query: () => '/test-series?includeDrafts=true',
       providesTags: ['TestSeries'],
     }),
     getTestsMeta: builder.query({
       query: (id) => `/test-series/${id}/tests-meta`,
+    }),
+    getTestSeriesById: builder.query({
+      query: (id) => `/test-series/${id}?includeQuestions=true`,
     }),
     createTestSeries: builder.mutation({
       query: (body) => ({
@@ -105,8 +108,8 @@ export const testSeriesApi = createApi({
 
 export const {
   useGetAllTestSeriesQuery,
-  useGetTestsMetaQuery,
-  useCreateTestSeriesMutation,
+  useGetTestsMetaQuery,  useGetTestSeriesByIdQuery,
+  useLazyGetTestSeriesByIdQuery,  useCreateTestSeriesMutation,
   useBulkCreateTestSeriesMutation,
   useUpdateTestSeriesMutation,
   useDeleteTestSeriesMutation,
