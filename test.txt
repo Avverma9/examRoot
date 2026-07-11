@@ -1,0 +1,14 @@
+ek util code banao jo test.json me   {
+        "group": "History",
+        "title": "History Test Page 18",
+        "description": "Lucent GK History Test series",
+        "duration": 60,
+        "questions": [],
+        "totalQuestions": 0,
+        "isFree": true,
+        "isPublished": true,
+        "order": 17,
+        "_id": {
+          "$oid": "6a48d72850b34de2d855270d"
+        }
+      }, available sare codes like questions array ke andar ka objects ko count karke totalQuestions me value dega and duration bhi sahi karega each question me 30 second ka time ke base pe minute count ke hisab se dena hai 
