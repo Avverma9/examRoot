@@ -12,3 +12,4 @@ ek util code banao jo test.json me   {
           "$oid": "6a48d72850b34de2d855270d"
         }
       }, available sare codes like questions array ke andar ka objects ko count karke totalQuestions me value dega and duration bhi sahi karega each question me 30 second ka time ke base pe minute count ke hisab se dena hai 
+      yaad rahe duration sirf number me hua jo ki minute ko indicate karta hai jaise 40 minute to duration : 40 , 
