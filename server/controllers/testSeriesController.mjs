@@ -46,6 +46,18 @@ export const bulkCreateTestSeries = async (req, res) => {
   }
 };
 
+const ensureTestTotals = (series) => {
+  if (!series || !Array.isArray(series.tests)) return series;
+  series.tests = series.tests.map((test) => ({
+    ...test,
+    totalQuestions: Array.isArray(test.questions)
+      ? test.questions.length
+      : test.totalQuestions || 0,
+  }));
+  series.totalTests = Array.isArray(series.tests) ? series.tests.length : series.totalTests || 0;
+  return series;
+};
+
 // ─── GET ALL (list — no questions) ───────────────────────────────────────────
 export const getAllTestSeries = async (req, res) => {
   try {
@@ -65,7 +77,8 @@ export const getAllTestSeries = async (req, res) => {
     if (includeQuestions !== "true") query = query.select("-tests.questions");
     const series = await query.lean();
 
-    res.status(200).json({ success: true, total: series.length, data: series });
+    const normalized = series.map((item) => ensureTestTotals(item));
+    res.status(200).json({ success: true, total: normalized.length, data: normalized });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -78,7 +91,7 @@ export const getTestSeriesById = async (req, res) => {
     if (req.query.includeQuestions !== "true") query = query.select("-tests.questions");
     const series = await query.lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
-    res.status(200).json({ success: true, data: series });
+    res.status(200).json({ success: true, data: ensureTestTotals(series) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -185,6 +198,12 @@ export const getTestsMeta = async (req, res) => {
       "title subject category language tests._id tests.title tests.totalQuestions tests.description"
     ).lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+    series.tests = series.tests?.map((test) => ({
+      ...test,
+      totalQuestions: Array.isArray(test.questions)
+        ? test.questions.length
+        : test.totalQuestions || 0,
+    })) || [];
     res.status(200).json({ success: true, data: series });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

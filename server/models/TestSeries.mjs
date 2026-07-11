@@ -59,4 +59,26 @@ const testSeriesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+function normalizeTestItem(test, index, freeTestsCount = 1) {
+  const questions = Array.isArray(test.questions) ? test.questions : [];
+  return {
+    ...test.toObject?.() ?? test,
+    group: typeof test.group === "string" ? test.group.trim() : "",
+    questions,
+    totalQuestions: questions.length,
+    order: test.order ?? index,
+    isFree: index < (freeTestsCount || 1) ? true : !!test.isFree,
+  };
+}
+
+testSeriesSchema.pre("validate", function (next) {
+  if (Array.isArray(this.tests)) {
+    this.tests = this.tests.map((test, index) => normalizeTestItem(test, index, this.freeTestsCount));
+  } else {
+    this.tests = [];
+  }
+  this.totalTests = Array.isArray(this.tests) ? this.tests.length : 0;
+  next();
+});
+
 export default mongoose.model("TestSeries", testSeriesSchema);

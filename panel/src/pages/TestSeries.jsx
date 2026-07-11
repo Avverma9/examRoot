@@ -658,6 +658,7 @@ export default function TestSeries() {
           ...test,
           group: test.group || '',
           order: test.order ?? index,
+          totalQuestions: test.questions?.length ?? test.totalQuestions ?? 0,
         })),
         isPublished: fullSeries.isPublished !== false,
         isPaid: fullSeries.isPaid === true,
@@ -1024,7 +1025,7 @@ export default function TestSeries() {
                 {form.tests.map((test, index) => (
                   <div className="question-chip" key={`${test.title}-${index}`}>
                     <span>
-                      {index + 1}. {test.group ? `${test.group} - ` : ''}{test.title} ({test.questions?.length || 0} questions, {test.duration} min)
+                      {index + 1}. {test.group ? `${test.group} - ` : ''}{test.title} ({test.questions?.length ?? test.totalQuestions ?? 0} questions, {test.duration} min)
                     </span>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button type="button" onClick={() => editTest(index)} title="Edit test">
