@@ -63,7 +63,7 @@ export const updateBanner = async (req, res) => {
         isActive,
         link,
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!banner) {
@@ -112,7 +112,7 @@ export const reorderBanners = async (req, res) => {
 
     // Update order for each banner
     const updatePromises = banners.map(({ id, order }) =>
-      Banner.findByIdAndUpdate(id, { order }, { new: true })
+      Banner.findByIdAndUpdate(id, { order }, { returnDocument: "after" })
     );
 
     await Promise.all(updatePromises);

@@ -711,7 +711,7 @@ export const updateUserProfile = async (req, res) => {
     if (profileImage)      update.profileImage      = profileImage;
     if (preferredLanguage) update.preferredLanguage = preferredLanguage;
 
-    const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select("-__v");
+    const user = await User.findByIdAndUpdate(req.userId, update, { returnDocument: "after" }).select("-__v");
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     res.status(200).json({

@@ -152,7 +152,7 @@ export const updateTestSeries = async (req, res) => {
         order: t.order ?? idx,
       }));
     }
-    const updated = await TestSeries.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+    const updated = await TestSeries.findByIdAndUpdate(req.params.id, body, { returnDocument: "after", runValidators: true });
     if (!updated) return res.status(404).json({ success: false, message: "Test series not found" });
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
@@ -391,7 +391,7 @@ export const saveSeriesThumbnail = async (req, res) => {
     const series = await TestSeries.findByIdAndUpdate(
       req.params.id,
       { thumbnail: thumbnailUrl },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!series) {

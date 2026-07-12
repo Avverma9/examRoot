@@ -61,7 +61,7 @@ export const getVideoById = async (req, res) => {
 // ─── INCREMENT VIEW COUNT ─────────────────────────────────────────────────────
 export const incrementView = async (req, res) => {
   try {
-    const video = await Video.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true });
+    const video = await Video.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { returnDocument: "after" });
     if (!video) return res.status(404).json({ success: false, message: "Video not found" });
     res.status(200).json({ success: true, views: video.views });
   } catch (error) {
@@ -72,7 +72,7 @@ export const incrementView = async (req, res) => {
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
 export const updateVideo = async (req, res) => {
   try {
-    const updated = await Video.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const updated = await Video.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after", runValidators: true });
     if (!updated) return res.status(404).json({ success: false, message: "Video not found" });
     res.status(200).json({ success: true, message: "Video updated successfully", data: updated });
   } catch (error) {

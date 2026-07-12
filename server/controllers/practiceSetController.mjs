@@ -70,7 +70,7 @@ export const updatePracticeSet = async (req, res) => {
     const body = req.body;
     if (body.questions?.length) body.totalQuestions = body.questions.length;
 
-    const updated = await PracticeSet.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+    const updated = await PracticeSet.findByIdAndUpdate(req.params.id, body, { returnDocument: "after", runValidators: true });
     if (!updated) return res.status(404).json({ success: false, message: "Practice set not found" });
     res.status(200).json({ success: true, message: "Updated successfully", data: updated });
   } catch (error) {

@@ -38,7 +38,7 @@ export const saveProgress = async (req, res) => {
           ...metadata,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     res.status(200).json({ success: true, data: doc });
@@ -71,7 +71,7 @@ export const completeProgress = async (req, res) => {
         metadata: {},
         activityType: resourceType ? `${resourceType}_end` : undefined,
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     // ── Update User stats live ─────────────────────────────────────────────
