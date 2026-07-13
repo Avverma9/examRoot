@@ -81,4 +81,9 @@ testSeriesSchema.pre("validate", function (next) {
   next();
 });
 
+// Read-heavy list/index pages rely on these fields; indexes reduce query latency.
+testSeriesSchema.index({ isPublished: 1, createdAt: -1 });
+testSeriesSchema.index({ subject: 1, category: 1, isPaid: 1 });
+testSeriesSchema.index({ title: 1, bookName: 1, author: 1 });
+
 export default mongoose.model("TestSeries", testSeriesSchema);

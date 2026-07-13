@@ -1044,3 +1044,66 @@ body {
   font-size: 14px;
   color: var(--text-secondary);
 }
+
+.split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compact-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.table-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+  background: #fff7f7;
+}
+
+.input-error:focus {
+  border-color: #ef4444 !important;
+}
+
+.stack-mobile {
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .stack-mobile,
+  .split {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .compact-actions {
+    width: 100%;
+  }
+
+  .compact-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

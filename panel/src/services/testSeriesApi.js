@@ -22,10 +22,21 @@ export const testSeriesApi = createApi({
       return headers
     },
   }),
+  keepUnusedDataFor: 120,
+  refetchOnFocus: false,
+  refetchOnReconnect: false,
   tagTypes: ['TestSeries', 'MockTest', 'PracticeSet'],
   endpoints: (builder) => ({
     getAllTestSeries: builder.query({
-      query: () => '/test-series?includeDrafts=true',
+      query: ({ page = 1, limit = 20, search = '', mode = 'summary' } = {}) => {
+        const params = new URLSearchParams()
+        params.set('includeDrafts', 'true')
+        params.set('mode', mode)
+        params.set('page', String(page))
+        params.set('limit', String(limit))
+        if (search?.trim()) params.set('search', search.trim())
+        return `/test-series?${params.toString()}`
+      },
       providesTags: ['TestSeries'],
     }),
     getTestsMeta: builder.query({
@@ -54,6 +65,14 @@ export const testSeriesApi = createApi({
       query: ({ id, ...body }) => ({
         url: `/test-series/${id}`,
         method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['TestSeries'],
+    }),
+    updateTestSeriesTestMeta: builder.mutation({
+      query: ({ seriesId, testId, ...body }) => ({
+        url: `/test-series/${seriesId}/tests/${testId}/meta`,
+        method: 'PATCH',
         body,
       }),
       invalidatesTags: ['TestSeries'],
@@ -109,9 +128,11 @@ export const testSeriesApi = createApi({
 export const {
   useGetAllTestSeriesQuery,
   useGetTestsMetaQuery,  useGetTestSeriesByIdQuery,
+  useLazyGetTestsMetaQuery,
   useLazyGetTestSeriesByIdQuery,  useCreateTestSeriesMutation,
   useBulkCreateTestSeriesMutation,
   useUpdateTestSeriesMutation,
+  useUpdateTestSeriesTestMetaMutation,
   useDeleteTestSeriesMutation,
   useGenerateMockTestMutation,
   useGeneratePracticeSetMutation,

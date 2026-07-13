@@ -61,7 +61,7 @@ const ensureTestTotals = (series) => {
 // ─── GET ALL (list — no questions) ───────────────────────────────────────────
 export const getAllTestSeries = async (req, res) => {
   try {
-    const { subject, category, isPaid, search, includeDrafts, includeQuestions } = req.query;
+    const { subject, category, isPaid, search, includeDrafts, includeQuestions, mode, page = 1, limit = 20 } = req.query;
     const filter = includeDrafts === "true" ? {} : { isPublished: true };
 
     if (subject)   filter.subject  = new RegExp(subject, "i");
@@ -73,12 +73,39 @@ export const getAllTestSeries = async (req, res) => {
       { author:   new RegExp(search, "i") },
     ];
 
-    let query = TestSeries.find(filter).sort({ createdAt: -1 });
-    if (includeQuestions !== "true") query = query.select("-tests.questions");
-    const series = await query.lean();
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+    const skip = (safePage - 1) * safeLimit;
+
+    let projection = "-tests.questions";
+    if (mode === "summary") {
+      projection = "title bookName subject category language isPaid price discountedPrice totalTests isPublished freeTestsCount createdAt updatedAt";
+    }
+
+    let query = TestSeries.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(safeLimit)
+      .select(projection);
+
+    if (includeQuestions === "true" && mode !== "summary") {
+      query = query.select("+tests.questions");
+    }
+
+    const [series, total] = await Promise.all([
+      query.lean(),
+      TestSeries.countDocuments(filter),
+    ]);
 
     const normalized = series.map((item) => ensureTestTotals(item));
-    res.status(200).json({ success: true, total: normalized.length, data: normalized });
+    res.status(200).json({
+      success: true,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      pages: Math.ceil(total / safeLimit),
+      data: normalized,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -157,6 +184,56 @@ export const updateTestSeries = async (req, res) => {
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// ─── UPDATE SINGLE TEST META (fast path, no questions payload needed) ──────
+export const updateSeriesTestMeta = async (req, res) => {
+  try {
+    const { id, testId } = req.params;
+    const body = req.body || {};
+
+    const allowedFields = ["group", "title", "description", "duration", "isFree", "isPublished", "order"];
+    const set = {};
+
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(body, field)) {
+        let value = body[field];
+        if (field === "group" || field === "title" || field === "description") {
+          value = typeof value === "string" ? value.trim() : "";
+        }
+        if (field === "duration" || field === "order") {
+          value = Number(value) || 0;
+        }
+        if (field === "isFree" || field === "isPublished") {
+          value = !!value;
+        }
+        set[`tests.$.${field}`] = value;
+      }
+    }
+
+    if (!Object.keys(set).length) {
+      return res.status(400).json({ success: false, message: "No valid fields to update" });
+    }
+
+    const series = await TestSeries.findOneAndUpdate(
+      { _id: id, "tests._id": testId },
+      { $set: set },
+      { returnDocument: "after", runValidators: true }
+    );
+
+    if (!series) {
+      return res.status(404).json({ success: false, message: "Test series/test not found" });
+    }
+
+    const updatedTest = series.tests?.id(testId);
+    return res.status(200).json({
+      success: true,
+      message: "Test updated successfully",
+      data: updatedTest,
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 

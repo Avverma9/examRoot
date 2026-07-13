@@ -1,12 +1,14 @@
-﻿import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorMessage from '../components/ErrorMessage'
 import {
   useGetAllTestSeriesQuery,
+  useLazyGetTestsMetaQuery,
   useLazyGetTestSeriesByIdQuery,
   useCreateTestSeriesMutation,
   useBulkCreateTestSeriesMutation,
   useUpdateTestSeriesMutation,
+  useUpdateTestSeriesTestMetaMutation,
   useDeleteTestSeriesMutation,
   useGenerateMockTestMutation,
   useGeneratePracticeSetMutation,
@@ -15,12 +17,12 @@ import { parseBulkJson } from '../utils/bulkImport'
 
 const emptyQuestion = {
   question: '',
-  questionHi: '',
   options: ['', '', '', ''],
-  optionsHi: ['', '', '', ''],
   correctAnswer: '',
-  correctAnswerHi: '',
   explanation: '',
+  questionHi: '',
+  optionsHi: ['', '', '', ''],
+  correctAnswerHi: '',
   explanationHi: '',
 }
 
@@ -56,252 +58,28 @@ const emptySeries = {
   isPublished: true,
 }
 
-export default function TestSeries() {
-  const { data, isLoading, isError, refetch } = useGetAllTestSeriesQuery()
-  const [createTestSeries, { isLoading: isCreateLoading }] = useCreateTestSeriesMutation()
-  const [bulkCreateTestSeries, { isLoading: isBulkLoading }] = useBulkCreateTestSeriesMutation()
-  const [updateTestSeries, { isLoading: isUpdateLoading }] = useUpdateTestSeriesMutation()
-  const [deleteTestSeries] = useDeleteTestSeriesMutation()
-  const [generateMockTest, { isLoading: isMockGenerating }] = useGenerateMockTestMutation()
-  const [generatePracticeSet, { isLoading: isPracticeGenerating }] = useGeneratePracticeSetMutation()
-  const [fetchSeriesById] = useLazyGetTestSeriesByIdQuery()
-
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState(emptySeries)
-  const [testInput, setTestInput] = useState(emptyTest)
-  const [editingTestIndex, setEditingTestIndex] = useState(null)
-  const [questionInput, setQuestionInput] = useState(emptyQuestion)
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null)
-  const [bulkText, setBulkText] = useState('')
-  const [bulkResult, setBulkResult] = useState(null)
-  const [bulkError, setBulkError] = useState('')
-  const [bulkInfo, setBulkInfo] = useState('')
-  const [testBulkText, setTestBulkText] = useState('')
-  const [testBulkResult, setTestBulkResult] = useState(null)
-  const [testBulkError, setTestBulkError] = useState('')
-  const [testBulkInfo, setTestBulkInfo] = useState('')
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
-  const toastTimerRef = useRef(null)
-  const [originalSeries, setOriginalSeries] = useState(null)
-  const [isTestsModified, setIsTestsModified] = useState(false)
-
-  const getErrorMessage = (error) =>
-    error?.data?.message || error?.error || error?.message || 'Unknown error'
-
-  const showToast = (message, type = 'success') => {
-    if (toastTimerRef.current) {
-      window.clearTimeout(toastTimerRef.current)
-    }
-    setToast({ visible: true, message, type })
-    toastTimerRef.current = window.setTimeout(() => {
-      setToast((current) => ({ ...current, visible: false }))
-      toastTimerRef.current = null
-    }, 3000)
-  }
-
-  // --- Generate modal state -------------------------------------------------
-  const [generateModal, setGenerateModal] = useState(null) // { seriesId, seriesTitle, type: 'mock'|'practice' }
-  const [genForm, setGenForm] = useState({
-    title: '', description: '', duration: 60,
-    category: '', subject: '', topic: '',
-    level: 'medium', language: 'English',
-    maxQuestions: '', shuffle: true,
-    selectedTestIds: [],   // [] = all tests
-    tags: '',
-  })
-  const [genResult, setGenResult] = useState(null)
-  const [genError, setGenError] = useState('')
-
-  const seriesList = data?.data || []
-  const isSaving = isCreateLoading || isUpdateLoading
-
-  // --- Generate modal helpers -----------------------------------------------
-  const openGenerateModal = (series, type) => {
-    setGenForm({
-      title: `${series.title} — ${type === 'mock' ? 'Mock Test' : 'Practice Set'}`,
-      description: `Generated from ${series.bookName}`,
-      duration: 60,
-      category: series.category || '',
-      subject: series.subject || '',
-      topic: '',
-      level: 'medium',
-      language: series.language || 'English',
-      maxQuestions: '',
-      shuffle: type === 'mock',
-      selectedTestIds: [],
-      tags: '',
-    })
-    setGenResult(null)
-    setGenError('')
-    setGenerateModal({ seriesId: series._id, seriesTitle: series.title, tests: series.tests || [], type })
-  }
-
-  const closeGenerateModal = () => {
-    setGenerateModal(null)
-    setGenResult(null)
-    setGenError('')
-  }
-
-  const handleGenerate = async () => {
-    setGenError('')
-    setGenResult(null)
-    if (!genForm.title.trim()) return setGenError('Title is required')
-    if (generateModal.type === 'mock' && !genForm.duration) return setGenError('Duration is required')
-
-    const payload = {
-      seriesId: generateModal.seriesId,
-      title: genForm.title.trim(),
-      description: genForm.description.trim(),
-      shuffle: genForm.shuffle,
-      ...(genForm.maxQuestions ? { maxQuestions: Number(genForm.maxQuestions) } : {}),
-      ...(genForm.selectedTestIds.length ? { testIds: genForm.selectedTestIds } : {}),
-    }
-
-    try {
-      let result
-      if (generateModal.type === 'mock') {
-        result = await generateMockTest({
-          ...payload,
-          category: genForm.category,
-          duration: Number(genForm.duration),
-        }).unwrap()
-      } else {
-        result = await generatePracticeSet({
-          ...payload,
-          subject: genForm.subject,
-          topic: genForm.topic,
-          level: genForm.level,
-          language: genForm.language,
-          tags: genForm.tags ? genForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        }).unwrap()
-      }
-      setGenResult(result)
-    } catch (err) {
-      setGenError(err.data?.message || err.message || 'Generation failed')
-    }
-  }
-
-  const toggleTestId = (id) => {
-    setGenForm(prev => ({
-      ...prev,
-      selectedTestIds: prev.selectedTestIds.includes(id)
-        ? prev.selectedTestIds.filter(x => x !== id)
-        : [...prev.selectedTestIds, id],
-    }))
-  }
-
-  const bulkExample = `[
+const bulkExample = `[
   {
     "title": "Lucent GK Test Series",
-    "description": "Lucent's General Knowledge book ke sabhi chapters ke chapter-wise tests. SSC, Railway, UPSC ke liye best.",
     "bookName": "Lucent's General Knowledge",
-    "author": "Lucent Publication",
-    "publisher": "Lucent Publication",
     "subject": "General Knowledge",
     "category": "SSC",
-    "language": "Hindi + English",
     "isPaid": true,
     "price": 299,
     "discountedPrice": 199,
     "freeTestsCount": 1,
-    "tags": ["lucent", "gk", "ssc", "railway", "history"],
-    "isPublished": true,
     "tests": [
       {
-        "title": "History Test Series - 1",
-        "description": "History Page 1-3 | Ancient India",
+        "group": "History",
+        "title": "History Test 1",
         "duration": 30,
         "isFree": true,
-        "isPublished": true,
         "questions": [
           {
             "question": "Who founded the Maurya Empire?",
-            "questionHi": "????? ????????? ?? ??????? ????? ???",
             "options": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
-            "optionsHi": ["????", "?????????? ?????", "????????", "????????"],
             "correctAnswer": "Chandragupta Maurya",
-            "correctAnswerHi": "?????????? ?????",
-            "explanation": "Chandragupta Maurya founded the Maurya Empire around 321 BC with help of Chanakya.",
-            "explanationHi": "?????????? ????? ?? ?????? ?? ?????? ?? ???? 321 ??? ????? ??? ????? ????????? ?? ??????? ???"
-          },
-          {
-            "question": "The Battle of Plassey was fought in which year?",
-            "questionHi": "?????? ?? ????? ??? ???? ???? ??? ???",
-            "options": ["1757", "1761", "1764", "1775"],
-            "optionsHi": ["1757", "1761", "1764", "1775"],
-            "correctAnswer": "1757",
-            "correctAnswerHi": "1757",
-            "explanation": "The Battle of Plassey was fought on 23 June 1757 between the British East India Company and Nawab of Bengal.",
-            "explanationHi": "?????? ?? ????? 23 ??? 1757 ?? ??????? ???? ?????? ????? ?? ????? ?? ???? ?? ??? ???? ??? ???"
-          },
-          {
-            "question": "Ashoka's Dhamma was written in which language?",
-            "questionHi": "???? ?? ???? ??? ???? ??? ???? ?? ???",
-            "options": ["Sanskrit", "Pali", "Prakrit", "Hindi"],
-            "optionsHi": ["???????", "????", "???????", "?????"],
-            "correctAnswer": "Pali",
-            "correctAnswerHi": "????",
-            "explanation": "Ashoka's edicts were primarily written in Pali language using Brahmi script.",
-            "explanationHi": "???? ?? ??????? ??????? ???????? ???? ??? ???? ???? ??? ???? ?? ???"
-          }
-        ]
-      },
-      {
-        "title": "History Test Series - 2",
-        "description": "History Page 4-6 | Medieval India",
-        "duration": 30,
-        "isFree": false,
-        "isPublished": true,
-        "questions": [
-          {
-            "question": "Who built the Qutub Minar?",
-            "questionHi": "????? ????? ?? ??????? ????? ??????",
-            "options": ["Akbar", "Qutb ud-Din Aibak", "Humayun", "Aurangzeb"],
-            "optionsHi": ["????", "??????????? ???", "???????", "???????"],
-            "correctAnswer": "Qutb ud-Din Aibak",
-            "correctAnswerHi": "??????????? ???",
-            "explanation": "Qutb ud-Din Aibak began the construction of Qutub Minar in 1193 AD.",
-            "explanationHi": "??????????? ??? ?? 1193 ????? ??? ????? ????? ?? ??????? ???? ?????? ???"
-          },
-          {
-            "question": "Akbar introduced the Din-i-Ilahi religion in which year?",
-            "questionHi": "???? ?? ???-?-????? ???? ?? ?????? ??? ???? ??? ???",
-            "options": ["1570", "1575", "1582", "1590"],
-            "optionsHi": ["1570", "1575", "1582", "1590"],
-            "correctAnswer": "1582",
-            "correctAnswerHi": "1582",
-            "explanation": "Akbar introduced the Din-i-Ilahi in 1582, a syncretic religion blending elements of multiple faiths.",
-            "explanationHi": "???? ?? 1582 ??? ???-?-????? ?? ??????? ??, ?? ?? ?????? ?? ?????? ?? ?????? ????? ??? ?? ?????????? ???? ???"
-          }
-        ]
-      },
-      {
-        "title": "Geography Test Series - 1",
-        "description": "Geography Page 10-12 | Physical Geography of India",
-        "duration": 25,
-        "isFree": false,
-        "isPublished": true,
-        "questions": [
-          {
-            "question": "Which is the highest peak in India?",
-            "questionHi": "???? ?? ???? ???? ???? ??? ?? ???",
-            "options": ["Mount Everest", "K2", "Kanchenjunga", "Nanda Devi"],
-            "optionsHi": ["????? ???????", "K2", "????????", "???? ????"],
-            "correctAnswer": "Kanchenjunga",
-            "correctAnswerHi": "????????",
-            "explanation": "Kanchenjunga (8,586 m) is the highest peak entirely within India.",
-            "explanationHi": "???????? (8,586 ????) ???? ??? ?? ???? ?? ???? ????? ???? ???? ???? ???"
-          },
-          {
-            "question": "The river Ganga originates from which glacier?",
-            "questionHi": "???? ??? ??? ???????? ?? ?????? ???",
-            "options": ["Siachen", "Gangotri", "Zemu", "Milam"],
-            "optionsHi": ["???????", "????????", "????", "????"],
-            "correctAnswer": "Gangotri",
-            "correctAnswerHi": "????????",
-            "explanation": "The Ganga river originates from the Gangotri glacier in Uttarakhand.",
-            "explanationHi": "???? ??? ????????? ??? ???????? ???????? ?? ?????? ???"
+            "explanation": "Founded around 321 BCE."
           }
         ]
       }
@@ -309,63 +87,134 @@ export default function TestSeries() {
   }
 ]`
 
-  const testBulkExample = `[
+const testBulkExample = `[
   {
     "group": "History",
     "title": "History Test - 1",
-    "description": "Ancient India",
     "duration": 30,
     "isFree": true,
-    "isPublished": true,
     "questions": [
       {
         "question": "Who founded the Maurya Empire?",
-        "questionHi": "Maurya Empire ki sthapna kisne ki?",
         "options": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
-        "optionsHi": ["Ashoka", "Chandragupta Maurya", "Bindusara", "Bimbisara"],
         "correctAnswer": "Chandragupta Maurya",
-        "correctAnswerHi": "Chandragupta Maurya",
-        "explanation": "Chandragupta Maurya founded the Maurya Empire.",
-        "explanationHi": "Chandragupta Maurya ne Maurya Empire ki sthapna ki."
-      }
-    ]
-  },
-  {
-    "group": "Geography",
-    "title": "Geography Test - 1",
-    "description": "Physical Geography",
-    "duration": 25,
-    "isFree": false,
-    "isPublished": true,
-    "questions": [
-      {
-        "question": "Which is the highest peak in India?",
-        "options": ["Mount Everest", "K2", "Kanchenjunga", "Nanda Devi"],
-        "correctAnswer": "Kanchenjunga",
-        "explanation": "Kanchenjunga is the highest peak entirely within India."
+        "explanation": "Founded around 321 BCE."
       }
     ]
   }
 ]`
 
-  const copyToClipboard = async (text) => {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-      return
-    }
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.position = 'fixed'
-    textarea.style.left = '-9999px'
-    document.body.appendChild(textarea)
-    textarea.focus()
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
+const getErrorMessage = (error) => (
+  error?.data?.message
+  || error?.data?.error
+  || error?.error
+  || error?.message
+  || 'Unexpected server error'
+)
+
+const mapSeriesToForm = (series) => ({
+  ...emptySeries,
+  ...series,
+  tags: Array.isArray(series?.tags) ? series.tags.join(', ') : (series?.tags || ''),
+  tests: (series?.tests || []).map((test, index) => ({
+    ...emptyTest,
+    ...test,
+    group: typeof test.group === 'string' ? test.group : '',
+    order: test.order ?? index,
+    totalQuestions: Array.isArray(test.questions)
+      ? test.questions.length
+      : (test.totalQuestions || 0),
+    questions: Array.isArray(test.questions) ? test.questions : [],
+  })),
+  isPublished: series?.isPublished !== false,
+  isPaid: series?.isPaid === true,
+})
+
+export default function TestSeries() {
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1)
+      setSearchTerm(searchInput.trim())
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  const { data, isLoading, isError } = useGetAllTestSeriesQuery({ page, limit: 20, search: searchTerm, mode: 'summary' })
+  const [fetchTestsMeta] = useLazyGetTestsMetaQuery()
+  const [fetchSeriesById] = useLazyGetTestSeriesByIdQuery()
+  const [createTestSeries, { isLoading: isCreateLoading }] = useCreateTestSeriesMutation()
+  const [updateTestSeries, { isLoading: isUpdateLoading }] = useUpdateTestSeriesMutation()
+  const [updateTestSeriesTestMeta, { isLoading: isTestMetaUpdating }] = useUpdateTestSeriesTestMetaMutation()
+  const [bulkCreateTestSeries, { isLoading: isBulkLoading }] = useBulkCreateTestSeriesMutation()
+  const [deleteTestSeries, { isLoading: isDeleteLoading }] = useDeleteTestSeriesMutation()
+  const [generateMockTest, { isLoading: isMockGenerating }] = useGenerateMockTestMutation()
+  const [generatePracticeSet, { isLoading: isPracticeGenerating }] = useGeneratePracticeSetMutation()
+
+  const [showForm, setShowForm] = useState(false)
+  const [showBulkPanel, setShowBulkPanel] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [hydratingDetails, setHydratingDetails] = useState(false)
+  const hydrateRequestRef = useRef(0)
+
+  const [form, setForm] = useState(emptySeries)
+  const [testInput, setTestInput] = useState(emptyTest)
+  const [questionInput, setQuestionInput] = useState(emptyQuestion)
+  const [editingTestIndex, setEditingTestIndex] = useState(null)
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null)
+
+  const [bulkText, setBulkText] = useState('')
+  const [testBulkText, setTestBulkText] = useState('')
+  const [bulkError, setBulkError] = useState('')
+  const [bulkSuccess, setBulkSuccess] = useState('')
+
+  const [validation, setValidation] = useState({})
+  const [originalSeries, setOriginalSeries] = useState(null)
+  const [isTestsModified, setIsTestsModified] = useState(false)
+
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
+  const toastTimerRef = useRef(null)
+
+  const [generateModal, setGenerateModal] = useState(null)
+  const [genError, setGenError] = useState('')
+  const [genResult, setGenResult] = useState(null)
+  const [genForm, setGenForm] = useState({
+    title: '',
+    description: '',
+    duration: 60,
+    category: '',
+    subject: '',
+    topic: '',
+    level: 'medium',
+    language: 'English',
+    maxQuestions: '',
+    shuffle: true,
+    selectedTestIds: [],
+    tags: '',
+  })
+
+  const seriesList = data?.data || []
+  const totalPages = data?.pages || 1
+  const isSaving = isCreateLoading || isUpdateLoading
+
+  const sortedSeries = useMemo(() => (
+    [...seriesList].sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+  ), [seriesList])
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+    setToast({ visible: true, message, type })
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast((old) => ({ ...old, visible: false }))
+    }, 3200)
   }
 
-  const resetForm = () => {
+  const resetEditor = () => {
     setForm(emptySeries)
+    setValidation({})
     setTestInput(emptyTest)
     setQuestionInput(emptyQuestion)
     setEditingTestIndex(null)
@@ -373,22 +222,112 @@ export default function TestSeries() {
     setEditingId(null)
     setOriginalSeries(null)
     setIsTestsModified(false)
+    setHydratingDetails(false)
     setShowForm(false)
   }
 
-  const normalizeForm = () => ({
-    ...form,
-    totalTests: form.tests.length,
-    tags: typeof form.tags === 'string'
-      ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-      : form.tags,
-    tests: form.tests.map((test, index) => ({
-      ...test,
-      group: typeof test.group === 'string' ? test.group.trim() : '',
-      order: test.order ?? index,
-      totalQuestions: test.questions?.length || 0,
-    })),
+  const normalizeQuestion = (q) => ({
+    ...q,
+    question: (q.question || '').trim(),
+    options: (q.options || []).map((o) => (o || '').trim()),
+    correctAnswer: (q.correctAnswer || '').trim(),
+    explanation: (q.explanation || '').trim(),
+    questionHi: (q.questionHi || '').trim(),
+    optionsHi: (q.optionsHi || []).map((o) => (o || '').trim()),
+    correctAnswerHi: (q.correctAnswerHi || '').trim(),
+    explanationHi: (q.explanationHi || '').trim(),
   })
+
+  const normalizeTest = (test, index) => ({
+    ...test,
+    group: (test.group || '').trim(),
+    title: (test.title || '').trim(),
+    description: (test.description || '').trim(),
+    duration: Number(test.duration) || 0,
+    order: test.order ?? index,
+    questions: (test.questions || []).map(normalizeQuestion),
+    totalQuestions: Array.isArray(test.questions) ? test.questions.length : 0,
+  })
+
+  const normalizeForm = (draft) => {
+    const payload = {
+      ...draft,
+      title: (draft.title || '').trim(),
+      description: (draft.description || '').trim(),
+      bookName: (draft.bookName || '').trim(),
+      author: (draft.author || '').trim(),
+      publisher: (draft.publisher || '').trim(),
+      subject: (draft.subject || '').trim(),
+      category: (draft.category || '').trim(),
+      coverImage: (draft.coverImage || '').trim(),
+      language: (draft.language || '').trim() || 'English',
+      isPaid: !!draft.isPaid,
+      isPublished: draft.isPublished !== false,
+      price: Number(draft.price) || 0,
+      discountedPrice: Number(draft.discountedPrice) || 0,
+      freeTestsCount: Math.max(0, Number(draft.freeTestsCount) || 0),
+      tags: typeof draft.tags === 'string'
+        ? draft.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+        : (Array.isArray(draft.tags) ? draft.tags : []),
+      tests: (draft.tests || []).map((test, index) => normalizeTest(test, index)),
+    }
+
+    if (!payload.isPaid) {
+      payload.price = 0
+      payload.discountedPrice = 0
+    }
+
+    if (payload.discountedPrice > payload.price) {
+      payload.discountedPrice = payload.price
+    }
+
+    payload.totalTests = payload.tests.length
+    return payload
+  }
+
+  const validateSeries = (payload) => {
+    const nextValidation = {}
+
+    if (!payload.title) nextValidation.title = 'Series title is required'
+    if (!payload.bookName) nextValidation.bookName = 'Book name is required'
+    if (!payload.subject) nextValidation.subject = 'Subject is required'
+    if (!payload.category) nextValidation.category = 'Category is required'
+
+    if (payload.isPaid && payload.price <= 0) {
+      nextValidation.price = 'Price must be greater than 0 for paid series'
+    }
+
+    if (payload.discountedPrice < 0) {
+      nextValidation.discountedPrice = 'Discounted price cannot be negative'
+    }
+
+    if (payload.tests.length === 0) {
+      nextValidation.tests = 'Add at least one test before saving'
+    }
+
+    setValidation(nextValidation)
+    return Object.keys(nextValidation).length === 0
+  }
+
+  const validateQuestionDraft = () => {
+    const q = normalizeQuestion(questionInput)
+    if (!q.question) return 'Question text is required'
+
+    const filledOptions = q.options.filter(Boolean)
+    if (filledOptions.length < 2) return 'At least 2 options are required'
+
+    if (!q.correctAnswer) return 'Correct answer is required'
+    if (!q.options.includes(q.correctAnswer)) return 'Correct answer must match one option exactly'
+
+    return ''
+  }
+
+  const validateTestDraft = (payload) => {
+    if (!payload.title) return 'Test title is required'
+    if (!payload.duration || Number(payload.duration) <= 0) return 'Duration must be greater than 0'
+    if (!Array.isArray(payload.questions) || payload.questions.length === 0) return 'Add at least one question'
+    return ''
+  }
 
   const buildUpdatePayload = (normalized) => {
     if (!editingId || !originalSeries) return normalized
@@ -403,13 +342,11 @@ export default function TestSeries() {
     for (const field of fields) {
       const current = normalized[field]
       const original = field === 'tags'
-        ? Array.isArray(originalSeries.tags) ? originalSeries.tags : []
+        ? (Array.isArray(originalSeries.tags) ? originalSeries.tags : [])
         : originalSeries[field]
 
       if (Array.isArray(current) && Array.isArray(original)) {
-        if (JSON.stringify(current) !== JSON.stringify(original)) {
-          payload[field] = current
-        }
+        if (JSON.stringify(current) !== JSON.stringify(original)) payload[field] = current
       } else if (current !== original) {
         payload[field] = current
       }
@@ -423,139 +360,147 @@ export default function TestSeries() {
     return payload
   }
 
-  const diffFieldLabels = {
-    title: 'Title',
-    description: 'Description',
-    bookName: 'Book Name',
-    author: 'Author',
-    publisher: 'Publisher',
-    subject: 'Subject',
-    category: 'Category',
-    coverImage: 'Cover Image',
-    language: 'Language',
-    isPaid: 'Paid Status',
-    price: 'Price',
-    discountedPrice: 'Discounted Price',
-    freeTestsCount: 'Free Tests Count',
-    isPublished: 'Published Status',
-    tags: 'Tags',
+  const handleQuestionSave = () => {
+    const err = validateQuestionDraft()
+    if (err) return showToast(err, 'error')
+
+    const nextQuestion = normalizeQuestion(questionInput)
+
+    if (editingQuestionIndex == null) {
+      const questions = [...testInput.questions, nextQuestion]
+      setTestInput((old) => ({ ...old, questions, totalQuestions: questions.length }))
+      setQuestionInput(emptyQuestion)
+      showToast('Question added', 'success')
+      return
+    }
+
+    const questions = [...testInput.questions]
+    questions[editingQuestionIndex] = nextQuestion
+    setTestInput((old) => ({ ...old, questions, totalQuestions: questions.length }))
+    setQuestionInput(emptyQuestion)
+    setEditingQuestionIndex(null)
+    showToast('Question updated', 'success')
   }
 
-  const getDiffFields = () => {
-    if (!editingId || !originalSeries) return []
-    const normalized = normalizeForm()
-    const diffFields = []
-    const fields = Object.keys(diffFieldLabels)
+  const handleQuestionEdit = (index) => {
+    const question = testInput.questions[index]
+    if (!question) return
+    setQuestionInput({ ...emptyQuestion, ...question })
+    setEditingQuestionIndex(index)
+  }
 
-    for (const field of fields) {
-      const current = normalized[field]
-      const original = field === 'tags'
-        ? Array.isArray(originalSeries.tags) ? originalSeries.tags : []
-        : originalSeries[field]
+  const handleQuestionRemove = (index) => {
+    const questions = testInput.questions.filter((_, i) => i !== index)
+    setTestInput((old) => ({ ...old, questions, totalQuestions: questions.length }))
+    if (editingQuestionIndex === index) {
+      setQuestionInput(emptyQuestion)
+      setEditingQuestionIndex(null)
+    }
+  }
 
-      if (Array.isArray(current) && Array.isArray(original)) {
-        if (JSON.stringify(current) !== JSON.stringify(original)) {
-          diffFields.push(diffFieldLabels[field])
+  const handleTestSave = async () => {
+    let payload = normalizeTest(testInput, editingTestIndex ?? form.tests.length)
+
+    if (editingTestIndex != null) {
+      const existingTest = form.tests[editingTestIndex]
+      const hasIncomingQuestions = Array.isArray(payload.questions) && payload.questions.length > 0
+      const existingQuestionCount = existingTest?.totalQuestions || existingTest?.questions?.length || 0
+
+      const canUseFastMetaUpdate =
+        !!editingId
+        && !!existingTest?._id
+        && !hasIncomingQuestions
+        && existingQuestionCount > 0
+
+      if (canUseFastMetaUpdate) {
+        if (!payload.title) return showToast('Test title is required', 'error')
+        if (!payload.duration || Number(payload.duration) <= 0) return showToast('Duration must be greater than 0', 'error')
+
+        try {
+          const result = await updateTestSeriesTestMeta({
+            seriesId: editingId,
+            testId: String(existingTest._id),
+            group: payload.group,
+            title: payload.title,
+            description: payload.description,
+            duration: payload.duration,
+            isFree: payload.isFree,
+            isPublished: payload.isPublished,
+            order: payload.order,
+          }).unwrap()
+
+          const merged = {
+            ...existingTest,
+            ...payload,
+            questions: existingTest.questions || [],
+            totalQuestions: existingQuestionCount,
+            ...(result?.data || {}),
+          }
+
+          const tests = form.tests.map((item, idx) => (idx === editingTestIndex ? merged : item))
+          setForm((old) => ({ ...old, tests, totalTests: tests.length }))
+          setIsTestsModified(true)
+          setTestInput(emptyTest)
+          setQuestionInput(emptyQuestion)
+          setEditingTestIndex(null)
+          setEditingQuestionIndex(null)
+          showToast('Test meta updated instantly', 'success')
+          return
+        } catch (error) {
+          showToast(`Fast update failed: ${getErrorMessage(error)}`, 'error')
+          return
         }
-      } else if (current !== original) {
-        diffFields.push(diffFieldLabels[field])
+      }
+
+      if (!hasIncomingQuestions && existingQuestionCount > 0) {
+        if (Array.isArray(existingTest?.questions) && existingTest.questions.length > 0) {
+          payload = {
+            ...payload,
+            questions: existingTest.questions,
+            totalQuestions: existingTest.questions.length,
+          }
+        } else {
+          showToast('Questions are not loaded yet. Please reopen this series once and retry.', 'error')
+          return
+        }
       }
     }
 
-    if (isTestsModified) {
-      diffFields.push('Tests')
+    const err = validateTestDraft(payload)
+    if (err) return showToast(err, 'error')
+
+    let tests
+    if (editingTestIndex == null) {
+      tests = [...form.tests, payload]
+      showToast('Test added', 'success')
+    } else {
+      tests = form.tests.map((item, idx) => (idx === editingTestIndex ? payload : item))
+      showToast('Test updated', 'success')
     }
 
-    return diffFields
-  }
-
-  const handleBulkImport = async () => {
-    setBulkError('')
-    setBulkResult(null)
-    setBulkInfo('')
-    if (!bulkText.trim()) {
-      setBulkError('Please paste JSON array first')
-      return
-    }
-
-    try {
-      const items = parseBulkJson(bulkText)
-      const result = await bulkCreateTestSeries(items).unwrap()
-      setBulkResult(result)
-      setBulkText('')
-      refetch()
-    } catch (err) {
-      setBulkError(err.data?.message || err.message || 'Bulk import failed')
-    }
-  }
-
-  const removeQuestionFromTest = (index) => {
-    const questions = testInput.questions.filter((_, i) => i !== index)
-    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
-  }
-
-  const addTest = () => {
-    if (!testInput.title) {
-      showToast('Please enter a test title before adding.', 'error')
-      return
-    }
-    if (!testInput.questions.length) {
-      showToast('Please add at least one question for this test.', 'error')
-      return
-    }
-    const nextTest = {
-      ...testInput,
-      group: testInput.group.trim(),
-      order: editingTestIndex != null ? form.tests[editingTestIndex]?.order ?? editingTestIndex : form.tests.length,
-      totalQuestions: testInput.questions.length,
-    }
-    const tests = editingTestIndex != null
-      ? form.tests.map((test, index) => (index === editingTestIndex ? nextTest : test))
-      : [...form.tests, nextTest]
-    setForm({ ...form, tests, totalTests: tests.length })
+    setForm((old) => ({ ...old, tests, totalTests: tests.length }))
+    setIsTestsModified(true)
     setTestInput(emptyTest)
     setQuestionInput(emptyQuestion)
     setEditingTestIndex(null)
     setEditingQuestionIndex(null)
-    setIsTestsModified(true)
-    showToast(`Test ${editingTestIndex != null ? 'updated' : 'added'} successfully`, 'success')
   }
 
-  const handleTestBulkImport = async () => {
-    setTestBulkError('')
-    setTestBulkResult(null)
-    setTestBulkInfo('')
-    if (!testBulkText.trim()) {
-      setTestBulkError('Please paste JSON array first')
-      return
-    }
+  const handleTestEdit = (index) => {
+    const test = form.tests[index]
+    if (!test) return
 
-    try {
-      const items = parseBulkJson(testBulkText)
-      if (!Array.isArray(items)) throw new Error('Invalid JSON: expected an array of tests')
-
-      const normalizedTests = items.map((test, index) => ({
-        ...test,
-        group: typeof test.group === 'string' ? test.group.trim() : '',
-        order: test.order ?? form.tests.length + index,
-        totalQuestions: test.questions?.length || 0,
-      }))
-
-      const tests = [...form.tests, ...normalizedTests]
-      setForm({ ...form, tests, totalTests: tests.length })
-      setTestBulkResult({ totalInserted: normalizedTests.length, totalReceived: items.length })
-      setTestBulkText('')
-      setTestBulkInfo('Bulk tests added to current series draft')
-      setIsTestsModified(true)
-    } catch (err) {
-      setTestBulkError(err.data?.message || err.message || 'Bulk test import failed')
-    }
+    setTestInput({ ...emptyTest, ...test, questions: test.questions || [] })
+    setQuestionInput(emptyQuestion)
+    setEditingTestIndex(index)
+    setEditingQuestionIndex(null)
   }
 
-  const removeTest = (index) => {
-    const tests = form.tests.filter((_, i) => i !== index).map((test, i) => ({ ...test, order: i }))
-    setForm({ ...form, tests, totalTests: tests.length })
+  const handleTestRemove = (index) => {
+    const tests = form.tests.filter((_, i) => i !== index).map((item, i) => ({ ...item, order: i }))
+    setForm((old) => ({ ...old, tests, totalTests: tests.length }))
     setIsTestsModified(true)
+
     if (editingTestIndex === index) {
       setTestInput(emptyTest)
       setQuestionInput(emptyQuestion)
@@ -564,72 +509,71 @@ export default function TestSeries() {
     }
   }
 
-  const editTest = (index) => {
-    const test = form.tests[index]
-    if (!test) return
-    setTestInput({
-      ...emptyTest,
-      ...test,
-      group: test.group || '',
-      questions: test.questions || [],
-      totalQuestions: test.questions?.length || test.totalQuestions || 0,
-    })
-    setQuestionInput(emptyQuestion)
-    setEditingTestIndex(index)
-    setEditingQuestionIndex(null)
+  const hydrateFullSeries = async (id) => {
+    const requestId = Date.now()
+    hydrateRequestRef.current = requestId
+    setHydratingDetails(true)
+
+    try {
+      const result = await fetchSeriesById(id, true).unwrap()
+      if (hydrateRequestRef.current !== requestId) return
+
+      const fullSeries = result?.data
+      if (!fullSeries) return
+
+      setForm(mapSeriesToForm(fullSeries))
+      setOriginalSeries(fullSeries)
+      setIsTestsModified(false)
+    } catch (error) {
+      if (hydrateRequestRef.current !== requestId) return
+      showToast(`Loaded quick edit mode. Full data fetch failed: ${getErrorMessage(error)}`, 'error')
+    } finally {
+      if (hydrateRequestRef.current === requestId) {
+        setHydratingDetails(false)
+      }
+    }
   }
 
-  const addQuestionToTest = () => {
-    if (!questionInput.question?.trim()) {
-      showToast('Please enter the question text.', 'error')
-      return
-    }
-    if (!questionInput.correctAnswer?.trim()) {
-      showToast('Please enter the correct answer for this question.', 'error')
-      return
-    }
-    const questions = [...testInput.questions, { ...questionInput }]
-    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
+  const handleEdit = async (series) => {
+    setShowForm(true)
+    setShowBulkPanel(false)
+    setValidation({})
+    setEditingId(series._id)
+    setForm(mapSeriesToForm(series))
+    setOriginalSeries(series)
+    setIsTestsModified(false)
+    setTestInput(emptyTest)
     setQuestionInput(emptyQuestion)
+    setEditingTestIndex(null)
     setEditingQuestionIndex(null)
-    showToast('Question added to test draft.', 'success')
+
+    // Open editor instantly and hydrate full payload in background to remove lag on pen click.
+    await hydrateFullSeries(series._id)
   }
 
-  const saveQuestionEdit = () => {
-    if (!questionInput.question?.trim()) {
-      showToast('Please enter the question text.', 'error')
-      return
-    }
-    if (!questionInput.correctAnswer?.trim()) {
-      showToast('Please enter the correct answer for this question.', 'error')
-      return
-    }
-    const questions = [...testInput.questions]
-    if (editingQuestionIndex == null || !questions[editingQuestionIndex]) {
-      showToast('No question selected for editing.', 'error')
-      return
-    }
-    questions[editingQuestionIndex] = { ...questionInput }
-    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
-    setQuestionInput(emptyQuestion)
-    setEditingQuestionIndex(null)
-    showToast('Question updated.', 'success')
-  }
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this test series permanently?')) return
 
-  const removeQuestionFromTestDraft = (index) => {
-    const questions = testInput.questions.filter((_, i) => i !== index)
-    setTestInput({ ...testInput, questions, totalQuestions: questions.length })
-    if (editingQuestionIndex === index) {
-      setQuestionInput(emptyQuestion)
-      setEditingQuestionIndex(null)
+    try {
+      await deleteTestSeries(id).unwrap()
+      showToast('Test series deleted', 'success')
+    } catch (error) {
+      showToast(`Delete failed: ${getErrorMessage(error)}`, 'error')
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const normalized = normalizeForm(form)
+    if (!validateSeries(normalized)) {
+      showToast('Please fix highlighted validations', 'error')
+      return
+    }
+
+    const payload = editingId ? buildUpdatePayload(normalized) : normalized
+
     try {
-      const normalized = normalizeForm()
-      const payload = editingId ? buildUpdatePayload(normalized) : normalized
       if (editingId) {
         await updateTestSeries({ id: editingId, ...payload }).unwrap()
         showToast('Test series updated successfully', 'success')
@@ -637,52 +581,161 @@ export default function TestSeries() {
         await createTestSeries(payload).unwrap()
         showToast('Test series created successfully', 'success')
       }
-      resetForm()
-      refetch()
-    } catch (err) {
-      const message = getErrorMessage(err)
-      showToast(`Failed to save test series: ${message}`, 'error')
+
+      resetEditor()
+    } catch (error) {
+      showToast(`Save failed: ${getErrorMessage(error)}`, 'error')
     }
   }
 
-  const handleEdit = async (series) => {
+  const handleBulkImport = async () => {
+    setBulkError('')
+    setBulkSuccess('')
+
+    if (!bulkText.trim()) {
+      setBulkError('Please paste JSON array first')
+      return
+    }
+
     try {
-      const result = await fetchSeriesById(series._id).unwrap()
-      const fullSeries = result?.data || series
-      setForm({
-        ...emptySeries,
-        ...fullSeries,
-        tags: (fullSeries.tags || []).join(', '),
-        tests: (fullSeries.tests || []).map((test, index) => ({
-          ...emptyTest,
-          ...test,
-          group: test.group || '',
-          order: test.order ?? index,
-          totalQuestions: test.questions?.length ?? test.totalQuestions ?? 0,
-        })),
-        isPublished: fullSeries.isPublished !== false,
-        isPaid: fullSeries.isPaid === true,
-      })
-      setOriginalSeries(fullSeries)
-      setIsTestsModified(false)
-      setEditingId(fullSeries._id)
-      setShowForm(true)
-      setEditingTestIndex(null)
-      setEditingQuestionIndex(null)
-    } catch (err) {
-      const message = getErrorMessage(err)
-      showToast(`Failed to load full test series: ${message}`, 'error')
+      const items = parseBulkJson(bulkText)
+      const result = await bulkCreateTestSeries(items).unwrap()
+      const totalInserted = result?.totalInserted ?? items.length
+      setBulkSuccess(`Imported ${totalInserted} series successfully`)
+      setBulkText('')
+    } catch (error) {
+      setBulkError(getErrorMessage(error))
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this test series?')) return
+  const handleInlineTestBulkImport = () => {
+    if (!testBulkText.trim()) return showToast('Paste tests JSON first', 'error')
+
     try {
-      await deleteTestSeries(id).unwrap()
-      showToast('Test series deleted successfully', 'success')
-    } catch (err) {
-      const message = getErrorMessage(err)
-      showToast(`Failed to delete test series: ${message}`, 'error')
+      const items = parseBulkJson(testBulkText)
+      if (!Array.isArray(items)) throw new Error('Expected array of tests')
+
+      const normalized = items.map((test, index) => normalizeTest(test, form.tests.length + index))
+      const tests = [...form.tests, ...normalized]
+      setForm((old) => ({ ...old, tests, totalTests: tests.length }))
+      setTestBulkText('')
+      setIsTestsModified(true)
+      showToast(`Imported ${normalized.length} tests to draft`, 'success')
+    } catch (error) {
+      showToast(`Bulk test import failed: ${getErrorMessage(error)}`, 'error')
+    }
+  }
+
+  const openGenerateModal = async (series, type) => {
+    setGenError('')
+    setGenResult(null)
+    setGenerateModal({
+      seriesId: series._id,
+      seriesTitle: series.title,
+      type,
+      tests: [],
+      loadingTests: true,
+    })
+
+    setGenForm({
+      title: `${series.title} - ${type === 'mock' ? 'Mock Test' : 'Practice Set'}`,
+      description: `Generated from ${series.bookName || series.title}`,
+      duration: 60,
+      category: series.category || '',
+      subject: series.subject || '',
+      topic: '',
+      level: 'medium',
+      language: series.language || 'English',
+      maxQuestions: '',
+      shuffle: type === 'mock',
+      selectedTestIds: [],
+      tags: '',
+    })
+
+    try {
+      const result = await fetchTestsMeta(series._id, true).unwrap()
+      setGenerateModal((old) => old ? {
+        ...old,
+        tests: result?.data?.tests || [],
+        loadingTests: false,
+      } : old)
+    } catch (error) {
+      setGenerateModal((old) => old ? { ...old, loadingTests: false } : old)
+      setGenError(`Unable to load tests list: ${getErrorMessage(error)}`)
+    }
+  }
+
+  const closeGenerateModal = () => {
+    setGenerateModal(null)
+    setGenError('')
+    setGenResult(null)
+  }
+
+  const toggleTestSelection = (id) => {
+    setGenForm((old) => {
+      const exists = old.selectedTestIds.includes(id)
+      return {
+        ...old,
+        selectedTestIds: exists
+          ? old.selectedTestIds.filter((item) => item !== id)
+          : [...old.selectedTestIds, id],
+      }
+    })
+  }
+
+  const handleGenerate = async () => {
+    if (!generateModal) return
+
+    if (!genForm.title.trim()) {
+      setGenError('Title is required')
+      return
+    }
+
+    if (generateModal.type === 'mock' && (!genForm.duration || Number(genForm.duration) <= 0)) {
+      setGenError('Valid duration is required')
+      return
+    }
+
+    setGenError('')
+
+    const basePayload = {
+      seriesId: generateModal.seriesId,
+      title: genForm.title.trim(),
+      description: genForm.description.trim(),
+      shuffle: !!genForm.shuffle,
+      ...(genForm.maxQuestions ? { maxQuestions: Number(genForm.maxQuestions) } : {}),
+      ...(genForm.selectedTestIds.length ? { testIds: genForm.selectedTestIds } : {}),
+    }
+
+    try {
+      const response = generateModal.type === 'mock'
+        ? await generateMockTest({
+          ...basePayload,
+          category: genForm.category,
+          duration: Number(genForm.duration),
+        }).unwrap()
+        : await generatePracticeSet({
+          ...basePayload,
+          subject: genForm.subject,
+          topic: genForm.topic,
+          level: genForm.level,
+          language: genForm.language,
+          tags: genForm.tags.split(',').map((item) => item.trim()).filter(Boolean),
+        }).unwrap()
+
+      setGenResult(response)
+      showToast(response?.message || 'Generated successfully', 'success')
+    } catch (error) {
+      setGenError(getErrorMessage(error))
+    }
+  }
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Copied to clipboard', 'success')
+    } catch {
+      showToast('Clipboard access failed', 'error')
     }
   }
 
@@ -691,14 +744,35 @@ export default function TestSeries() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
+      <div className="page-header stack-mobile">
         <div>
           <h1 className="page-title">Test Series</h1>
-          <p className="page-subtitle">Manage book based test series</p>
+          <p className="page-subtitle">Cleaner workflow with fast edit mode and strict validations</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          <i className="fa-solid fa-plus"></i> {showForm ? 'Cancel' : 'Add Series'}
-        </button>
+        <div className="compact-actions">
+          <input
+            placeholder="Search series..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            style={{ minWidth: 220 }}
+          />
+          <button className="btn btn-secondary" onClick={() => setShowBulkPanel((v) => !v)}>
+            <i className="fa-solid fa-file-import"></i> {showBulkPanel ? 'Hide Bulk' : 'Bulk Import'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setShowForm((v) => !v)
+              if (!showForm) {
+                setEditingId(null)
+                setForm(emptySeries)
+                setValidation({})
+              }
+            }}
+          >
+            <i className="fa-solid fa-plus"></i> {showForm ? 'Close Editor' : 'Add Series'}
+          </button>
+        </div>
       </div>
 
       {toast.visible && (
@@ -707,253 +781,187 @@ export default function TestSeries() {
         </div>
       )}
 
-      <div className="form-card">
-        <h3>Bulk Import</h3>
-        <p className="page-subtitle">Paste JSON array with book details, tests, and questions.</p>
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              setBulkText(bulkExample)
-              setBulkInfo('? Example loaded in textarea below — edit karo ya seedha Import karo')
-              setBulkError('')
-              setBulkResult(null)
-            }}
-          >
-            <i className="fa-solid fa-eye"></i> See Example
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={async () => {
-              try {
-                await copyToClipboard(bulkExample)
-                setBulkInfo('? Example JSON clipboard me copy ho gaya!')
-                setBulkError('')
-              } catch (e) {
-                setBulkError('Copy failed: ' + (e.message || 'Unknown error'))
-              }
-            }}
-          >
-            <i className="fa-solid fa-copy"></i> Copy Example
-          </button>
-        </div>
-        <div className="form-group full">
-          <label>JSON Array</label>
-          <textarea
-            rows={12}
-            value={bulkText}
-            onChange={(e) => { setBulkText(e.target.value); setBulkInfo(''); setBulkResult(null); setBulkError('') }}
-            placeholder={`Paste karo ya "See Example" click karo:\n[\n  {\n    "title": "Lucent GK Test Series",\n    "bookName": "Lucent's General Knowledge",\n    "subject": "General Knowledge",\n    "category": "SSC",\n    "tests": [\n      {\n        "group": "History",\n        "title": "History Test Series - 1",\n        "description": "History Page 1-3",\n        "duration": 30,\n        "isFree": true,\n        "questions": [\n          {\n            "question": "...",\n            "options": ["A","B","C","D"],\n            "correctAnswer": "A",\n            "explanation": "..."\n          }\n        ]\n      }\n    ]\n  }\n]`}
-          />
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleBulkImport}
-          disabled={isBulkLoading}
-        >
-          {isBulkLoading ? 'Importing...' : 'Import'}
-        </button>
-        {bulkError && <div className="error-text">{bulkError}</div>}
-        {bulkInfo && <div className="success-text">{bulkInfo}</div>}
-        {bulkResult?.totalInserted != null && (
-          <div className="success-text">
-            Imported {bulkResult.totalInserted} item(s)
-            {bulkResult.totalReceived != null ? ` out of ${bulkResult.totalReceived}` : ''}.
+      {showBulkPanel && (
+        <div className="form-card">
+          <h3>Bulk Import</h3>
+          <p className="page-subtitle">Use valid JSON array for fast import.</p>
+          <div className="compact-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setBulkText(bulkExample)}>Use Example</button>
+            <button type="button" className="btn btn-secondary" onClick={() => copyToClipboard(bulkExample)}>Copy Example</button>
           </div>
-        )}
-      </div>
+          <div className="form-group full">
+            <label>JSON Array</label>
+            <textarea rows={12} value={bulkText} onChange={(e) => setBulkText(e.target.value)} />
+          </div>
+          <div className="compact-actions">
+            <button type="button" className="btn btn-primary" onClick={handleBulkImport} disabled={isBulkLoading}>
+              {isBulkLoading ? 'Importing...' : 'Import'}
+            </button>
+          </div>
+          {bulkError && <div className="error-text">{bulkError}</div>}
+          {bulkSuccess && <div className="success-text">{bulkSuccess}</div>}
+        </div>
+      )}
 
       {showForm && (
         <form className="form-card" onSubmit={handleSubmit}>
-          {isSaving && <div className="form-toast">Saving test series, please wait...</div>}
-          <h3>{editingId ? 'Edit Test Series' : 'Add New Test Series'}</h3>
-          {editingId && (
-            <div className="diff-summary">
-              <strong>Pending changes:</strong>
-              {getDiffFields().length > 0 ? (
-                getDiffFields().map((field) => <span key={field}>{field}</span>)
-              ) : (
-                <span>No visible field changes yet.</span>
-              )}
+          <div className="split">
+            <h3>{editingId ? 'Edit Test Series' : 'Create Test Series'}</h3>
+            <div className="compact-actions">
+              {hydratingDetails && <span className="text-muted">Loading full details...</span>}
+              <button type="button" className="btn btn-secondary" onClick={resetEditor}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                {isSaving ? 'Saving...' : (editingId ? 'Update' : 'Create')}
+              </button>
             </div>
-          )}
+          </div>
+
           <div className="form-grid">
             <div className="form-group">
               <label>Series Title</label>
-              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+              <input
+                className={validation.title ? 'input-error' : ''}
+                value={form.title}
+                onChange={(e) => setForm((old) => ({ ...old, title: e.target.value }))}
+              />
+              {validation.title && <small className="error-text">{validation.title}</small>}
             </div>
             <div className="form-group">
               <label>Book Name</label>
-              <input value={form.bookName} onChange={(e) => setForm({ ...form, bookName: e.target.value })} required />
+              <input
+                className={validation.bookName ? 'input-error' : ''}
+                value={form.bookName}
+                onChange={(e) => setForm((old) => ({ ...old, bookName: e.target.value }))}
+              />
+              {validation.bookName && <small className="error-text">{validation.bookName}</small>}
             </div>
             <div className="form-group">
               <label>Subject</label>
-              <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} required />
+              <input
+                className={validation.subject ? 'input-error' : ''}
+                value={form.subject}
+                onChange={(e) => setForm((old) => ({ ...old, subject: e.target.value }))}
+              />
+              {validation.subject && <small className="error-text">{validation.subject}</small>}
             </div>
             <div className="form-group">
               <label>Category</label>
-              <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label>Author</label>
-              <input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Publisher</label>
-              <input value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
+              <input
+                className={validation.category ? 'input-error' : ''}
+                value={form.category}
+                onChange={(e) => setForm((old) => ({ ...old, category: e.target.value }))}
+              />
+              {validation.category && <small className="error-text">{validation.category}</small>}
             </div>
             <div className="form-group">
               <label>Language</label>
-              <input value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+              <input value={form.language} onChange={(e) => setForm((old) => ({ ...old, language: e.target.value }))} />
             </div>
             <div className="form-group">
-              <label>Cover Image URL</label>
-              <input value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} />
+              <label>Cover URL</label>
+              <input value={form.coverImage} onChange={(e) => setForm((old) => ({ ...old, coverImage: e.target.value }))} />
             </div>
             <div className="form-group">
-              <label>Type</label>
-              <select value={form.isPaid} onChange={(e) => setForm({ ...form, isPaid: e.target.value === 'true' })}>
+              <label>Series Type</label>
+              <select value={form.isPaid} onChange={(e) => setForm((old) => ({ ...old, isPaid: e.target.value === 'true' }))}>
                 <option value="false">Free</option>
                 <option value="true">Paid</option>
               </select>
             </div>
             <div className="form-group">
-              <label>Price</label>
-              <input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
-            </div>
-            <div className="form-group">
-              <label>Discounted Price</label>
-              <input type="number" min="0" value={form.discountedPrice} onChange={(e) => setForm({ ...form, discountedPrice: Number(e.target.value) })} />
-            </div>
-            <div className="form-group">
-              <label>Free Tests Count</label>
-              <input type="number" min="0" value={form.freeTestsCount} onChange={(e) => setForm({ ...form, freeTestsCount: Number(e.target.value) })} />
-            </div>
-            <div className="form-group">
               <label>Status</label>
-              <select value={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.value === 'true' })}>
+              <select value={form.isPublished} onChange={(e) => setForm((old) => ({ ...old, isPublished: e.target.value === 'true' }))}>
                 <option value="true">Published</option>
                 <option value="false">Draft</option>
               </select>
             </div>
             <div className="form-group">
-              <label>Tags</label>
-              <input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="ssc, maths, book" />
+              <label>Price</label>
+              <input
+                className={validation.price ? 'input-error' : ''}
+                type="number"
+                min="0"
+                value={form.price}
+                onChange={(e) => setForm((old) => ({ ...old, price: Number(e.target.value) }))}
+                disabled={!form.isPaid}
+              />
+              {validation.price && <small className="error-text">{validation.price}</small>}
             </div>
-          </div>
-          <div className="form-group full">
-            <label>Description</label>
-            <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-
-          <div className="form-card" style={{ marginBottom: '16px', background: '#FCFCFD', border: '1px solid #E5E7EB' }}>
-            <h4 style={{ marginTop: 0, marginBottom: '6px' }}>Bulk Add Tests to This Series</h4>
-            <p className="page-subtitle" style={{ marginBottom: '12px' }}>
-              Har item ek child test hoga. Isme `group`, `title`, `duration`, aur questions sab aa sakte hain.
-            </p>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setTestBulkText(testBulkExample)
-                  setTestBulkInfo('Example loaded in textarea below')
-                  setTestBulkError('')
-                  setTestBulkResult(null)
-                }}
-              >
-                <i className="fa-solid fa-eye"></i> See Example
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(testBulkExample)
-                    setTestBulkInfo('Example copied to clipboard')
-                    setTestBulkError('')
-                  } catch (e) {
-                    setTestBulkError('Copy failed: ' + (e.message || 'Unknown error'))
-                  }
-                }}
-              >
-                <i className="fa-solid fa-copy"></i> Copy Example
-              </button>
+            <div className="form-group">
+              <label>Discounted Price</label>
+              <input
+                className={validation.discountedPrice ? 'input-error' : ''}
+                type="number"
+                min="0"
+                value={form.discountedPrice}
+                onChange={(e) => setForm((old) => ({ ...old, discountedPrice: Number(e.target.value) }))}
+                disabled={!form.isPaid}
+              />
+              {validation.discountedPrice && <small className="error-text">{validation.discountedPrice}</small>}
+            </div>
+            <div className="form-group">
+              <label>Free Tests Count</label>
+              <input type="number" min="0" value={form.freeTestsCount} onChange={(e) => setForm((old) => ({ ...old, freeTestsCount: Number(e.target.value) }))} />
+            </div>
+            <div className="form-group">
+              <label>Tags</label>
+              <input value={form.tags} onChange={(e) => setForm((old) => ({ ...old, tags: e.target.value }))} placeholder="ssc, gk, chapterwise" />
             </div>
             <div className="form-group full">
-              <label>Tests JSON Array</label>
-              <textarea
-                rows={10}
-                value={testBulkText}
-                onChange={(e) => {
-                  setTestBulkText(e.target.value)
-                  setTestBulkInfo('')
-                  setTestBulkResult(null)
-                  setTestBulkError('')
-                }}
-                placeholder={`[\n  {\n    "group": "History",\n    "title": "History Test - 1",\n    "duration": 30,\n    "isFree": true,\n    "questions": [ ... ]\n  }\n]`}
-              />
+              <label>Description</label>
+              <textarea rows={3} value={form.description} onChange={(e) => setForm((old) => ({ ...old, description: e.target.value }))} />
             </div>
-            <button type="button" className="btn btn-primary" onClick={handleTestBulkImport} disabled={isBulkLoading}>
-              {isBulkLoading ? 'Importing...' : 'Import Tests Into Series'}
-            </button>
-            {testBulkError && <div className="error-text">{testBulkError}</div>}
-            {testBulkInfo && <div className="success-text">{testBulkInfo}</div>}
-            {testBulkResult?.totalInserted != null && (
-              <div className="success-text">
-                Imported {testBulkResult.totalInserted} test(s)
-                {testBulkResult.totalReceived != null ? ` out of ${testBulkResult.totalReceived}` : ''}.
-              </div>
-            )}
           </div>
 
           <div className="question-builder">
-            <h4>Build Test ({form.tests.length} tests added)</h4>
-            {editingTestIndex != null && (
-              <div className="success-text" style={{ marginBottom: '12px' }}>
-                Editing test #{editingTestIndex + 1}
+            <div className="split">
+              <h4>Draft Tests ({form.tests.length})</h4>
+              <div className="compact-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setTestBulkText(testBulkExample)}>Use Test Example</button>
+                <button type="button" className="btn btn-secondary" onClick={() => copyToClipboard(testBulkExample)}>Copy Test Example</button>
               </div>
-            )}
+            </div>
+
+            <div className="form-group full">
+              <label>Bulk Tests JSON (optional)</label>
+              <textarea rows={6} value={testBulkText} onChange={(e) => setTestBulkText(e.target.value)} />
+              <div className="compact-actions">
+                <button type="button" className="btn btn-secondary" onClick={handleInlineTestBulkImport}>Import Tests To Draft</button>
+              </div>
+            </div>
+
             <div className="form-grid">
               <div className="form-group">
                 <label>Test Group</label>
-                <input value={testInput.group} onChange={(e) => setTestInput({ ...testInput, group: e.target.value })} placeholder="History, Geography, etc." />
+                <input value={testInput.group} onChange={(e) => setTestInput((old) => ({ ...old, group: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label>Test Title</label>
-                <input value={testInput.title} onChange={(e) => setTestInput({ ...testInput, title: e.target.value })} />
+                <input value={testInput.title} onChange={(e) => setTestInput((old) => ({ ...old, title: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label>Duration (minutes)</label>
-                <input type="number" min="1" value={testInput.duration} onChange={(e) => setTestInput({ ...testInput, duration: Number(e.target.value) })} />
+                <input type="number" min="1" value={testInput.duration} onChange={(e) => setTestInput((old) => ({ ...old, duration: Number(e.target.value) }))} />
               </div>
               <div className="form-group">
                 <label>Test Access</label>
-                <select value={testInput.isFree} onChange={(e) => setTestInput({ ...testInput, isFree: e.target.value === 'true' })}>
+                <select value={testInput.isFree} onChange={(e) => setTestInput((old) => ({ ...old, isFree: e.target.value === 'true' }))}>
                   <option value="false">Paid/Locked</option>
                   <option value="true">Free</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label>Test Status</label>
-                <select value={testInput.isPublished} onChange={(e) => setTestInput({ ...testInput, isPublished: e.target.value === 'true' })}>
-                  <option value="true">Published</option>
-                  <option value="false">Draft</option>
-                </select>
-              </div>
             </div>
+
             <div className="form-group full">
               <label>Test Description</label>
-              <textarea rows={2} value={testInput.description} onChange={(e) => setTestInput({ ...testInput, description: e.target.value })} />
+              <textarea rows={2} value={testInput.description} onChange={(e) => setTestInput((old) => ({ ...old, description: e.target.value }))} />
             </div>
 
             <div className="form-group full">
               <label>Question</label>
-              <input value={questionInput.question} onChange={(e) => setQuestionInput({ ...questionInput, question: e.target.value })} />
+              <input value={questionInput.question} onChange={(e) => setQuestionInput((old) => ({ ...old, question: e.target.value }))} />
             </div>
+
             <div className="form-grid">
               {questionInput.options.map((option, index) => (
                 <div className="form-group" key={index}>
@@ -963,48 +971,52 @@ export default function TestSeries() {
                     onChange={(e) => {
                       const options = [...questionInput.options]
                       options[index] = e.target.value
-                      setQuestionInput({ ...questionInput, options })
+                      setQuestionInput((old) => ({ ...old, options }))
                     }}
                   />
                 </div>
               ))}
             </div>
+
             <div className="form-grid">
               <div className="form-group">
                 <label>Correct Answer</label>
-                <input value={questionInput.correctAnswer} onChange={(e) => setQuestionInput({ ...questionInput, correctAnswer: e.target.value })} />
+                <input value={questionInput.correctAnswer} onChange={(e) => setQuestionInput((old) => ({ ...old, correctAnswer: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label>Explanation</label>
-                <input value={questionInput.explanation} onChange={(e) => setQuestionInput({ ...questionInput, explanation: e.target.value })} />
+                <input value={questionInput.explanation} onChange={(e) => setQuestionInput((old) => ({ ...old, explanation: e.target.value }))} />
               </div>
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={editingQuestionIndex == null ? addQuestionToTest : saveQuestionEdit}
-            >
-              <i className={`fa-solid ${editingQuestionIndex == null ? 'fa-plus' : 'fa-floppy-disk'}`}></i>
-              {editingQuestionIndex == null ? ' Add Question' : ' Save Question'}
-            </button>
+
+            <div className="compact-actions">
+              <button type="button" className="btn btn-secondary" onClick={handleQuestionSave}>
+                {editingQuestionIndex == null ? 'Add Question' : 'Update Question'}
+              </button>
+              {editingQuestionIndex != null && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => {
+                    setQuestionInput(emptyQuestion)
+                    setEditingQuestionIndex(null)
+                  }}
+                >
+                  Cancel Question Edit
+                </button>
+              )}
+            </div>
 
             {testInput.questions.length > 0 && (
-              <div className="question-list">
+              <div className="chip-row">
                 {testInput.questions.map((question, index) => (
                   <div className="question-chip" key={index}>
-                    <span>Q{index + 1}: {question.question.slice(0, 40)}...</span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuestionInput({ ...question })
-                          setEditingQuestionIndex(index)
-                        }}
-                        title="Edit question"
-                      >
+                    <span>Q{index + 1}: {(question.question || '').slice(0, 42)}...</span>
+                    <div className="table-actions">
+                      <button type="button" onClick={() => handleQuestionEdit(index)} title="Edit question">
                         <i className="fa-solid fa-pen"></i>
                       </button>
-                      <button type="button" onClick={() => removeQuestionFromTestDraft(index)} title="Remove question">
+                      <button type="button" onClick={() => handleQuestionRemove(index)} title="Remove question">
                         <i className="fa-solid fa-xmark"></i>
                       </button>
                     </div>
@@ -1013,25 +1025,42 @@ export default function TestSeries() {
               </div>
             )}
 
-            <div className="form-actions">
-              <button type="button" className="btn btn-secondary" onClick={addTest}>
-                <i className={`fa-solid ${editingTestIndex == null ? 'fa-plus' : 'fa-floppy-disk'}`}></i>
-                {editingTestIndex == null ? ' Add Test To Series' : ' Save Test'}
+            <div className="compact-actions mt-4">
+              <button type="button" className="btn btn-primary" onClick={handleTestSave}>
+                {(isTestMetaUpdating || hydratingDetails)
+                  ? 'Updating...'
+                  : (editingTestIndex == null ? 'Add Test To Draft' : 'Update Test In Draft')}
               </button>
+              {editingTestIndex != null && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => {
+                    setEditingTestIndex(null)
+                    setTestInput(emptyTest)
+                    setQuestionInput(emptyQuestion)
+                    setEditingQuestionIndex(null)
+                  }}
+                >
+                  Cancel Test Edit
+                </button>
+              )}
             </div>
 
+            {validation.tests && <div className="error-text">{validation.tests}</div>}
+
             {form.tests.length > 0 && (
-              <div className="question-list">
+              <div className="chip-row">
                 {form.tests.map((test, index) => (
                   <div className="question-chip" key={`${test.title}-${index}`}>
                     <span>
-                      {index + 1}. {test.group ? `${test.group} - ` : ''}{test.title} ({test.questions?.length ?? test.totalQuestions ?? 0} questions, {test.duration} min)
+                      {index + 1}. {test.group ? `${test.group} - ` : ''}{test.title} ({test.totalQuestions || test.questions?.length || 0} Q, {test.duration}m)
                     </span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button type="button" onClick={() => editTest(index)} title="Edit test">
+                    <div className="table-actions">
+                      <button type="button" onClick={() => handleTestEdit(index)} title="Edit test">
                         <i className="fa-solid fa-pen"></i>
                       </button>
-                      <button type="button" onClick={() => removeTest(index)} title="Remove test">
+                      <button type="button" onClick={() => handleTestRemove(index)} title="Remove test">
                         <i className="fa-solid fa-xmark"></i>
                       </button>
                     </div>
@@ -1039,17 +1068,6 @@ export default function TestSeries() {
                 ))}
               </div>
             )}
-          </div>
-
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isCreateLoading || isUpdateLoading}
-            >
-              {editingId ? (isUpdateLoading ? 'Updating...' : 'Update') : (isCreateLoading ? 'Creating...' : 'Create')}
-            </button>
           </div>
         </form>
       )}
@@ -1069,7 +1087,7 @@ export default function TestSeries() {
               </tr>
             </thead>
             <tbody>
-              {seriesList.map((series) => (
+              {sortedSeries.map((series) => (
                 <tr key={series._id}>
                   <td>
                     <div className="cell-title">{series.title}</div>
@@ -1085,31 +1103,19 @@ export default function TestSeries() {
                   </td>
                   <td>
                     <div className="action-buttons">
-                      <button
-                        className="btn-icon btn-generate-mock"
-                        onClick={() => openGenerateModal(series, 'mock')}
-                        title="Generate Mock Test"
-                      >
-                        ?
-                      </button>
-                      <button
-                        className="btn-icon btn-generate-practice"
-                        onClick={() => openGenerateModal(series, 'practice')}
-                        title="Generate Practice Set"
-                      >
-                        ??
-                      </button>
+                      <button className="btn-icon btn-generate-mock" onClick={() => openGenerateModal(series, 'mock')} title="Generate Mock Test">M</button>
+                      <button className="btn-icon btn-generate-practice" onClick={() => openGenerateModal(series, 'practice')} title="Generate Practice Set">P</button>
                       <button className="btn-icon btn-edit" onClick={() => handleEdit(series)} title="Edit">
                         <i className="fa-solid fa-pen"></i>
                       </button>
-                      <button className="btn-icon btn-delete" onClick={() => handleDelete(series._id)} title="Delete">
+                      <button className="btn-icon btn-delete" onClick={() => handleDelete(series._id)} title="Delete" disabled={isDeleteLoading}>
                         <i className="fa-solid fa-trash"></i>
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {seriesList.length === 0 && (
+              {sortedSeries.length === 0 && (
                 <tr>
                   <td colSpan={7} className="empty-text">No test series found</td>
                 </tr>
@@ -1117,182 +1123,118 @@ export default function TestSeries() {
             </tbody>
           </table>
         </div>
+        <div className="compact-actions" style={{ justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
+          <span className="text-muted">Page {page} of {totalPages}</span>
+          <div className="compact-actions">
+            <button className="btn btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+            <button className="btn btn-secondary" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+          </div>
+        </div>
       </div>
 
-      {/* --- GENERATE MODAL --------------------------------------------------- */}
       {generateModal && (
         <div className="modal-overlay" onClick={closeGenerateModal}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-
-            {/* Header */}
             <div className="modal-header">
               <div>
                 <h3 className="modal-title">
-                  {generateModal.type === 'mock' ? '? Generate Mock Test' : '?? Generate Practice Set'}
+                  {generateModal.type === 'mock' ? 'Generate Mock Test' : 'Generate Practice Set'}
                 </h3>
                 <p className="modal-subtitle">Source: {generateModal.seriesTitle}</p>
               </div>
-              <button className="modal-close" onClick={closeGenerateModal}>?</button>
+              <button className="modal-close" onClick={closeGenerateModal}>X</button>
             </div>
 
-            {/* Success state */}
             {genResult ? (
               <div className="gen-success">
-                <div className="gen-success-icon">?</div>
-                <h4>{genResult.message}</h4>
+                <div className="gen-success-icon">OK</div>
+                <h4>{genResult.message || 'Created successfully'}</h4>
                 <p><strong>Title:</strong> {genResult.data?.title}</p>
                 <p><strong>Questions:</strong> {genResult.data?.totalQuestions}</p>
                 {generateModal.type === 'mock' && <p><strong>Duration:</strong> {genResult.data?.duration} min</p>}
-                <p><strong>Category/Subject:</strong> {genResult.data?.category || genResult.data?.subject}</p>
                 <div className="modal-footer">
                   <button className="btn btn-secondary" onClick={closeGenerateModal}>Close</button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setGenResult(null)
-                      setGenForm(f => ({ ...f, title: '' }))
-                    }}
-                  >
-                    Generate Another
-                  </button>
                 </div>
               </div>
             ) : (
               <>
-                {/* Select Tests */}
                 <div className="gen-section">
-                  <label className="gen-label">
-                    Select Tests to include
-                    <span className="gen-label-hint">
-                      {genForm.selectedTestIds.length === 0
-                        ? ' — All tests selected'
-                        : ` — ${genForm.selectedTestIds.length} selected`}
-                    </span>
-                  </label>
+                  <label className="gen-label">Select Tests (empty means all)</label>
                   <div className="gen-test-list">
-                    {generateModal.tests.map((t) => {
-                      const checked = genForm.selectedTestIds.length === 0 || genForm.selectedTestIds.includes(String(t._id))
+                    {generateModal.loadingTests && <span className="text-muted">Loading tests...</span>}
+                    {(generateModal.tests || []).map((test) => {
+                      const id = String(test._id)
+                      const checked = genForm.selectedTestIds.includes(id)
                       return (
-                        <label key={t._id} className="gen-test-item">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleTestId(String(t._id))}
-                          />
-                          <span className="gen-test-name">{t.title}</span>
-                          <span className="gen-test-count">
-                            {t.totalQuestions || 0} Qs
-                            {t.description ? ` • ${t.description}` : ''}
-                          </span>
+                        <label key={id} className="gen-test-item">
+                          <input type="checkbox" checked={checked} onChange={() => toggleTestSelection(id)} />
+                          <span className="gen-test-name">{test.title}</span>
+                          <span className="gen-test-count">{test.totalQuestions || 0} Q</span>
                         </label>
                       )
                     })}
                   </div>
                 </div>
 
-                {/* Common fields */}
                 <div className="gen-section">
-                  <div className="form-group full">
-                    <label>Title *</label>
-                    <input
-                      value={genForm.title}
-                      onChange={(e) => setGenForm(f => ({ ...f, title: e.target.value }))}
-                      placeholder="e.g. Lucent GK — History Mock Test"
-                    />
-                  </div>
-                  <div className="form-group full">
-                    <label>Description</label>
-                    <input
-                      value={genForm.description}
-                      onChange={(e) => setGenForm(f => ({ ...f, description: e.target.value }))}
-                    />
-                  </div>
                   <div className="form-grid">
-                    <div className="form-group">
-                      <label>Max Questions <span className="gen-label-hint">(blank = all)</span></label>
-                      <input
-                        type="number" min="1"
-                        value={genForm.maxQuestions}
-                        onChange={(e) => setGenForm(f => ({ ...f, maxQuestions: e.target.value }))}
-                        placeholder="e.g. 50"
-                      />
+                    <div className="form-group full">
+                      <label>Title</label>
+                      <input value={genForm.title} onChange={(e) => setGenForm((old) => ({ ...old, title: e.target.value }))} />
                     </div>
-                    {generateModal.type === 'mock' && (
-                      <div className="form-group">
-                        <label>Duration (minutes) *</label>
-                        <input
-                          type="number" min="1"
-                          value={genForm.duration}
-                          onChange={(e) => setGenForm(f => ({ ...f, duration: e.target.value }))}
-                        />
-                      </div>
-                    )}
-                    {generateModal.type === 'mock' && (
-                      <div className="form-group">
-                        <label>Category</label>
-                        <input
-                          value={genForm.category}
-                          onChange={(e) => setGenForm(f => ({ ...f, category: e.target.value }))}
-                        />
-                      </div>
-                    )}
-                    {generateModal.type === 'practice' && (
-                      <div className="form-group">
-                        <label>Subject</label>
-                        <input
-                          value={genForm.subject}
-                          onChange={(e) => setGenForm(f => ({ ...f, subject: e.target.value }))}
-                        />
-                      </div>
-                    )}
-                    {generateModal.type === 'practice' && (
-                      <div className="form-group">
-                        <label>Topic</label>
-                        <input
-                          value={genForm.topic}
-                          onChange={(e) => setGenForm(f => ({ ...f, topic: e.target.value }))}
-                          placeholder="e.g. Ancient History"
-                        />
-                      </div>
-                    )}
-                    {generateModal.type === 'practice' && (
-                      <div className="form-group">
-                        <label>Difficulty Level</label>
-                        <select value={genForm.level} onChange={(e) => setGenForm(f => ({ ...f, level: e.target.value }))}>
-                          <option value="easy">Easy</option>
-                          <option value="medium">Medium</option>
-                          <option value="hard">Hard</option>
-                        </select>
-                      </div>
-                    )}
-                    {generateModal.type === 'practice' && (
-                      <div className="form-group">
-                        <label>Language</label>
-                        <input
-                          value={genForm.language}
-                          onChange={(e) => setGenForm(f => ({ ...f, language: e.target.value }))}
-                        />
-                      </div>
-                    )}
-                    {generateModal.type === 'practice' && (
-                      <div className="form-group">
-                        <label>Tags <span className="gen-label-hint">(comma separated)</span></label>
-                        <input
-                          value={genForm.tags}
-                          onChange={(e) => setGenForm(f => ({ ...f, tags: e.target.value }))}
-                          placeholder="gk, history, lucent"
-                        />
-                      </div>
+                    <div className="form-group full">
+                      <label>Description</label>
+                      <input value={genForm.description} onChange={(e) => setGenForm((old) => ({ ...old, description: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Max Questions</label>
+                      <input type="number" min="1" value={genForm.maxQuestions} onChange={(e) => setGenForm((old) => ({ ...old, maxQuestions: e.target.value }))} />
+                    </div>
+
+                    {generateModal.type === 'mock' ? (
+                      <>
+                        <div className="form-group">
+                          <label>Duration</label>
+                          <input type="number" min="1" value={genForm.duration} onChange={(e) => setGenForm((old) => ({ ...old, duration: e.target.value }))} />
+                        </div>
+                        <div className="form-group">
+                          <label>Category</label>
+                          <input value={genForm.category} onChange={(e) => setGenForm((old) => ({ ...old, category: e.target.value }))} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="form-group">
+                          <label>Subject</label>
+                          <input value={genForm.subject} onChange={(e) => setGenForm((old) => ({ ...old, subject: e.target.value }))} />
+                        </div>
+                        <div className="form-group">
+                          <label>Topic</label>
+                          <input value={genForm.topic} onChange={(e) => setGenForm((old) => ({ ...old, topic: e.target.value }))} />
+                        </div>
+                        <div className="form-group">
+                          <label>Level</label>
+                          <select value={genForm.level} onChange={(e) => setGenForm((old) => ({ ...old, level: e.target.value }))}>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Language</label>
+                          <input value={genForm.language} onChange={(e) => setGenForm((old) => ({ ...old, language: e.target.value }))} />
+                        </div>
+                        <div className="form-group full">
+                          <label>Tags (comma separated)</label>
+                          <input value={genForm.tags} onChange={(e) => setGenForm((old) => ({ ...old, tags: e.target.value }))} />
+                        </div>
+                      </>
                     )}
                   </div>
 
                   <label className="gen-shuffle-row">
-                    <input
-                      type="checkbox"
-                      checked={genForm.shuffle}
-                      onChange={(e) => setGenForm(f => ({ ...f, shuffle: e.target.checked }))}
-                    />
-                    <span>Shuffle questions randomly</span>
+                    <input type="checkbox" checked={genForm.shuffle} onChange={(e) => setGenForm((old) => ({ ...old, shuffle: e.target.checked }))} />
+                    <span>Shuffle questions</span>
                   </label>
                 </div>
 
@@ -1300,16 +1242,8 @@ export default function TestSeries() {
 
                 <div className="modal-footer">
                   <button className="btn btn-secondary" onClick={closeGenerateModal}>Cancel</button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleGenerate}
-                    disabled={isMockGenerating || isPracticeGenerating}
-                  >
-                    {(isMockGenerating || isPracticeGenerating)
-                      ? 'Generating...'
-                      : generateModal.type === 'mock'
-                        ? '? Generate Mock Test'
-                        : '?? Generate Practice Set'}
+                  <button className="btn btn-primary" onClick={handleGenerate} disabled={isMockGenerating || isPracticeGenerating}>
+                    {(isMockGenerating || isPracticeGenerating) ? 'Generating...' : 'Generate'}
                   </button>
                 </div>
               </>
@@ -1320,4 +1254,3 @@ export default function TestSeries() {
     </div>
   )
 }
-

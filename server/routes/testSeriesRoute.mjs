@@ -7,6 +7,7 @@ import {
   getTestSeriesById,
   getTestById,
   updateTestSeries,
+  updateSeriesTestMeta,
   deleteTestSeries,
   generateMockTest,
   generatePracticeSet,
@@ -28,6 +29,7 @@ router.get("/:id/tests-meta", getTestsMeta);
 router.get("/:seriesId/test/:testId", optionalAuth, getTestById);
 
 router.put("/:id", updateTestSeries);
+router.patch("/:id/tests/:testId/meta", updateSeriesTestMeta);
 router.delete("/:id", deleteTestSeries);
 
 // ─── Generate routes ──────────────────────────────────────────────────────────
