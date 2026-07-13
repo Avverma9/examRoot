@@ -16,10 +16,21 @@ const cashfree = new Cashfree({
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+const getSubscriptions = (user) => (
+  Array.isArray(user?.subscriptions) ? user.subscriptions : []
+);
+
+const ensureSubscriptionsArray = (user) => {
+  if (!user) return false;
+  if (Array.isArray(user.subscriptions)) return false;
+  user.subscriptions = [];
+  return true;
+};
+
 /** Returns true if user has an active (non-expired) subscription for a series */
 export const hasActiveSubscription = (user, seriesId) => {
   const now = new Date();
-  return (user.subscriptions || []).some(
+  return getSubscriptions(user).some(
     (sub) =>
       String(sub.seriesId) === String(seriesId) &&
       sub.isActive &&
@@ -29,15 +40,17 @@ export const hasActiveSubscription = (user, seriesId) => {
 
 /** Expire any subscriptions whose endDate has passed */
 const expireOldSubscriptions = async (user) => {
+  if (!user) return;
   const now = new Date();
+  const initialized = ensureSubscriptionsArray(user);
   let changed = false;
-  for (const sub of user.subscriptions) {
+  for (const sub of getSubscriptions(user)) {
     if (sub.isActive && sub.endDate <= now) {
       sub.isActive = false;
       changed = true;
     }
   }
-  if (changed) await user.save();
+  if (initialized || changed) await user.save();
 };
 
 // ─── CREATE ORDER ─────────────────────────────────────────────────────────────
@@ -140,7 +153,10 @@ export const verifyOrder = async (req, res) => {
     if (cfStatus === "PAID") {
       // Activate subscription (webhook may have beaten us — check first)
       const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
       await expireOldSubscriptions(user);
+      ensureSubscriptionsArray(user);
 
       if (!hasActiveSubscription(user, txn.seriesId)) {
         const startDate = new Date();
@@ -230,6 +246,7 @@ export const cashfreeWebhook = async (req, res) => {
       const user = await User.findById(txn.userId);
       if (user) {
         await expireOldSubscriptions(user);
+        ensureSubscriptionsArray(user);
 
         // Guard: don't create duplicate active sub
         if (!hasActiveSubscription(user, txn.seriesId)) {
@@ -250,7 +267,8 @@ export const cashfreeWebhook = async (req, res) => {
           await user.save();
 
           // Store subscriptionId reference
-          txn.subscriptionId = user.subscriptions[user.subscriptions.length - 1]._id;
+          const subscriptions = getSubscriptions(user);
+          txn.subscriptionId = subscriptions[subscriptions.length - 1]?._id;
         }
       }
       txn.status = "PAID";
@@ -282,7 +300,7 @@ export const getMySubscriptions = async (req, res) => {
     await expireOldSubscriptions(user);
 
     const now = new Date();
-    const subs = user.subscriptions.map((sub) => ({
+    const subs = getSubscriptions(user).map((sub) => ({
       _id:        sub._id,
       seriesId:   sub.seriesId,
       orderId:    sub.orderId,
