@@ -1,6 +1,6 @@
 import { Tabs, useRouter, Redirect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -32,9 +32,11 @@ export default function TabLayout() {
   }
   
   return (
-    <Tabs 
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" translucent={false} />
+      <Tabs 
       screenOptions={{ 
-        tabBarActiveTintColor: '#F59E0B',
+        tabBarActiveTintColor: '#F97316',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
             paddingBottom: Math.max(5, insets.bottom),
@@ -42,14 +44,14 @@ export default function TabLayout() {
             height: 60 + Math.max(0, insets.bottom),
             backgroundColor: '#ffffff',
             borderTopWidth: 1,
-            borderTopColor: '#F3F4F6',
+            borderTopColor: '#FED7AA',
         },
         tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '600',
         },
         headerStyle: {
-          backgroundColor: '#F59E0B',
+          backgroundColor: '#F97316',
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 0,
@@ -150,5 +152,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }

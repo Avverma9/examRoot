@@ -8,7 +8,8 @@ import {
   Alert,
   BackHandler,
   StyleSheet,
-  ActivityIndicator
+  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -201,7 +202,7 @@ export default function PracticeSetPlayer() {
           disabled={isTranslating}
           style={[styles.langBtn, { backgroundColor: lang === l ? '#3B82F6' : 'transparent', opacity: isTranslating ? 0.5 : 1 }]}
         >
-          <Text style={[styles.langBtnText, { color: lang === l ? '#fff' : '#64748B' }]}>{l}</Text>
+          <Text style={[styles.langBtnText, { color: lang === l ? '#fff' : 'rgba(255,255,255,0.75)' }]}>{l}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -271,12 +272,13 @@ export default function PracticeSetPlayer() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
       
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity onPress={confirmExit} style={styles.closeBtn}>
-            <Feather name="x" size={20} color="#334155" />
+            <Feather name="x" size={20} color="#ffffff" />
           </TouchableOpacity>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerTitle} numberOfLines={1}>{parsedPractice.title}</Text>
@@ -467,28 +469,28 @@ export default function PracticeSetPlayer() {
 
 // ─── STYLESHEET ──────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#FFF7ED' },
   
-  header: { backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 3 },
+  header: { backgroundColor: '#F97316', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#EA580C', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 3 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  closeBtn: { padding: 4, marginRight: 10 },
+  closeBtn: { padding: 4, marginRight: 10, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 10 },
   headerTitleWrap: { flex: 1, marginRight: 8 },
-  headerTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
-  headerSubtitle: { fontSize: 11, fontWeight: '600', color: '#64748B' },
-  statsPill: { backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, marginLeft: 8, borderWidth: 1, borderColor: '#BFDBFE' },
-  statsText: { fontSize: 11, fontWeight: '800', color: '#1E40AF' },
-  progressBg: { height: 4, backgroundColor: '#E2E8F0', borderRadius: 4, overflow: 'hidden', marginTop: 2 },
-  progressFill: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 4 },
+  headerTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', marginBottom: 2 },
+  headerSubtitle: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.82)' },
+  statsPill: { backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, marginLeft: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  statsText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  progressBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 4, overflow: 'hidden', marginTop: 2 },
+  progressFill: { height: '100%', backgroundColor: '#FFFFFF', borderRadius: 4 },
   progressDataRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   progressDataText: { fontSize: 10, color: '#94A3B8', fontWeight: '600' },
 
-  langToggleWrap: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 7, padding: 2 },
+  langToggleWrap: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 7, padding: 2 },
   langBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  langBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  fontToggleWrap: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 7, padding: 2, marginLeft: 8 },
+  langBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: '#FFFFFF' },
+  fontToggleWrap: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 7, padding: 2, marginLeft: 8 },
   fontBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginHorizontal: 1 },
   fontBtnActive: { backgroundColor: '#3B82F6' },
-  fontBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: '#64748B' },
+  fontBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: '#FFFFFF' },
   fontBtnTextActive: { color: '#fff' },
 
   bodyScroll: { flex: 1 },

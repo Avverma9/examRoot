@@ -83,19 +83,19 @@ export default function HelpSupportScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+    <View className="flex-1 bg-orange-50" style={{ paddingTop: insets.top }}>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
 
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+      <View className="flex-row items-center px-4 py-3 bg-orange-500 border-b border-orange-600">
         <TouchableOpacity
           onPress={() => router.back()}
           className="mr-3 p-1"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="arrow-left" size={22} color="#1f2937" />
+          <Feather name="arrow-left" size={22} color="#ffffff" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-800 flex-1">Help & Support</Text>
+        <Text className="text-lg font-bold text-white flex-1">Help & Support</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

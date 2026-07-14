@@ -120,17 +120,17 @@ export default function MyPerformanceScreen() {
   const typeBg    = (type) => TYPE_CONFIG[type]?.bg    ?? '#F3F4F6';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: insets.top }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+    <View style={{ flex: 1, backgroundColor: '#FFF7ED', paddingTop: insets.top }}>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
 
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F97316', borderBottomWidth: 1, borderBottomColor: '#EA580C' }}>
         <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Feather name="arrow-left" size={22} color="#1F2937" />
+          <Feather name="arrow-left" size={22} color="#ffffff" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: '#0F172A', flex: 1 }}>My Performance</Text>
+        <Text style={{ fontSize: 17, fontWeight: '800', color: '#ffffff', flex: 1 }}>My Performance</Text>
         <TouchableOpacity onPress={onRefresh}>
-          <Feather name="refresh-cw" size={18} color="#94A3B8" />
+          <Feather name="refresh-cw" size={18} color="#ffffff" />
         </TouchableOpacity>
       </View>
 

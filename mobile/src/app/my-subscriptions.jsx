@@ -3,7 +3,7 @@
  * Shows all active & expired subscriptions for the logged-in user.
  */
 import React, { useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, StatusBar } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useDispatch, useSelector } from 'react-redux'
 import { Feather } from '@expo/vector-icons'
@@ -86,9 +86,10 @@ export default function MySubscriptions() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={20} color="#334155" />
+          <Feather name="arrow-left" size={20} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Subscriptions</Text>
       </View>
@@ -135,16 +136,16 @@ export default function MySubscriptions() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#FFF7ED' },
   header: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F97316', paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#EA580C',
     elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 2,
   },
   backBtn: { padding: 4, marginRight: 10 },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, paddingBottom: 32 },
 

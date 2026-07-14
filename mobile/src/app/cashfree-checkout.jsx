@@ -13,7 +13,7 @@
 import React, { useRef, useState, useCallback } from 'react'
 import {
   View, Text, TouchableOpacity, ActivityIndicator,
-  StyleSheet, Alert, BackHandler
+  StyleSheet, Alert, BackHandler, StatusBar
 } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -118,10 +118,11 @@ export default function CashfreeCheckout() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
       {/* Header */}
       <View style={[styles.header, { paddingTop: 44 }]}>
         <TouchableOpacity onPress={confirmCancel} style={styles.closeBtn}>
-          <Feather name="x" size={22} color="#374151" />
+          <Feather name="x" size={22} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerMid}>
           <Text style={styles.headerTitle} numberOfLines={1}>Pay for {seriesTitle}</Text>
@@ -182,18 +183,18 @@ export default function CashfreeCheckout() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#FFF7ED' },
   header: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F97316', paddingHorizontal: 16, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: '#EA580C',
     elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 2,
   },
-  closeBtn: { padding: 6, marginRight: 10 },
+  closeBtn: { padding: 6, marginRight: 10, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 10 },
   headerMid: { flex: 1 },
-  headerTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
-  headerSub: { fontSize: 11, color: '#64748B', marginTop: 1 },
+  headerTitle: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
   secureIcon: { padding: 6 },
 
   webview: { flex: 1 },

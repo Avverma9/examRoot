@@ -65,29 +65,29 @@ export default function SavedQuestionsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+    <View className="flex-1 bg-orange-50" style={{ paddingTop: insets.top }}>
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
 
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+      <View className="flex-row items-center px-4 py-3 bg-orange-500 border-b border-orange-600">
         <TouchableOpacity
           onPress={() => router.back()}
           className="mr-3 p-1"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="arrow-left" size={22} color="#1f2937" />
+          <Feather name="arrow-left" size={22} color="#ffffff" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-800 flex-1">Saved Questions</Text>
+        <Text className="text-lg font-bold text-white flex-1">Saved Questions</Text>
         {questions.length > 0 && (
-          <View className="bg-amber-100 px-2.5 py-1 rounded-lg">
-            <Text className="text-amber-700 text-xs font-bold">{questions.length} saved</Text>
+          <View className="bg-orange-100 px-2.5 py-1 rounded-lg">
+            <Text className="text-orange-700 text-xs font-bold">{questions.length} saved</Text>
           </View>
         )}
       </View>
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#F59E0B" />
+          <ActivityIndicator size="large" color="#F97316" />
           <Text className="text-gray-400 text-sm mt-3">Loading saved questions...</Text>
         </View>
       ) : error ? (
@@ -103,14 +103,14 @@ export default function SavedQuestionsScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#F59E0B" colors={['#F59E0B']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#F97316" colors={['#F97316']} />
           }
         >
           {questions.length === 0 ? (
             /* Empty State */
             <View className="flex-1 items-center justify-center px-8 py-20">
-              <View className="w-24 h-24 bg-amber-50 rounded-full items-center justify-center mb-6">
-                <Feather name="bookmark" size={44} color="#f59e0b" />
+              <View className="w-24 h-24 bg-orange-50 rounded-full items-center justify-center mb-6">
+                <Feather name="bookmark" size={44} color="#f97316" />
               </View>
               <Text className="text-xl font-bold text-gray-800 mb-2 text-center">
                 No saved questions yet

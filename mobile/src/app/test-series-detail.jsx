@@ -1,43 +1,40 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, useWindowDimensions,
+  ActivityIndicator, Alert, useWindowDimensions, StatusBar,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchTestSeriesById, fetchTestById, clearSelectedTest } from '../store/slices/testSeriesSlice'
+import { fetchTestSeriesById, fetchSeriesTestsMeta, fetchTestById, clearSelectedTest } from '../store/slices/testSeriesSlice'
 import { createOrder, clearCurrentOrder } from '../store/slices/paymentSlice'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 // ── Subject group config ─────────────────────────────────────────────────────
-// Dynamic colors can't be in className, so we keep them here as data.
 const GROUP_STYLES = {
   History:   { icon: 'clock',        bg: '#EEEDFE', fg: '#534AB7' },
   Geography: { icon: 'globe',        bg: '#E6F1FB', fg: '#185FA5' },
   Polity:    { icon: 'shield',       bg: '#FAECE7', fg: '#993C1D' },
   Economy:   { icon: 'trending-up',  bg: '#EAF3DE', fg: '#3B6D11' },
-  Science:   { icon: 'zap',         bg: '#FAEEDA', fg: '#854F0B' },
+  Science:   { icon: 'zap',          bg: '#FAEEDA', fg: '#854F0B' },
   Maths:     { icon: 'percent',      bg: '#FBEAF0', fg: '#993556' },
   Reasoning: { icon: 'cpu',          bg: '#E1F5EE', fg: '#0F6E56' },
   English:   { icon: 'book-open',    bg: '#FCEBEB', fg: '#A32D2D' },
   Ungrouped: { icon: 'folder',       bg: '#F1EFE8', fg: '#5F5E5A' },
 }
-const DEFAULT_GROUP_STYLE = { icon: 'grid', bg: '#EEEDFE', fg: '#534AB7' }
+const DEFAULT_GROUP_STYLE = { icon: 'grid', bg: '#FFF3E0', fg: '#EA580C' }
 const getGroupStyle = (name) => GROUP_STYLES[name] || DEFAULT_GROUP_STYLE
 
 // ── Responsive grid helpers ──────────────────────────────────────────────────
-// We use a manual flexWrap View (not FlatList numColumns) so the last partial
-// row does NOT stretch — tiles always keep the exact computed width.
 const H_PAD = 14
 const GAP   = 10
 const getNumCols       = (w) => (w >= 900 ? 4 : w >= 640 ? 3 : 2)
 const getContentMaxW   = (w) => (w >= 900 ? 900 : undefined)
 
-// ── Shadow presets (must stay as inline style — RN maps these to platform APIs)
+// ── Shadow presets ───────────────────────────────────────────────────────────
 const SHADOW_SM  = { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,  elevation: 1 }
-const SHADOW_MD  = { shadowColor: '#6D28D9', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 }
-const SHADOW_LG  = { shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1,  shadowRadius: 10, elevation: 3 }
+const SHADOW_MD  = { shadowColor: '#EA580C', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 }
+const SHADOW_LG  = { shadowColor: '#C2410C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1,  shadowRadius: 10, elevation: 3 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function TestSeriesDetail() {
@@ -52,12 +49,14 @@ export default function TestSeriesDetail() {
   const effectiveW     = Math.min(width, contentMaxW || width)
   const tileWidth      = (effectiveW - H_PAD * 2 - GAP * (numCols - 1)) / numCols
 
-  const { selectedSeries: series, seriesStatus, selectedTest, testStatus } =
+  const { selectedSeries: series, selectedSeriesTests, seriesStatus, selectedTest, testStatus } =
     useSelector(s => s.testSeries)
   const { token, isAuthenticated }      = useSelector(s => s.auth)
   const { subscriptions, orderStatus, currentOrder } = useSelector(s => s.payment)
 
   const [activeGroup, setActiveGroup] = useState(null)
+  // Track which test is specifically loading to fix the global spinner bug
+  const [loadingTestId, setLoadingTestId] = useState(null)
 
   const hasActiveSub = subscriptions.some(
     sub => sub.isActive && String(sub.seriesId?._id || sub.seriesId) === String(id)
@@ -65,12 +64,12 @@ export default function TestSeriesDetail() {
 
   useEffect(() => {
     dispatch(fetchTestSeriesById(id))
+    dispatch(fetchSeriesTestsMeta(id))
     return () => dispatch(clearSelectedTest())
   }, [id])
 
   useEffect(() => {
     if (testStatus === 'succeeded' && selectedTest) {
-      dispatch(clearSelectedTest())
       router.push({
         pathname: '/mock-test-player',
         params: {
@@ -81,6 +80,12 @@ export default function TestSeriesDetail() {
           }),
         },
       })
+      dispatch(clearSelectedTest())
+    }
+
+    if (testStatus === 'succeeded' || testStatus === 'failed') {
+      const timer = setTimeout(() => setLoadingTestId(null), 0)
+      return () => clearTimeout(timer)
     }
   }, [testStatus, selectedTest])
 
@@ -104,19 +109,22 @@ export default function TestSeriesDetail() {
 
   // ── Loading / empty guards ─────────────────────────────────────────────────
   if (seriesStatus === 'loading') return (
-    <View className="flex-1 items-center justify-center bg-slate-50" style={{ paddingTop: insets.top }}>
-      <ActivityIndicator size="large" color="#8B5CF6" />
+    <View className="flex-1 items-center justify-center bg-orange-50">
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" translucent={false} />
+      <ActivityIndicator size="large" color="#F97316" />
     </View>
   )
   if (!series) return null
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleStartTest = (test) => {
+  const handleStartTestClick = (test) => {
     if (!series.isPaid || test.isFree || hasActiveSub) {
+      // Only set loading for this specific test ID
+      setLoadingTestId(test._id)
       dispatch(fetchTestById({ seriesId: series._id, testId: test._id }))
-      return
+    } else {
+      handleBuyNow()
     }
-    handleBuyNow()
   }
 
   const handleBuyNow = () => {
@@ -135,8 +143,11 @@ export default function TestSeriesDetail() {
   const isOrderLoading = orderStatus === 'loading'
   const isTestLoading  = testStatus  === 'loading'
 
-  // Bucket tests by group name
-  const groups = (series.tests || []).reduce((acc, test) => {
+  const testsForRender = (selectedSeriesTests && selectedSeriesTests.length)
+    ? selectedSeriesTests
+    : (series.tests || [])
+
+  const groups = testsForRender.reduce((acc, test) => {
     const name = test.group?.trim() || 'Ungrouped'
     let b = acc.find(g => g.title === name)
     if (!b) { b = { title: name, data: [] }; acc.push(b) }
@@ -156,7 +167,6 @@ export default function TestSeriesDetail() {
         activeOpacity={0.80}
         disabled={isTestLoading}
         onPress={() => setActiveGroup(item.title)}
-        // tileWidth is computed → must stay in style
         style={[{ width: tileWidth }, SHADOW_MD, {
           backgroundColor: '#fff',
           borderRadius: 18,
@@ -165,12 +175,10 @@ export default function TestSeriesDetail() {
           borderColor: '#E8E4F4',
         }]}
       >
-        {/* Coloured thumbnail block */}
         <View
           className="items-center justify-center"
           style={{ height: 78, backgroundColor: st.bg }}
         >
-          {/* Semi-transparent circle behind icon */}
           <View
             className="w-11 h-11 rounded-full items-center justify-center"
             style={{ backgroundColor: 'rgba(255,255,255,0.48)' }}
@@ -179,7 +187,6 @@ export default function TestSeriesDetail() {
           </View>
         </View>
 
-        {/* Text row */}
         <View className="px-2.5 py-2">
           <Text
             className="text-[12.5px] font-extrabold text-slate-900 mb-0.5"
@@ -192,7 +199,6 @@ export default function TestSeriesDetail() {
           </Text>
         </View>
 
-        {/* Free badge */}
         {freeCount > 0 && (
           <View className="absolute top-1.5 right-1.5 bg-emerald-50 rounded-md px-1.5 py-0.5">
             <Text className="text-[8.5px] font-extrabold text-emerald-800">
@@ -200,8 +206,6 @@ export default function TestSeriesDetail() {
             </Text>
           </View>
         )}
-
-        {/* Subtle bottom accent line using the group fg color */}
         <View style={{ height: 2.5, backgroundColor: st.fg, opacity: 0.25 }} />
       </TouchableOpacity>
     )
@@ -210,6 +214,8 @@ export default function TestSeriesDetail() {
   // ── Test card ──────────────────────────────────────────────────────────────
   const renderTestCard = (item, index) => {
     const isLocked = series.isPaid && !item.isFree && !hasActiveSub
+    const isThisTestLoading = isTestLoading && loadingTestId === item._id
+
     return (
       <View
         key={item._id}
@@ -217,20 +223,17 @@ export default function TestSeriesDetail() {
           ${isLocked ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200/80'}`}
         style={SHADOW_SM}
       >
-        {/* Left: number / lock + info */}
         <View className="flex-1 flex-row items-center">
-          {/* Index circle */}
           <View
             className={`w-9 h-9 rounded-xl items-center justify-center mr-3
-              ${isLocked ? 'bg-slate-100' : 'bg-violet-50'}`}
+              ${isLocked ? 'bg-slate-100' : 'bg-orange-50'}`}
           >
             {isLocked
               ? <Feather name="lock" size={13} color="#94A3B8" />
-              : <Text className="text-[13px] font-black text-violet-500">{index + 1}</Text>
+              : <Text className="text-[13px] font-black text-orange-500">{index + 1}</Text>
             }
           </View>
 
-          {/* Title / meta */}
           <View className="flex-1">
             <Text
               className={`text-[13px] font-bold leading-[19px] mb-0.5
@@ -262,14 +265,13 @@ export default function TestSeriesDetail() {
           </View>
         </View>
 
-        {/* CTA button */}
         <TouchableOpacity
-          onPress={() => handleStartTest(item)}
-          disabled={isTestLoading || isOrderLoading}
-          className={`items-center justify-center px-3.5 py-2.5 rounded-xl ml-3 min-w-[58px]
-            ${isLocked ? 'bg-slate-100' : 'bg-violet-500'}`}
+          onPress={() => handleStartTestClick(item)}
+          disabled={isTestLoading || isOrderLoading} 
+          className={`items-center justify-center px-4 py-2.5 rounded-xl ml-3 min-w-[70px]
+            ${isLocked ? 'bg-slate-100' : 'bg-orange-500'}`}
         >
-          {isTestLoading
+          {isThisTestLoading
             ? <ActivityIndicator size="small" color={isLocked ? '#94A3B8' : '#fff'} />
             : <Text className={`text-[11px] font-extrabold
                 ${isLocked ? 'text-slate-500' : 'text-white'}`}>
@@ -281,21 +283,18 @@ export default function TestSeriesDetail() {
     )
   }
 
-  // ── Series header (info card + price banner + section heading) ─────────────
+  // ── Series header ──────────────────────────────────────────────────────────
   const renderSeriesHeader = () => (
     <View>
-      {/* ── Info card ── */}
       <View
         className="bg-white rounded-2xl p-4 mb-3 border border-slate-200/80"
         style={SHADOW_LG}
       >
         <View className="flex-row items-start mb-3">
-          {/* Book icon */}
-          <View className="w-12 h-12 rounded-[14px] bg-violet-50 items-center justify-center mr-3">
-            <Feather name="book" size={24} color="#8B5CF6" />
+          <View className="w-12 h-12 rounded-[14px] bg-orange-50 items-center justify-center mr-3">
+            <Feather name="book" size={24} color="#F97316" />
           </View>
 
-          {/* Title block */}
           <View className="flex-1 mr-2">
             <Text
               className="text-[15px] font-extrabold text-slate-900 leading-[22px]"
@@ -313,10 +312,9 @@ export default function TestSeriesDetail() {
             ) : null}
           </View>
 
-          {/* Paid / Free badge */}
           <View className={`self-start px-2 py-1 rounded-lg
             ${series.isPaid
-              ? 'bg-orange-50 border border-orange-200'
+              ? 'bg-amber-50 border border-amber-200'
               : 'bg-emerald-50 border border-emerald-200'
             }`}
           >
@@ -328,22 +326,20 @@ export default function TestSeriesDetail() {
           </View>
         </View>
 
-        {/* Description */}
         {series.description ? (
           <Text className="text-[12.5px] text-slate-500 leading-5 mb-3">
             {series.description}
           </Text>
         ) : null}
 
-        {/* Stats row */}
         <View className="flex-row border-t border-slate-100 pt-3">
           {[
-            { icon: 'layers', val: `${series.tests?.length || 0}`, label: 'Tests' },
+            { icon: 'layers', val: `${testsForRender.length || 0}`, label: 'Tests' },
             { icon: 'tag',    val: series.subject,                  label: 'Subject' },
             { icon: 'grid',   val: series.category,                 label: 'Category' },
           ].map((s, i) => (
             <View key={i} className="flex-1 items-center gap-1">
-              <Feather name={s.icon} size={13} color="#8B5CF6" />
+              <Feather name={s.icon} size={13} color="#F97316" />
               <Text className="text-[12.5px] font-extrabold text-slate-900 mt-0.5">
                 {s.val}
               </Text>
@@ -355,10 +351,8 @@ export default function TestSeriesDetail() {
         </View>
       </View>
 
-      {/* ── Price / subscription banner ── */}
       {series.isPaid && (
         hasActiveSub ? (
-          /* Active sub */
           <View className="flex-row items-center bg-emerald-50 rounded-2xl p-3.5 mb-3 border-2 border-emerald-200">
             <View className="w-8 h-8 rounded-xl bg-emerald-100 items-center justify-center mr-2.5">
               <Feather name="check-circle" size={15} color="#059669" />
@@ -390,7 +384,6 @@ export default function TestSeriesDetail() {
             </TouchableOpacity>
           </View>
         ) : (
-          /* Locked — buy prompt */
           <View className="flex-row items-center bg-amber-50 rounded-2xl p-3.5 mb-3 border-2 border-amber-300">
             <View className="w-8 h-8 rounded-xl bg-amber-100 items-center justify-center mr-2.5">
               <Feather name="lock" size={14} color="#92400E" />
@@ -411,7 +404,7 @@ export default function TestSeriesDetail() {
             <TouchableOpacity
               onPress={handleBuyNow}
               disabled={isOrderLoading}
-              className={`bg-amber-400 px-3.5 py-2.5 rounded-xl min-w-[70px] items-center
+              className={`bg-orange-500 px-3.5 py-2.5 rounded-xl min-w-[70px] items-center
                 ${isOrderLoading ? 'opacity-70' : ''}`}
             >
               {isOrderLoading
@@ -425,8 +418,7 @@ export default function TestSeriesDetail() {
         )
       )}
 
-      {/* Section label */}
-      <Text className="text-[13px] font-extrabold text-slate-800 mb-3 tracking-wide">
+      <Text className="text-[13px] font-extrabold text-slate-800 mb-3 tracking-wide mt-1">
         Browse by Topic
       </Text>
     </View>
@@ -434,32 +426,35 @@ export default function TestSeriesDetail() {
 
   // ── Root render ────────────────────────────────────────────────────────────
   return (
-    <View className="flex-1 bg-slate-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-orange-50">
+      <StatusBar barStyle="light-content" backgroundColor="#F97316" translucent={false} />
 
-      {/* ── Top bar ── */}
-      <View
-        className="flex-row items-center bg-white px-4 py-3 border-b border-slate-100"
-        style={SHADOW_SM}
-      >
-        <TouchableOpacity
-          onPress={() => (activeGroup ? setActiveGroup(null) : router.back())}
-          className="p-1.5 rounded-xl bg-slate-50 mr-2.5"
+      <View style={{ backgroundColor: '#F97316', paddingTop: insets.top }} />
+      <View style={{ backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+        <View
+          className="flex-row items-center px-4 py-3"
+          style={SHADOW_SM}
         >
-          <Feather name="arrow-left" size={18} color="#334155" />
-        </TouchableOpacity>
-
-        <Text className="flex-1 text-[14.5px] font-bold text-slate-900" numberOfLines={1}>
-          {activeGroup || series.title}
-        </Text>
-
-        {isAuthenticated && !activeGroup && (
           <TouchableOpacity
-            onPress={() => router.push('/my-subscriptions')}
-            className="p-1.5 rounded-xl bg-violet-50"
+            onPress={() => (activeGroup ? setActiveGroup(null) : router.back())}
+            className="p-1.5 rounded-xl bg-gray-100 mr-3"
           >
-            <Feather name="award" size={17} color="#8B5CF6" />
+            <Feather name="arrow-left" size={19} color="#1C2B42" />
           </TouchableOpacity>
-        )}
+
+          <Text className="flex-1 text-[16px] font-bold text-slate-900 tracking-wide" numberOfLines={1}>
+            {activeGroup || series.title}
+          </Text>
+
+          {isAuthenticated && !activeGroup && (
+            <TouchableOpacity
+              onPress={() => router.push('/my-subscriptions')}
+              className="p-2 rounded-xl bg-gray-100"
+            >
+              <Feather name="award" size={18} color="#1C2B42" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* ── Scrollable body ── */}
@@ -471,9 +466,7 @@ export default function TestSeriesDetail() {
         ]}
       >
         {activeGroup ? (
-          // ── Group detail: coloured header + test list ──────────────────────
           <>
-            {/* Group colour-block header */}
             <View
               className="flex-row items-center rounded-2xl p-3 mb-3"
               style={{ backgroundColor: getGroupStyle(activeGroup).bg }}
@@ -505,7 +498,6 @@ export default function TestSeriesDetail() {
               </View>
             </View>
 
-            {/* Test cards */}
             {activeGroupData?.data.length
               ? activeGroupData.data.map((item, idx) => renderTestCard(item, idx))
               : (
@@ -519,7 +511,6 @@ export default function TestSeriesDetail() {
             }
           </>
         ) : (
-          // ── Grid view: header + tile grid ─────────────────────────────────
           <>
             {renderSeriesHeader()}
 
@@ -531,7 +522,6 @@ export default function TestSeriesDetail() {
                 </Text>
               </View>
             ) : (
-              // flexWrap grid — avoids FlatList numColumns last-row stretch bug
               <View
                 className="flex-row flex-wrap"
                 style={{ gap: GAP }}
