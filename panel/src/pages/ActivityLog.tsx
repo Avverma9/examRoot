@@ -510,8 +510,8 @@ export function ActivityLog() {
               }}
             >
               {selectedDayStats?.sessions ?? 0}
-              </div>
             </div>
+          </div>
 
           <div
             style={{
