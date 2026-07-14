@@ -1,0 +1,6 @@
+{
+  "name": "ExamRoot Admin Panel",
+  "description": "Admin panel for managing ExamRoot dashboard analytics, videos, mock tests, practice sets, test series, and banners.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

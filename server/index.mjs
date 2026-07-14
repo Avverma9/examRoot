@@ -16,6 +16,8 @@ const PORT = process.env.PORT || 3000;
 const WORKER_COUNT = Number(process.env.WORKER_COUNT) || os.cpus().length;
 const USE_CLUSTER = process.env.USE_CLUSTER === "true" && Boolean(process.env.MONGO_URI);
 
+app.set("trust proxy", true);
+
 // ==============================
 // CORS
 // ==============================

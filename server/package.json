@@ -7,6 +7,7 @@
     "start": "node index.mjs",
     "dev": "nodemon index.mjs",
     "seed": "node seed.mjs",
+    "seed:testjson": "node seed-test-series-from-json.mjs ../test.json",
     "migrate:fix-question-counts": "node migrate-fix-test-series-question-counts.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

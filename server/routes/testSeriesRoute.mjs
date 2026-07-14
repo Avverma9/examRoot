@@ -7,7 +7,10 @@ import {
   getTestSeriesById,
   getTestById,
   updateTestSeries,
+  addSeriesTests,
   updateSeriesTestMeta,
+  updateSeriesTestQuestions,
+  deleteSeriesTest,
   deleteTestSeries,
   generateMockTest,
   generatePracticeSet,
@@ -29,7 +32,10 @@ router.get("/:id/tests-meta", getTestsMeta);
 router.get("/:seriesId/test/:testId", optionalAuth, getTestById);
 
 router.put("/:id", updateTestSeries);
+router.post("/:id/tests/bulk", addSeriesTests);
 router.patch("/:id/tests/:testId/meta", updateSeriesTestMeta);
+router.patch("/:id/tests/:testId/questions", updateSeriesTestQuestions);
+router.delete("/:seriesId/tests/:testId", deleteSeriesTest);
 router.delete("/:id", deleteTestSeries);
 
 // ─── Generate routes ──────────────────────────────────────────────────────────

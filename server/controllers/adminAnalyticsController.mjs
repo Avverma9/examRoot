@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "../models/User.mjs";
 import Tracking from "../models/Tracking.mjs";
+import AppActivitySession from "../models/AppActivitySession.mjs";
 import Video from "../models/Video.mjs";
 import MockTest from "../models/MockTest.mjs";
 import PracticeSet from "../models/PracticeSet.mjs";
@@ -205,11 +206,15 @@ export const getAdminStats = async (req, res) => {
     const today     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const last7     = new Date(today); last7.setDate(today.getDate() - 6);
     const last30    = new Date(today); last30.setDate(today.getDate() - 29);
+    const activeCutoff = new Date(Date.now() - 120000);
 
     const [
       totalUsers,
       activeToday,
       activeLast7,
+      currentActiveDevices,
+      activeTodayDevices,
+      appSessionsToday,
       testsAttempted,
       practiceAttempted,
       videosWatched,
@@ -226,6 +231,20 @@ export const getAdminStats = async (req, res) => {
       // users active last 7 days
       Tracking.distinct("userId", { updatedAt: { $gte: last7 }, status: "completed" })
         .then((arr) => arr.length),
+
+      // current active mobile devices
+      AppActivitySession.distinct("deviceId", {
+        endedAt: null,
+        lastSeenAt: { $gte: activeCutoff },
+      }).then((arr) => arr.length),
+
+      // mobile devices that became active today
+      AppActivitySession.distinct("deviceId", {
+        firstSeenAt: { $gte: today },
+      }).then((arr) => arr.length),
+
+      // total app sessions started today
+      AppActivitySession.countDocuments({ firstSeenAt: { $gte: today } }),
 
       // total mock/series tests attempted (completed)
       Tracking.countDocuments({
@@ -265,6 +284,9 @@ export const getAdminStats = async (req, res) => {
         totalUsers,
         activeToday,
         activeLast7,
+        currentActiveDevices,
+        activeTodayDevices,
+        appSessionsToday,
         testsAttempted,
         practiceAttempted,
         videosWatched,

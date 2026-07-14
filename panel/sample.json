@@ -1,0 +1,772 @@
+[
+  {
+    "group": "Environment & Ecology",
+    "title": "Environment & Ecology Test Page 180",
+    "description": "80 Unique MCQs on Water Quality (DO, BOD, COD), CPCB, Arsenic & Fluoride Pollution, and Bio-toilets based on Lucent GK Page 180.",
+    "duration": 40,
+    "isFree": "true",
+    "isPublished": "true",
+    "questions": [
+      {
+        "question": "Which of the following is NOT a standard parameter for determining water quality?",
+        "questionHi": "जल की गुणवत्ता का निर्धारण करने के लिए निम्नलिखित में से कौन-सा एक मानक पैरामीटर नहीं है?",
+        "options": ["Dissolved Oxygen (DO)", "Biological Oxygen Demand (BOD)", "Chemical Oxygen Demand (COD)", "Nitrogen Fixation Rate"],
+        "optionsHi": ["घुली ऑक्सीजन (DO)", "जैव ऑक्सीजन माँग (BOD)", "रासायनिक ऑक्सीजन माँग (COD)", "नाइट्रोजन स्थिरीकरण दर"],
+        "correctAnswer": "Nitrogen Fixation Rate",
+        "correctAnswerHi": "नाइट्रोजन स्थिरीकरण दर",
+        "explanation": "Water quality is determined based on DO, BOD, COD, and pH value.",
+        "explanationHi": "सामान्य रूप से जल की गुणवत्ता का निर्धारण DO, BOD, COD एवं pH मान के आधार पर किया जाता है।"
+      },
+      {
+        "question": "In which year was the Central Pollution Control Board (CPCB) established?",
+        "questionHi": "केन्द्रीय प्रदूषण नियंत्रण बोर्ड (CPCB) का गठन किस वर्ष किया गया था?",
+        "options": ["1972", "1974", "1981", "1986"],
+        "optionsHi": ["1972", "1974", "1981", "1986"],
+        "correctAnswer": "1974",
+        "correctAnswerHi": "1974",
+        "explanation": "CPCB was constituted in September 1974 under the Water (Prevention and Control of Pollution) Act, 1974.",
+        "explanationHi": "CPCB का गठन जल (प्रदूषण निवारण एवं नियंत्रण) अधिनियम, 1974 के अधीन सितम्बर 1974 में किया गया था।"
+      },
+      {
+        "question": "Under which act was the CPCB assigned powers related to air pollution in 1981?",
+        "questionHi": "1981 में CPCB को वायु प्रदूषण से संबंधित शक्तियाँ किस अधिनियम के तहत सौंपी गई थीं?",
+        "options": ["Environment Protection Act", "Air (Prevention and Control of Pollution) Act", "Water Act", "Forest Conservation Act"],
+        "optionsHi": ["पर्यावरण संरक्षण अधिनियम", "वायु (प्रदूषण निवारण एवं नियंत्रण) अधिनियम", "जल अधिनियम", "वन संरक्षण अधिनियम"],
+        "correctAnswer": "Air (Prevention and Control of Pollution) Act",
+        "correctAnswerHi": "वायु (प्रदूषण निवारण एवं नियंत्रण) अधिनियम",
+        "explanation": "CPCB was assigned powers under the Air Act of 1981.",
+        "explanationHi": "CPCB को वायु (प्रदूषण निवारण एवं नियंत्रण) अधिनियम, 1981 के अधीन भी शक्तियाँ सौंपी गई हैं।"
+      },
+      {
+        "question": "CPCB provides technical services to the Ministry under which 1986 Act?",
+        "questionHi": "CPCB किस 1986 के अधिनियम के बारे में मंत्रालय को तकनीकी सेवाएँ प्रदान करता है?",
+        "options": ["Wildlife Protection Act", "Environment (Protection) Act", "Public Liability Insurance Act", "National Green Tribunal Act"],
+        "optionsHi": ["वन्यजीव संरक्षण अधिनियम", "पर्यावरण (संरक्षण) अधिनियम", "सार्वजनिक देयता बीमा अधिनियम", "राष्ट्रीय हरित अधिकरण अधिनियम"],
+        "correctAnswer": "Environment (Protection) Act",
+        "correctAnswerHi": "पर्यावरण (संरक्षण) अधिनियम",
+        "explanation": "It provides technical services under the Environment (Protection) Act, 1986.",
+        "explanationHi": "यह मंत्रालय को पर्यावरण (संरक्षण) अधिनियम, 1986 के उपबंधों के बारे में तकनीकी सेवाएँ प्रदान करता है।"
+      },
+      {
+        "question": "What is the primary function of CPCB regarding water bodies?",
+        "questionHi": "नदियों और कुओं के संदर्भ में CPCB का मुख्य कार्य क्या है?",
+        "options": ["To increase water level", "To promote cleanliness of rivers and wells", "To build dams", "To promote fishing"],
+        "optionsHi": ["जल स्तर बढ़ाना", "नदियों और कुओं की स्वच्छता को बढ़ावा देना", "बाँध बनाना", "मछली पालन को बढ़ावा देना"],
+        "correctAnswer": "To promote cleanliness of rivers and wells",
+        "correctAnswerHi": "नदियों और कुओं की स्वच्छता को बढ़ावा देना",
+        "explanation": "One of its main functions is to promote the cleanliness of rivers and wells in different areas.",
+        "explanationHi": "इसका मुख्य कार्य राज्यों के विभिन्न क्षेत्रों में नदियों और कुओं की स्वच्छता को बढ़ावा देना है।"
+      },
+      {
+        "question": "What is 'Dissolved Oxygen' (DO) essential for?",
+        "questionHi": "'घुली ऑक्सीजन' (DO) किसके लिए आवश्यक है?",
+        "options": ["Plant growth", "Respiration of aquatic organisms", "Soil fertility", "Cloud formation"],
+        "optionsHi": ["पौधों की वृद्धि", "जलीय जीवों के श्वसन", "मृदा उर्वरता", "बादल निर्माण"],
+        "correctAnswer": "Respiration of aquatic organisms",
+        "correctAnswerHi": "जलीय जीवों के श्वसन",
+        "explanation": "DO is the amount of oxygen dissolved in water required for the respiration of aquatic life.",
+        "explanationHi": "यह जल में घुलित ऑक्सीजन की वह मात्रा है जो जलीय जीवों के श्वसन के लिए आवश्यक होती है।"
+      },
+      {
+        "question": "Water is considered 'polluted' if the DO level falls below how many mg/liter?",
+        "questionHi": "यदि DO का स्तर कितने मिलीग्राम/लीटर से कम हो जाए, तो जल को 'प्रदूषित' माना जाता है?",
+        "options": ["10.0", "8.0", "12.0", "15.0"],
+        "optionsHi": ["10.0", "8.0", "12.0", "15.0"],
+        "correctAnswer": "8.0",
+        "correctAnswerHi": "8.0",
+        "explanation": "When DO level is less than 8.0 mg/liter, the water is considered polluted.",
+        "explanationHi": "जब जल में DO की मात्रा 8.0 मिलीग्राम/लीटर से कम हो जाती है तो ऐसे जल को प्रदूषित जल कहा जाता है।"
+      },
+      {
+        "question": "Water is considered 'highly polluted' if the DO level falls below ______ mg/liter.",
+        "questionHi": "यदि DO का स्तर ______ मिलीग्राम/लीटर से कम हो जाए, तो जल को 'अत्यधिक प्रदूषित' कहा जाता है।",
+        "options": ["6.0", "5.0", "4.0", "2.0"],
+        "optionsHi": ["6.0", "5.0", "4.0", "2.0"],
+        "correctAnswer": "4.0",
+        "correctAnswerHi": "4.0",
+        "explanation": "A DO level below 4.0 mg/liter indicates extreme pollution.",
+        "explanationHi": "जब यह मात्रा 4.0 मिलीग्राम/लीटर से कम हो जाती है तो इसे अत्यधिक प्रदूषित कहा जाता है।"
+      },
+      {
+        "question": "What is measured to determine water pollution in a river?",
+        "questionHi": "नदी में जल-प्रदूषण के निर्धारण के लिए किसकी घुली हुई मात्रा मापी जाती है?",
+        "options": ["Nitrogen", "Oxygen", "Hydrogen", "Chlorine"],
+        "optionsHi": ["नाइट्रोजन", "ऑक्सीजन", "हाइड्रोजन", "क्लोरीन"],
+        "correctAnswer": "Oxygen",
+        "correctAnswerHi": "ऑक्सीजन",
+        "explanation": "The dissolved amount of oxygen is measured to assess river water pollution.",
+        "explanationHi": "नोट: नदी में जल-प्रदूषण के निर्धारण के लिए ऑक्सीजन की घुली हुई मात्रा मापी जाती है।"
+      },
+      {
+        "question": "What does 'BOD' stand for in environmental science?",
+        "questionHi": "पर्यावरण विज्ञान में 'BOD' का पूर्ण रूप क्या है?",
+        "options": ["Basic Oxygen Demand", "Biological Oxygen Demand", "Biological Ozone Demand", "Binary Oxygen Demand"],
+        "optionsHi": ["Basic Oxygen Demand", "Biological Oxygen Demand", "Biological Ozone Demand", "Binary Oxygen Demand"],
+        "correctAnswer": "Biological Oxygen Demand",
+        "correctAnswerHi": "Biological Oxygen Demand",
+        "explanation": "BOD stands for Biological Oxygen Demand.",
+        "explanationHi": "BOD का अर्थ Biological Oxygen Demand (जैव ऑक्सीजन माँग) है।"
+      },
+      {
+        "question": "What is the relationship between BOD and DO?",
+        "questionHi": "BOD और DO के बीच क्या संबंध है?",
+        "options": ["High BOD means High DO", "High BOD means Low DO", "BOD and DO are unrelated", "Low BOD means Low DO"],
+        "optionsHi": ["उच्च BOD का अर्थ उच्च DO", "जहाँ उच्च BOD है वहाँ DO निम्न होगा", "BOD और DO असंबद्ध हैं", "निम्न BOD का अर्थ निम्न DO"],
+        "correctAnswer": "High BOD means Low DO",
+        "correctAnswerHi": "जहाँ उच्च BOD है वहाँ DO निम्न होगा",
+        "explanation": "High BOD indicates high organic pollution, which consumes dissolved oxygen, leading to low DO.",
+        "explanationHi": "जहाँ उच्च BOD है वहाँ DO निम्न होगा।"
+      },
+      {
+        "question": "Why is BOD not used as a primary measure for water pollution monitoring?",
+        "questionHi": "BOD को जल प्रदूषण मापन के प्राथमिक विकल्प के रूप में क्यों इस्तेमाल नहीं किया जाता है?",
+        "options": ["It is too expensive", "It only measures biological decomposition and is a long process", "It is inaccurate", "It measures only chemicals"],
+        "optionsHi": ["यह बहुत महंगा है", "यह केवल जैव अपघटन का पता लगाता है और यह बहुत लम्बी प्रक्रिया है", "यह गलत है", "यह केवल रसायनों को मापता है"],
+        "correctAnswer": "It only measures biological decomposition and is a long process",
+        "correctAnswerHi": "यह केवल जैव अपघटन का पता लगाता है और यह बहुत लम्बी प्रक्रिया है",
+        "explanation": "BOD only indicates biological decomposition and the testing process takes a long time.",
+        "explanationHi": "BOD के माध्यम से केवल जैव अपघटन का पता चलता है, साथ ही यह बहुत लम्बी प्रक्रिया है। इसीलिए BOD को प्रदूषण मापन में इस्तेमाल नहीं किया जाता।"
+      },
+      {
+        "question": "What is the BOD level of 'clean water'?",
+        "questionHi": "'स्वच्छ जल' का BOD स्तर क्या होता है?",
+        "options": ["Less than 5 ppm", "More than 10 ppm", "Exactly 17 ppm", "Zero"],
+        "optionsHi": ["5 ppm से कम", "10 ppm से अधिक", "ठीक 17 ppm", "शून्य"],
+        "correctAnswer": "Less than 5 ppm",
+        "correctAnswerHi": "5 ppm से कम",
+        "explanation": "Clean water typically has a BOD level of less than 5 ppm.",
+        "explanationHi": "स्वच्छ जल की BOD 5 ppm से कम होती है।"
+      },
+      {
+        "question": "Water is considered 'highly polluted' if its BOD level is ______ or more.",
+        "questionHi": "यदि जल का BOD स्तर ______ या उससे अधिक है, तो उसे 'अत्यधिक प्रदूषित' माना जाता है।",
+        "options": ["5 ppm", "10 ppm", "17 ppm", "25 ppm"],
+        "optionsHi": ["5 ppm", "10 ppm", "17 ppm", "25 ppm"],
+        "correctAnswer": "17 ppm",
+        "correctAnswerHi": "17 ppm",
+        "explanation": "A BOD level of 17 ppm or higher indicates extreme pollution.",
+        "explanationHi": "अत्यधिक प्रदूषित जल में यह 17 ppm या उससे अधिक होता है।"
+      },
+      {
+        "question": "In which stretch of the Ganga river is the highest BOD level found?",
+        "questionHi": "गंगा नदी के किस क्षेत्र में सर्वाधिक BOD की मात्रा पाई जाती है?",
+        "options": ["Rishikesh to Haridwar", "Kanpur to Prayagraj", "Varanasi to Patna", "Patna to Kolkata"],
+        "optionsHi": ["ऋषिकेश से हरिद्वार", "कानपुर एवं प्रयागराज के मध्य", "वाराणसी से पटना", "पटना से कोलकाता"],
+        "correctAnswer": "Kanpur to Prayagraj",
+        "correctAnswerHi": "कानपुर एवं प्रयागराज के मध्य",
+        "explanation": "The highest BOD in Ganga is recorded between Kanpur and Prayagraj due to heavy industrial and domestic discharge.",
+        "explanationHi": "गंगा नदी में BOD की सर्वाधिक मात्रा कानपुर एवं प्रयागराज के मध्य पायी जाती है।"
+      },
+      {
+        "question": "Generally, what should be the standard BOD level in rivers?",
+        "questionHi": "सामान्यतः नदियों में BOD का स्तर कितना होना चाहिए?",
+        "options": ["5 mg/liter", "10 mg/liter", "15 mg/liter", "20 mg/liter"],
+        "optionsHi": ["5 मि.ग्रा./लीटर", "10 मि.ग्रा./लीटर", "15 मि.ग्रा./लीटर", "20 मि.ग्रा./लीटर"],
+        "correctAnswer": "10 mg/liter",
+        "correctAnswerHi": "10 मि.ग्रा./लीटर",
+        "explanation": "The standard acceptable BOD level for river water is 10 mg/liter.",
+        "explanationHi": "सामान्यतः नदियों में BOD का स्तर 10 मि.ग्रा./लीटर होना चाहिए।"
+      },
+      {
+        "question": "What does 'COD' stand for in water quality testing?",
+        "questionHi": "जल गुणवत्ता परीक्षण में 'COD' का पूर्ण रूप क्या है?",
+        "options": ["Common Oxygen Demand", "Chemical Oxygen Demand", "Carbon Oxygen Demand", "Complex Oxygen Demand"],
+        "optionsHi": ["Common Oxygen Demand", "Chemical Oxygen Demand", "Carbon Oxygen Demand", "Complex Oxygen Demand"],
+        "correctAnswer": "Chemical Oxygen Demand",
+        "correctAnswerHi": "Chemical Oxygen Demand",
+        "explanation": "COD stands for Chemical Oxygen Demand.",
+        "explanationHi": "COD का अर्थ Chemical Oxygen Demand (रासायनिक ऑक्सीजन माँग) है।"
+      },
+      {
+        "question": "COD measures the oxygen required for the oxidation of which substances?",
+        "questionHi": "COD किन पदार्थों के ऑक्सीकरण के लिए आवश्यक ऑक्सीजन को मापता है?",
+        "options": ["Only soluble organic matter", "Only insoluble organic matter", "Total organic matter (soluble and insoluble)", "Only inorganic matter"],
+        "optionsHi": ["केवल घुलनशील कार्बनिक पदार्थ", "केवल अघुलनशील कार्बनिक पदार्थ", "कुल कार्बनिक पदार्थ (घुलनशील अथवा अघुलनशील)", "केवल अकार्बनिक पदार्थ"],
+        "correctAnswer": "Total organic matter (soluble and insoluble)",
+        "correctAnswerHi": "कुल कार्बनिक पदार्थ (घुलनशील अथवा अघुलनशील)",
+        "explanation": "COD measures the oxygen required to chemically oxidize all organic matter in water.",
+        "explanationHi": "जल में ऑक्सीजन की वह मात्रा जो उपस्थित कुल कार्बनिक पदार्थों (घुलनशील अथवा अघुलनशील) के ऑक्सीकरण के लिए आवश्यक होती है।"
+      },
+      {
+        "question": "Which value is always higher in a water sample?",
+        "questionHi": "जल के नमूने में किसका मान हमेशा अधिक होता है?",
+        "options": ["BOD", "COD", "DO", "pH"],
+        "optionsHi": ["BOD", "COD", "DO", "pH"],
+        "correctAnswer": "COD",
+        "correctAnswerHi": "COD",
+        "explanation": "The COD value is always higher than the BOD value because it includes non-biodegradable substances.",
+        "explanationHi": "COD का मान सदैव BOD से अधिक होता है।"
+      },
+      {
+        "question": "Why is COD considered a better option for measuring water pollution than BOD?",
+        "questionHi": "जल प्रदूषण मापने के लिए COD को BOD से बेहतर विकल्प क्यों माना जाता है?",
+        "options": ["It is cheaper", "It measures total organic load and is faster", "It uses less water", "It is a natural process"],
+        "optionsHi": ["यह सस्ता है", "यह कुल कार्बनिक भार को मापता है और तेज है", "इसमें कम पानी लगता है", "यह एक प्राकृतिक प्रक्रिया है"],
+        "correctAnswer": "It measures total organic load and is faster",
+        "correctAnswerHi": "यह कुल कार्बनिक भार को मापता है और तेज है",
+        "explanation": "COD provides a more comprehensive and quicker assessment of organic pollution.",
+        "explanationHi": "COD जल प्रदूषण के मापने के लिए बेहतर विकल्प है।"
+      },
+      {
+        "question": "What does 'MPN' stand for in biological water testing?",
+        "questionHi": "जैविक जल परीक्षण में 'MPN' का पूर्ण रूप क्या है?",
+        "options": ["Maximum Probable Number", "Most Probable Number", "Minimum Pollutant Number", "Main Pollution Node"],
+        "optionsHi": ["Maximum Probable Number", "Most Probable Number", "Minimum Pollutant Number", "Main Pollution Node"],
+        "correctAnswer": "Most Probable Number",
+        "correctAnswerHi": "Most Probable Number",
+        "explanation": "MPN stands for Most Probable Number.",
+        "explanationHi": "MPN का अर्थ Most Probable Number (सर्वाधिक संभाव्य संख्या) है।"
+      },
+      {
+        "question": "High MPN in water indicates the presence of which bacteria?",
+        "questionHi": "जल में उच्च MPN किस बैक्टीरिया की उपस्थिति को दर्शाता है?",
+        "options": ["Lactobacillus", "E. coli", "Rhizobium", "Azotobacter"],
+        "optionsHi": ["लैक्टोबैसिलस", "ई. कोलाई (E.Coli)", "राइजोबियम", "एज़ोटोबैक्टर"],
+        "correctAnswer": "E. coli",
+        "correctAnswerHi": "ई. कोलाई (E.Coli)",
+        "explanation": "MPN is used to estimate the concentration of viable microorganisms like E. coli in water contaminated with sewage.",
+        "explanationHi": "जिस जल में मल-मूत्र जैसे जैविक अपशिष्टों का प्रदूषण होता है, उसमें ई. कोलाई (E.Coli) जैसे जीवाणुओं की संख्या अधिक पायी जाती है।"
+      },
+      {
+        "question": "Which of the following are major pollutants of groundwater?",
+        "questionHi": "निम्नलिखित में से कौन-से भू-जल के प्रमुख प्रदूषक तत्व हैं?",
+        "options": ["Arsenic and Fluoride", "Oxygen and Nitrogen", "Calcium and Magnesium", "Chlorine and Sodium"],
+        "optionsHi": ["आर्सेनिक और फ्लोराइड", "ऑक्सीजन और नाइट्रोजन", "कैल्शियम और मैग्नीशियम", "क्लोरीन और सोडियम"],
+        "correctAnswer": "Arsenic and Fluoride",
+        "correctAnswerHi": "आर्सेनिक और फ्लोराइड",
+        "explanation": "Arsenic, Fluoride, and Uranium are the primary pollutants found in groundwater.",
+        "explanationHi": "भूमिगत जल के प्रमुख प्रदूषक तत्व आर्सिक, फ्लोराइड एवं यूरेनियम हैं।"
+      },
+      {
+        "question": "What is the primary source of Arsenic contamination in groundwater?",
+        "questionHi": "भू-जल में आर्सेनिक संदूषण का प्राथमिक स्रोत क्या है?",
+        "options": ["Industrial waste", "Bedrock", "Agriculture", "Rainwater"],
+        "optionsHi": ["औद्योगिक कचरा", "बेड-रॉक (Bed Rock)", "कृषि", "वर्षा जल"],
+        "correctAnswer": "Bedrock",
+        "correctAnswerHi": "बेड-रॉक (Bed Rock)",
+        "explanation": "Arsenic contamination primarily originates from the natural bedrock.",
+        "explanationHi": "आर्सेनिक का संक्रमण मुख्यतया बेड-रॉक (Bed Rock) से उत्पन्न आर्सेनिक से होता है।"
+      },
+      {
+        "question": "Which disease is caused by continuous exposure to Arsenic?",
+        "questionHi": "आर्सेनिक के लगातार संपर्क से कौन-सी बीमारी होती है?",
+        "options": ["Minamata", "Itai-Itai", "Black Foot", "Scurvy"],
+        "optionsHi": ["मीनामाता", "इटाई-इटाई", "ब्लैक फुट (Black Foot)", "स्कर्वी"],
+        "correctAnswer": "Black Foot",
+        "correctAnswerHi": "ब्लैक फुट (Black Foot)",
+        "explanation": "Chronic arsenic poisoning leads to Black Foot disease.",
+        "explanationHi": "आर्सेनिक के लगातार संपर्क से ब्लैक फुट नामक बीमारी होती है।"
+      },
+      {
+        "question": "What is the maximum permissible limit of Arsenic in drinking water?",
+        "questionHi": "पीने योग्य जल में आर्सेनिक की अधिकतम अनुमेय मात्रा कितनी है?",
+        "options": ["0.50 mg/liter", "0.05 mg/liter", "1.0 mg/liter", "0.005 mg/liter"],
+        "optionsHi": ["0.50 मिलीग्राम/लीटर", "0.05 मिलीग्राम/लीटर", "1.0 मिलीग्राम/लीटर", "0.005 मिलीग्राम/लीटर"],
+        "correctAnswer": "0.05 mg/liter",
+        "correctAnswerHi": "0.05 मिलीग्राम/लीटर",
+        "explanation": "The safe limit for arsenic in drinking water is 0.05 mg/liter.",
+        "explanationHi": "पीने योग्य जल में आर्सेनिक की अधिकतम अनुमेय मात्रा 0.05 मिलीग्राम/लीटर है।"
+      },
+      {
+        "question": "Which plant is considered a better absorber of Arsenic?",
+        "questionHi": "किस पौधे को आर्सेनिक का बेहतर अवशोषक माना जाता है?",
+        "options": ["Wheat", "Paddy (Rice)", "Maize", "Sugarcane"],
+        "optionsHi": ["गेहूँ", "धान", "मक्का", "गन्ना"],
+        "correctAnswer": "Paddy (Rice)",
+        "correctAnswerHi": "धान",
+        "explanation": "Paddy plants absorb arsenic from the soil and water, which can then enter the food chain.",
+        "explanationHi": "धान का पौधा आर्सेनिक का बेहतर अवशोषक माना जाता है।"
+      },
+      {
+        "question": "Which regions in India are most affected by Arsenic pollution in groundwater?",
+        "questionHi": "भारत के कौन-से क्षेत्र भू-जल में आर्सेनिक प्रदूषण से सर्वाधिक प्रभावित हैं?",
+        "options": ["Deccan Plateau", "Ganga-Brahmaputra plains", "Thar Desert", "Western Ghats"],
+        "optionsHi": ["दक्कन का पठार", "गंगा-ब्रह्मपुत्र के मैदानी इलाके", "थार मरुस्थल", "पश्चिमी घाट"],
+        "correctAnswer": "Ganga-Brahmaputra plains",
+        "correctAnswerHi": "गंगा-ब्रह्मपुत्र के मैदानी इलाके",
+        "explanation": "The plains of Ganga-Brahmaputra in India and Padma-Meghna in Bangladesh are highly affected.",
+        "explanationHi": "भारत के गंगा-ब्रह्मपुत्र के मैदानी इलाकों तथा बांग्लादेश के पद्मा-मेघना के मैदानी इलाकों में भूमिगत जल आर्सेनिक प्रदूषण से अत्यधिक प्रभावित है।"
+      },
+      {
+        "question": "In which year was the first case of Arsenic water pollution reported in West Bengal?",
+        "questionHi": "पश्चिम बंगाल में आर्सेनिक द्वारा जल प्रदूषण का पहला मामला किस वर्ष सामने आया था?",
+        "options": ["1974", "1983", "1992", "2000"],
+        "optionsHi": ["1974", "1983", "1992", "2000"],
+        "correctAnswer": "1983",
+        "correctAnswerHi": "1983",
+        "explanation": "The first instance of arsenic contamination in WB was reported in 1983.",
+        "explanationHi": "भारत में सर्वप्रथम 1983 में पश्चिम बंगाल में आर्सेनिक द्वारा जल प्रदूषण का मामला सामने आया था।"
+      },
+      {
+        "question": "Which district of West Bengal is NOT mentioned as being affected by Arsenic?",
+        "questionHi": "पश्चिम बंगाल के किस जिले का उल्लेख आर्सेनिक से प्रभावित होने के रूप में नहीं किया गया है?",
+        "options": ["Murshidabad", "Nadia", "North 24 Parganas", "Darjeeling"],
+        "optionsHi": ["मुर्शिदाबाद", "नदिया", "उत्तरी 24 परगना", "दार्जिलिंग"],
+        "correctAnswer": "Darjeeling",
+        "correctAnswerHi": "दार्जिलिंग",
+        "explanation": "Murshidabad, Nadia, North and South 24 Parganas are specifically mentioned.",
+        "explanationHi": "पश्चिम बंगाल के चार जिले मुर्शिदाबाद, नदिया, उत्तरी तथा दक्षिणी 24 परगना... (दार्जिलिंग का उल्लेख नहीं है)।"
+      },
+      {
+        "question": "How many states in India are highly affected by Arsenic pollution in groundwater?",
+        "questionHi": "भारत के कितने राज्य भू-जल में आर्सेनिक प्रदूषण से अत्यधिक प्रभावित हैं?",
+        "options": ["5", "7", "10", "12"],
+        "optionsHi": ["5", "7", "10", "12"],
+        "correctAnswer": "7",
+        "correctAnswerHi": "7",
+        "explanation": "Seven states including WB, JH, BR, UP, AS, MN, and CG are highly affected.",
+        "explanationHi": "भारत के सात राज्यों पश्चिम बंगाल, झारखण्ड, बिहार, उत्तर प्रदेश, असम, मणिपुर एवं छत्तीसगढ़... प्रभावित हैं।"
+      },
+      {
+        "question": "Which river is known as a 'Biological Desert' for a 300 km stretch?",
+        "questionHi": "किस नदी को 300 किमी के मार्ग में 'जैविक मरुस्थल' कहा जाता है?",
+        "options": ["Ganga", "Yamuna", "Damodar", "Narmada"],
+        "optionsHi": ["गंगा", "यमुना", "दामोदर", "नर्मदा"],
+        "correctAnswer": "Damodar",
+        "correctAnswerHi": "दामोदर",
+        "explanation": "Due to extreme pollution from coal mines and industries, Damodar is called a biological desert between Giridih and Durgapur.",
+        "explanationHi": "दामोदर नदी... गिरिडीह और दुर्गापुर के मध्य 300 किमी लम्बे मार्ग में यह जैविक मरुस्थल होकर रह गई है।"
+      },
+      {
+        "question": "Where does the Damodar river originate?",
+        "questionHi": "दामोदर नदी कहाँ से निकलती है?",
+        "options": ["Amarkantak", "Khamar Pat (Jharkhand)", "Gangotri", "Trimbakeshwar"],
+        "optionsHi": ["अमरकंटक", "खमार पाट (झारखण्ड)", "गंगोत्री", "त्रयंबकेश्वर"],
+        "correctAnswer": "Khamar Pat (Jharkhand)",
+        "correctAnswerHi": "खमार पाट (झारखण्ड)",
+        "explanation": "Damodar originates from Khamar Pat in Jharkhand.",
+        "explanationHi": "दामोदर नदी झारखण्ड के खमार पाट से निकलकर हुगली नदी में मिलती है।"
+      },
+      {
+        "question": "Which industry causes the maximum chemical pollution in industrial waste?",
+        "questionHi": "औद्योगिक मलबे में सर्वाधिक रासायनिक प्रदूषण किस उद्योग से होता है?",
+        "options": ["Textile", "Leather (Tannery)", "Paper", "Sugar"],
+        "optionsHi": ["कपड़ा", "चमड़ा उद्योग", "कागज", "चीनी"],
+        "correctAnswer": "Leather (Tannery)",
+        "correctAnswerHi": "चमड़ा उद्योग",
+        "explanation": "The leather industry is a major source of toxic chemical pollutants in water.",
+        "explanationHi": "औद्योगिक मलबे में सर्वाधिक रासायनिक प्रदूषण चमड़ा उद्योग से होता है।"
+      },
+      {
+        "question": "What is the beneficial concentration of Fluoride in drinking water for teeth?",
+        "questionHi": "दाँतों के लिए पेयजल में फ्लोराइड की कितनी सांद्रता लाभकारी होती है?",
+        "options": ["1 ppm", "5 ppm", "10 ppm", "0.1 ppm"],
+        "optionsHi": ["1 ppm", "5 ppm", "10 ppm", "0.1 ppm"],
+        "correctAnswer": "1 ppm",
+        "correctAnswerHi": "1 ppm",
+        "explanation": "A concentration of 1 ppm fluoride helps protect teeth from decay.",
+        "explanationHi": "फ्लोराइड तत्व जल में अल्प मात्रा में उपलब्ध होता है... इसकी सांद्रता 1 ppm अथवा 1 mg dm-3 हो जाय।"
+      },
+      {
+        "question": "Fluoride ions convert Hydroxyapatite in tooth enamel into which harder substance?",
+        "questionHi": "फ्लोराइड आयन दाँतों के इनेमल सतह में हाइड्रोक्सीएपेटाइट को किस कठोर पदार्थ में परिवर्तित कर देते हैं?",
+        "options": ["Calcium Carbonate", "Fluoroapatite", "Calcium Phosphate", "Sodium Fluoride"],
+        "optionsHi": ["कैल्शियम कार्बोनेट", "फ्लुओएपेटाइट", "कैल्शियम फास्फेट", "सोडियम फ्लोराइड"],
+        "correctAnswer": "Fluoroapatite",
+        "correctAnswerHi": "फ्लुओएपेटाइट",
+        "explanation": "Fluoride ions replace hydroxyl groups in hydroxyapatite to form fluoroapatite.",
+        "explanationHi": "फ्लोराइड आयन दाँतों के इनेमल सतह में हाइड्रोक्सीएपेटाइट को फ्लुओएपेटाइट में परिवर्तित करके कड़ा कर देता है।"
+      },
+      {
+        "question": "At what concentration does Fluoride cause 'Mottling' (brown staining) of teeth?",
+        "questionHi": "फ्लोराइड की कितनी सांद्रता दाँतों के भूरे कर्बुरण (Mottling) का कारण बनती है?",
+        "options": ["Less than 1 ppm", "More than 2 ppm", "Exactly 0.5 ppm", "More than 10 ppm"],
+        "optionsHi": ["1 ppm से कम", "2 ppm से अधिक", "ठीक 0.5 ppm", "10 ppm से अधिक"],
+        "correctAnswer": "More than 2 ppm",
+        "correctAnswerHi": "2 ppm से अधिक",
+        "explanation": "Concentrations above 2 ppm lead to dental fluorosis or mottling.",
+        "explanationHi": "यद्यपि जल में फ्लोराइड आयनों की 2 ppm से अधिक की सांद्रता दाँतों के भूरे कर्बुरण (Motting) उत्पन्न करती है।"
+      },
+      {
+        "question": "What is the disease caused by excessive intake of Fluoride called?",
+        "questionHi": "फ्लोराइड के अत्यधिक सेवन से होने वाले रोग को क्या कहते हैं?",
+        "options": ["Arsenicosis", "Fluorosis", "Chlorosis", "Necrosis"],
+        "optionsHi": ["आर्सेनिकोसिस", "फ्लुओरोसिस (Fluorosis)", "क्लोरोसिस", "नेक्रोसिस"],
+        "correctAnswer": "Fluorosis",
+        "correctAnswerHi": "फ्लुओरोसिस (Fluorosis)",
+        "explanation": "Excessive fluoride leads to a condition known as fluorosis.",
+        "explanationHi": "इसका अत्यधिक सांद्रण फ्लुओरोसिस नामक रोग का कारण बनता है।"
+      },
+      {
+        "question": "Which physical deformity is associated with high Fluoride intake?",
+        "questionHi": "फ्लोराइड के उच्च सेवन से कौन-सी शारीरिक विकृति जुड़ी है?",
+        "options": ["Humped back", "Blindness", "Deafness", "Hair loss"],
+        "optionsHi": ["कूबड़पीठ (Humped back)", "अंधापन", "बहरापन", "बालों का झड़ना"],
+        "correctAnswer": "Humped back",
+        "correctAnswerHi": "कूबड़पीठ (Humped back)",
+        "explanation": "Skeletal fluorosis can lead to a humped back and joint stiffness.",
+        "explanationHi": "अत्यधिक फ्लुओराइड ग्रहण करने से कूबड़पीठ (Humped back) होने की संभावना बढ़ जाती है।"
+      },
+      {
+        "question": "What is the 'Knock-knee' syndrome caused by?",
+        "questionHi": "'नॉक-नी' (Knock-knee) लक्षण किसके कारण होता है?",
+        "options": ["Arsenic accumulation", "High Fluoride accumulation", "Mercury poisoning", "Lead poisoning"],
+        "optionsHi": ["आर्सेनिक संचय", "उच्च फ्लुओराइड संग्रहण", "पारा विषाक्तता", "सीसा विषाक्तता"],
+        "correctAnswer": "High Fluoride accumulation",
+        "correctAnswerHi": "उच्च फ्लुओराइड संग्रहण",
+        "explanation": "High fluoride levels cause the legs to bend inward, known as knock-knee syndrome.",
+        "explanationHi": "उच्च फ्लुओराइड संग्रहण ही पैरों के मुड़ने का कारण होता है, जिसे नॉक-नी लक्षण कहते हैं।"
+      },
+      {
+        "question": "In which state are more than half of the districts affected by Fluoride and Iron in groundwater?",
+        "questionHi": "किस राज्य के आधे से अधिक जिलों के भू-जल में फ्लोराइड एवं आयरन की मात्रा अत्यधिक है?",
+        "options": ["Uttar Pradesh", "Bihar", "Madhya Pradesh", "Rajasthan"],
+        "optionsHi": ["उत्तर प्रदेश", "बिहार", "मध्य प्रदेश", "राजस्थान"],
+        "correctAnswer": "Bihar",
+        "correctAnswerHi": "बिहार",
+        "explanation": "Bihar has a significant issue with fluoride and iron contamination in its groundwater.",
+        "explanationHi": "बिहार राज्य के आधे से अधिक जिलों के भूगर्भिय जल में फ्लोराइड एवं आयरन की मात्रा अत्यधिक होती है।"
+      },
+      {
+        "question": "What is the phenomenon of nutrient enrichment in water bodies called?",
+        "questionHi": "जल निकायों में पोषक तत्वों के संवर्धन की घटना को क्या कहते हैं?",
+        "options": ["Nitrification", "Eutrophication (Suposhan)", "Salinization", "Acidification"],
+        "optionsHi": ["नाइट्रीकरण", "सुपोषण या यूट्रोफिकेशन", "लवणीकरण", "अम्लीकरण"],
+        "correctAnswer": "Eutrophication (Suposhan)",
+        "correctAnswerHi": "सुपोषण या यूट्रोफिकेशन",
+        "explanation": "Eutrophication is the excessive richness of nutrients in a lake or other body of water.",
+        "explanationHi": "जल में जब जैविक तथा अजैविक दोनों प्रकार के पोषक तत्वों की वृद्धि हो जाती है, तो इस घटना को सुपोषण या यूट्रोफिकेशन कहते हैं।"
+      },
+      {
+        "question": "What percentage of train coaches in India currently include bio-toilets?",
+        "questionHi": "वर्तमान में भारत में लगभग कितने प्रतिशत ट्रेनों के कोचों में जैव शौचालयों का समावेश है?",
+        "options": ["50%", "75%", "97%", "100%"],
+        "optionsHi": ["50%", "75%", "97%", "100%"],
+        "correctAnswer": "97%",
+        "correctAnswerHi": "97%",
+        "explanation": "Bio-toilets have been installed in approximately 97% of Indian railway coaches.",
+        "explanationHi": "वर्तमान में लगभग 97% ट्रेनों के कोचों में जैव शौचालयों का समावेश है।"
+      },
+      {
+        "question": "Which type of bacteria is used in bio-toilets to decompose waste?",
+        "questionHi": "जैव शौचालयों में अपशिष्ट को विघटित करने के लिए किस प्रकार के जीवाणुओं का उपयोग किया जाता है?",
+        "options": ["Aerobic bacteria", "Anaerobic bacteria", "Cyanobacteria", "None"],
+        "optionsHi": ["वायवीय जीवाणु", "अवायवीय जीवाणु", "सायनोबैक्टीरिया", "कोई नहीं"],
+        "correctAnswer": "Anaerobic bacteria",
+        "correctAnswerHi": "अवायवीय जीवाणु",
+        "explanation": "Anaerobic bacteria break down human waste in the absence of oxygen in bio-toilets.",
+        "explanationHi": "जैव शौचालय प्रणाली में अवायवीय जीवाणु अपशिष्ट पदार्थों को विखंडित कर उसे पानी और गैस में परिवर्तित कर देते हैं।"
+      },
+      {
+        "question": "What gas is produced as a byproduct in bio-toilets?",
+        "questionHi": "जैव शौचालयों में उप-उत्पाद के रूप में कौन-सी गैस उत्पन्न होती है?",
+        "options": ["Oxygen", "Methane", "Nitrogen", "Carbon Dioxide"],
+        "optionsHi": ["ऑक्सीजन", "मीथेन", "नाइट्रोजन", "कार्बन डाइऑक्साइड"],
+        "correctAnswer": "Methane",
+        "correctAnswerHi": "मीथेन",
+        "explanation": "The anaerobic process in bio-toilets produces methane gas.",
+        "explanationHi": "अवायवीय जीवाणु अपशिष्ट पदार्थों को विखंडित कर उसे पानी और गैस (मीथेन) में परिवर्तित कर देते हैं।"
+      },
+      {
+        "question": "What is used to clean the water collected in the tank of a bio-toilet?",
+        "questionHi": "जैव शौचालय के टैंक में जमा पानी को साफ करने के लिए किसका उपयोग किया जाता है?",
+        "options": ["Fluorine", "Chlorine", "Iodine", "Bromine"],
+        "optionsHi": ["फ्लोरीन", "क्लोरीन", "आयोडीन", "ब्रोमीन"],
+        "correctAnswer": "Chlorine",
+        "correctAnswerHi": "क्लोरीन",
+        "explanation": "Chlorine is used for disinfection of the treated water in bio-toilets.",
+        "explanationHi": "पानी को टैंक में जमा कर उसे क्लोरीन की मदद से साफ कर दिया जाता है।"
+      },
+      {
+        "question": "What is the maximum permissible concentration of Iron (Fe) in drinking water?",
+        "questionHi": "पेयजल में आयरन (Fe) की अधिकतम अनुमेय सांद्रता कितनी है?",
+        "options": ["0.2 ppm", "0.05 ppm", "3.0 ppm", "5.0 ppm"],
+        "optionsHi": ["0.2 ppm", "0.05 ppm", "3.0 ppm", "5.0 ppm"],
+        "correctAnswer": "0.2 ppm",
+        "correctAnswerHi": "0.2 ppm",
+        "explanation": "The limit for Iron in drinking water is 0.2 ppm.",
+        "explanationHi": "Fe (आयरन) की अधिकतम सांद्रता: 0.2 ppm।"
+      },
+      {
+        "question": "What is the maximum permissible concentration of Manganese (Mn) in drinking water?",
+        "questionHi": "पेयजल में मैंगनीज (Mn) की अधिकतम अनुमेय सांद्रता कितनी है?",
+        "options": ["0.2 ppm", "0.05 ppm", "0.005 ppm", "3.0 ppm"],
+        "optionsHi": ["0.2 ppm", "0.05 ppm", "0.005 ppm", "3.0 ppm"],
+        "correctAnswer": "0.05 ppm",
+        "correctAnswerHi": "0.05 ppm",
+        "explanation": "The limit for Manganese in drinking water is 0.05 ppm.",
+        "explanationHi": "Mn (मैंगनीज) की अधिकतम सांद्रता: 0.05 ppm।"
+      },
+      {
+        "question": "What is the maximum permissible concentration of Copper (Cu) in drinking water?",
+        "questionHi": "पेयजल में कॉपर (Cu) की अधिकतम अनुमेय सांद्रता कितनी है?",
+        "options": ["0.2 ppm", "1.0 ppm", "3.0 ppm", "5.0 ppm"],
+        "optionsHi": ["0.2 ppm", "1.0 ppm", "3.0 ppm", "5.0 ppm"],
+        "correctAnswer": "3.0 ppm",
+        "correctAnswerHi": "3.0 ppm",
+        "explanation": "The limit for Copper in drinking water is 3.0 ppm.",
+        "explanationHi": "Cu (कॉपर) की अधिकतम सांद्रता: 3.0 ppm।"
+      },
+      {
+        "question": "What is the maximum permissible concentration of Zinc (Zn) in drinking water?",
+        "questionHi": "पेयजल में जिंक (Zn) की अधिकतम अनुमेय सांद्रता कितनी है?",
+        "options": ["0.2 ppm", "3.0 ppm", "5.0 ppm", "0.05 ppm"],
+        "optionsHi": ["0.2 ppm", "3.0 ppm", "5.0 ppm", "0.05 ppm"],
+        "correctAnswer": "5.0 ppm",
+        "correctAnswerHi": "5.0 ppm",
+        "explanation": "The limit for Zinc in drinking water is 5.0 ppm.",
+        "explanationHi": "Zn (जिंक) की अधिकतम सांद्रता: 5.0 ppm।"
+      },
+      {
+        "question": "What is the maximum permissible concentration of Cadmium (Cd) in drinking water?",
+        "questionHi": "पेयजल में कैडमियम (Cd) की अधिकतम अनुमेय सांद्रता कितनी है?",
+        "options": ["0.05 ppm", "0.005 ppm", "0.2 ppm", "3.0 ppm"],
+        "optionsHi": ["0.05 ppm", "0.005 ppm", "0.2 ppm", "3.0 ppm"],
+        "correctAnswer": "0.005 ppm",
+        "correctAnswerHi": "0.005 ppm",
+        "explanation": "The limit for Cadmium in drinking water is very low at 0.005 ppm.",
+        "explanationHi": "Cd (कैडमियम) की अधिकतम सांद्रता: 0.005 ppm।"
+      },
+      {
+        "question": "Which metal has a permissible limit of 0.2 ppm in drinking water, same as Iron?",
+        "questionHi": "पेयजल में किस धातु की अनुमेय सीमा 0.2 ppm है, जो आयरन के समान है?",
+        "options": ["Manganese", "Aluminum", "Zinc", "Copper"],
+        "optionsHi": ["मैंगनीज", "एल्युमीनियम", "जिंक", "कॉपर"],
+        "correctAnswer": "Aluminum",
+        "correctAnswerHi": "एल्युमीनियम",
+        "explanation": "Both Iron and Aluminum have a limit of 0.2 ppm.",
+        "explanationHi": "Al (एल्युमीनियम) की अधिकतम सांद्रता: 0.2 ppm।"
+      },
+      {
+        "question": "Arsenic contamination is primarily associated with which geological feature?",
+        "questionHi": "आर्सेनिक संदूषण मुख्य रूप से किस भूगर्भीय विशेषता से जुड़ा है?",
+        "options": ["River silt", "Bedrock", "Ocean floor", "Volcanic ash"],
+        "optionsHi": ["नदी की गाद", "बेड-रॉक", "समुद्र तल", "ज्वालामुखी राख"],
+        "correctAnswer": "Bedrock",
+        "correctAnswerHi": "बेड-रॉक",
+        "explanation": "Arsenic is naturally present in the bedrock of certain regions.",
+        "explanationHi": "आर्सेनिक का संक्रमण मुख्यतया बेड-रॉक (Bed Rock) से उत्पन्न आर्सेनिक से होता है।"
+      },
+      {
+        "question": "Which of the following is a biological indicator of water pollution by sewage?",
+        "questionHi": "निम्नलिखित में से कौन-सा सीवेज द्वारा जल प्रदूषण का एक जैविक संकेतक है?",
+        "options": ["Rhizobium", "E. coli", "Yeast", "Mushroom"],
+        "optionsHi": ["राइजोबियम", "ई. कोलाई", "यीस्ट", "मशरूम"],
+        "correctAnswer": "E. coli",
+        "correctAnswerHi": "ई. कोलाई",
+        "explanation": "E. coli bacteria are found in the intestines of humans and animals; their presence in water indicates fecal contamination.",
+        "explanationHi": "ई. कोलाई (E.Coli) जैसे जीवाणुओं की संख्या अधिक पायी जाती है... यह जल-प्रदूषण का मापक है।"
+      },
+      {
+        "question": "What happens to the gas produced in a bio-toilet?",
+        "questionHi": "जैव शौचालय में उत्पन्न गैस का क्या होता है?",
+        "options": ["It is stored in tanks", "It is vaporized", "It is used to run the train", "It is converted to water"],
+        "optionsHi": ["इसे टैंकों में जमा किया जाता है", "यह वाष्पीकृत हो जाती है", "इसका उपयोग ट्रेन चलाने में होता है", "इसे पानी में बदल दिया जाता है"],
+        "correctAnswer": "It is vaporized",
+        "correctAnswerHi": "यह वाष्पीकृत हो जाती है",
+        "explanation": "The methane gas produced is allowed to escape or vaporize.",
+        "explanationHi": "गैस वाष्पीकृत हो जाती है।"
+      },
+      {
+        "question": "Which state's Rajnandgaon district is mentioned as being affected by Arsenic?",
+        "questionHi": "किस राज्य के राजनांदगाँव जिले का उल्लेख आर्सेनिक से प्रभावित होने के रूप में किया गया है?",
+        "options": ["Madhya Pradesh", "Chhattisgarh", "Jharkhand", "Odisha"],
+        "optionsHi": ["मध्य प्रदेश", "छत्तीसगढ़", "झारखण्ड", "ओडिशा"],
+        "correctAnswer": "Chhattisgarh",
+        "correctAnswerHi": "छत्तीसगढ़",
+        "explanation": "Rajnandgaon in Chhattisgarh is one of the arsenic-affected areas.",
+        "explanationHi": "छत्तीसगढ़ (राजनांदगाँव) में भूमिगत जल आर्सेनिक प्रदूषण से अत्यधिक प्रभावित है।"
+      },
+      {
+        "question": "The Damodar river meets which river after flowing through Jharkhand?",
+        "questionHi": "दामोदर नदी झारखण्ड से बहने के बाद किस नदी में मिलती है?",
+        "options": ["Ganga", "Hugli", "Subarnarekha", "Son"],
+        "optionsHi": ["गंगा", "हुगली", "सुवर्णरेखा", "सोन"],
+        "correctAnswer": "Hugli",
+        "correctAnswerHi": "हुगली",
+        "explanation": "Damodar is a tributary of the Hugli river.",
+        "explanationHi": "दामोदर नदी... हुगली नदी में मिलती है।"
+      },
+      {
+        "question": "Why has the Damodar river become highly polluted?",
+        "questionHi": "दामोदर नदी अत्यधिक प्रदूषित क्यों हो गई है?",
+        "options": ["Agricultural runoff", "Coal mines and industrial discharge", "Plastic waste", "Religious activities"],
+        "optionsHi": ["कृषि अपवाह", "कोयला खदान और औद्योगिक क्षेत्र", "प्लास्टिक कचरा", "धार्मिक गतिविधियाँ"],
+        "correctAnswer": "Coal mines and industrial discharge",
+        "correctAnswerHi": "कोयला खदान और औद्योगिक क्षेत्र",
+        "explanation": "Industrial and mining activities along its banks have severely polluted the river.",
+        "explanationHi": "कोयला खदान और औद्योगिक क्षेत्रों से प्रवाहित होने के कारण यह देश की अति प्रदूषित नदी बन गई है।"
+      },
+      {
+        "question": "What is the length of the Damodar river stretch that is called a 'Biological Desert'?",
+        "questionHi": "दामोदर नदी के उस हिस्से की लंबाई कितनी है जिसे 'जैविक मरुस्थल' कहा जाता है?",
+        "options": ["100 km", "200 km", "300 km", "500 km"],
+        "optionsHi": ["100 किमी", "200 किमी", "300 किमी", "500 किमी"],
+        "correctAnswer": "300 km",
+        "correctAnswerHi": "300 किमी",
+        "explanation": "A 300 km stretch between Giridih and Durgapur is virtually devoid of life.",
+        "explanationHi": "गिरिडीह और दुर्गापुर के मध्य 300 किमी लम्बे मार्ग में यह जैविक मरुस्थल होकर रह गई है।"
+      },
+      {
+        "question": "Which chemical is added to drinking water to maintain a 1 ppm Fluoride level?",
+        "questionHi": "पेयजल में 1 ppm फ्लोराइड स्तर बनाए रखने के लिए कौन-सा रसायन मिलाया जाता है?",
+        "options": ["Sodium Chloride", "Soluble Fluoride", "Calcium Carbonate", "Potassium Permanganate"],
+        "optionsHi": ["सोडियम क्लोराइड", "विलयशील फ्लोराइड", "कैल्शियम कार्बोनेट", "पोटेशियम परमैंगनेट"],
+        "correctAnswer": "Soluble Fluoride",
+        "correctAnswerHi": "विलयशील फ्लोराइड",
+        "explanation": "Soluble fluorides are added to public water supplies to prevent dental cavities.",
+        "explanationHi": "अधिकांश पेयजल में विलयशील फ्लोराइड मिलाया जाता है, ताकि इसकी सांद्रता 1 ppm हो जाय।"
+      },
+      {
+        "question": "What is the chemical formula of Hydroxyapatite found in tooth enamel?",
+        "questionHi": "दाँतों के इनेमल में पाए जाने वाले हाइड्रोक्सीएपेटाइट का रासायनिक सूत्र क्या है?",
+        "options": ["CaCO3", "3Ca3(PO4)2·Ca(OH)2", "NaCl", "CaSO4"],
+        "optionsHi": ["CaCO3", "3Ca3(PO4)2·Ca(OH)2", "NaCl", "CaSO4"],
+        "correctAnswer": "3Ca3(PO4)2·Ca(OH)2",
+        "correctAnswerHi": "3Ca3(PO4)2·Ca(OH)2",
+        "explanation": "Hydroxyapatite is the main mineral component of tooth enamel.",
+        "explanationHi": "दाँतों के इनेमल सतह में हाइड्रोक्सीएपेटाइट [3Ca3(PO4)2·Ca(OH)2] होता है।"
+      },
+      {
+        "question": "What is the chemical formula of Fluoroapatite?",
+        "questionHi": "फ्लुओएपेटाइट का रासायनिक सूत्र क्या है?",
+        "options": ["CaF2", "3Ca3(PO4)2·CaF2", "Ca(OH)2", "MgF2"],
+        "optionsHi": ["CaF2", "3Ca3(PO4)2·CaF2", "Ca(OH)2", "MgF2"],
+        "correctAnswer": "3Ca3(PO4)2·CaF2",
+        "correctAnswerHi": "3Ca3(PO4)2·CaF2",
+        "explanation": "Fluoroapatite is formed when fluoride reacts with tooth enamel.",
+        "explanationHi": "हाइड्रोक्सीएपेटाइट को फ्लुओएपेटाइट [3Ca3(PO4)2·CaF2] में परिवर्तित कर देता है।"
+      },
+      {
+        "question": "Which part of the body is specifically weakened by excessive Fluoride intake?",
+        "questionHi": "फ्लोराइड के अत्यधिक सेवन से शरीर का कौन-सा हिस्सा विशेष रूप से कमजोर हो जाता है?",
+        "options": ["Lungs", "Spinal cord (Merurajju)", "Liver", "Heart"],
+        "optionsHi": ["फेफड़े", "मेरुरज्जु (Spinal cord)", "यकृत", "हृदय"],
+        "correctAnswer": "Spinal cord (Merurajju)",
+        "correctAnswerHi": "मेरुरज्जु (Spinal cord)",
+        "explanation": "Excessive fluoride affects bone density and the spinal column.",
+        "explanationHi": "इसके लगातार उपयोग से हड्डियों के जोड़ विशेषकर मेरुरज्जु में कमजोरी आती है।"
+      },
+      {
+        "question": "What is the primary cause of 'Eutrophication'?",
+        "questionHi": "'सुपोषण' (Eutrophication) का प्राथमिक कारण क्या है?",
+        "options": ["Increase in water temperature", "Increase in organic and inorganic nutrients", "Decrease in DO", "Increase in pH"],
+        "optionsHi": ["जल के तापमान में वृद्धि", "जैविक तथा अजैविक दोनों प्रकार के पोषक तत्वों की वृद्धि", "DO में कमी", "pH में वृद्धि"],
+        "correctAnswer": "Increase in organic and inorganic nutrients",
+        "correctAnswerHi": "जैविक तथा अजैविक दोनों प्रकार के पोषक तत्वों की वृद्धि",
+        "explanation": "Eutrophication is caused by the enrichment of water with nutrients like nitrogen and phosphorus.",
+        "explanationHi": "जल में जब जैविक तथा अजैविक दोनों प्रकार के पोषक तत्वों की वृद्धि हो जाती है, तो इस घटना को सुपोषण कहते हैं।"
+      },
+      {
+        "question": "In a bio-toilet, what happens to the human waste?",
+        "questionHi": "जैव शौचालय में मानव अपशिष्ट का क्या होता है?",
+        "options": ["It is discharged on tracks", "It is broken down into water and gas", "It is burned", "It is buried"],
+        "optionsHi": ["इसे पटरियों पर छोड़ दिया जाता है", "इसे पानी और गैस में विखंडित कर दिया जाता है", "इसे जला दिया जाता है", "इसे दफना दिया जाता है"],
+        "correctAnswer": "It is broken down into water and gas",
+        "correctAnswerHi": "इसे पानी और गैस में विखंडित कर दिया जाता है",
+        "explanation": "Bacteria decompose the waste into harmless water and methane gas.",
+        "explanationHi": "अवायवीय जीवाणु अपशिष्ट पदार्थों को विखंडित कर उसे पानी और गैस में परिवर्तित कर देते हैं।"
+      },
+      {
+        "question": "Which of the following is NOT a groundwater pollutant mentioned on the page?",
+        "questionHi": "निम्नलिखित में से कौन-सा भू-जल प्रदूषक पृष्ठ पर उल्लिखित नहीं है?",
+        "options": ["Arsenic", "Fluoride", "Uranium", "Mercury"],
+        "optionsHi": ["आर्सेनिक", "फ्लोराइड", "यूरेनियम", "पारा"],
+        "correctAnswer": "Mercury",
+        "correctAnswerHi": "पारा",
+        "explanation": "Arsenic, Fluoride, and Uranium are mentioned as major groundwater pollutants.",
+        "explanationHi": "भूमिगत जल के प्रमुख प्रदूषक तत्व आर्सेनिक, फ्लोराइड एवं यूरेनियम हैं। (पारा का उल्लेख नहीं है)।"
+      },
+      {
+        "question": "What is the unit used for measuring metal concentration in drinking water in the table?",
+        "questionHi": "तालिका में पेयजल में धातु की सांद्रता मापने के लिए किस इकाई का उपयोग किया गया है?",
+        "options": ["ppm or mg dm-3", "Percentage", "kg/liter", "None"],
+        "optionsHi": ["ppm अथवा mg dm-3", "प्रतिशत", "किग्रा/लीटर", "कोई नहीं"],
+        "correctAnswer": "ppm or mg dm-3",
+        "correctAnswerHi": "ppm अथवा mg dm-3",
+        "explanation": "The table lists concentrations in ppm or mg dm-3.",
+        "explanationHi": "पेय जल में निर्धारित सामान्य धातुओं की अधिकतम सांद्रता (ppm अथवा mg dm-3)।"
+      },
+      {
+        "question": "Which state has the highest number of Arsenic affected districts mentioned?",
+        "questionHi": "किस राज्य में आर्सेनिक प्रभावित जिलों की संख्या सर्वाधिक बताई गई है?",
+        "options": ["Bihar", "Uttar Pradesh", "West Bengal", "Assam"],
+        "optionsHi": ["बिहार", "उत्तर प्रदेश", "पश्चिम बंगाल", "असम"],
+        "correctAnswer": "West Bengal",
+        "correctAnswerHi": "पश्चिम बंगाल",
+        "explanation": "West Bengal is the most prominently mentioned state with specific districts like Murshidabad and Nadia.",
+        "explanationHi": "पश्चिम बंगाल के चार जिले... आर्सेनिक प्रदूषण से अत्यधिक प्रभावित है।"
+      },
+      {
+        "question": "What is the effect of Arsenic on the food chain?",
+        "questionHi": "खाद्य श्रृंखला पर आर्सेनिक का क्या प्रभाव पड़ता है?",
+        "options": ["It improves crop yield", "It contaminates the entire food chain", "It has no effect", "It kills pests"],
+        "optionsHi": ["यह फसल की पैदावार बढ़ाता है", "इससे पूरी खाद्य-श्रृंखला प्रभावित हो रही है", "इसका कोई प्रभाव नहीं है", "यह कीटों को मारता है"],
+        "correctAnswer": "It contaminates the entire food chain",
+        "correctAnswerHi": "इससे पूरी खाद्य-श्रृंखला प्रभावित हो रही है",
+        "explanation": "Arsenic absorbed by plants like paddy enters the food chain, affecting humans and animals.",
+        "explanationHi": "धान का पौधा आर्सेनिक का बेहतर अवशोषक माना जाता है। इससे पूरी खाद्य-श्रृंखला प्रभावित हो रही है।"
+      },
+      {
+        "question": "Which of the following is a source of Arsenic in the ecosystem besides bedrock?",
+        "questionHi": "बेड-रॉक के अलावा पारिस्थितिकी तंत्र में आर्सेनिक का स्रोत निम्नलिखित में से कौन-सा है?",
+        "options": ["Chemical pesticides and herbicides", "Rainwater", "Volcanoes", "Forest fires"],
+        "optionsHi": ["रासायनिक कीटनाशकों व खर-पतवारनाशियों", "वर्षा जल", "ज्वालामुखी", "वनाग्नि"],
+        "correctAnswer": "Chemical pesticides and herbicides",
+        "correctAnswerHi": "रासायनिक कीटनाशकों व खर-पतवारनाशियों",
+        "explanation": "Human activities like using certain pesticides also contribute to arsenic levels.",
+        "explanationHi": "आर्सेनिक रासायनिक कीटनाशकों व खर-पतवारनाशियों के छिड़काव के द्वारा भी पारिस्थितिकी तंत्र में समा जाता है।"
+      },
+      {
+        "question": "Which district of Bihar is specifically mentioned for high Fluoride and Iron?",
+        "questionHi": "बिहार के किस जिले का विशेष रूप से उच्च फ्लोराइड और आयरन के लिए उल्लेख किया गया है?",
+        "options": ["Patna", "Gaya", "More than half of the districts", "Nalanda"],
+        "optionsHi": ["पटना", "गया", "आधे से अधिक जिले", "नालंदा"],
+        "correctAnswer": "More than half of the districts",
+        "correctAnswerHi": "आधे से अधिक जिले",
+        "explanation": "The text states that more than half of Bihar's districts are affected.",
+        "explanationHi": "बिहार राज्य के आधे से अधिक जिलों के भूगर्भिय जल में फ्लोराइड एवं आयरन की मात्रा अत्यधिक होती है।"
+      },
+      {
+        "question": "What is the primary reason for the 'Biological Desert' status of the Damodar river?",
+        "questionHi": "दामोदर नदी के 'जैविक मरुस्थल' बनने का प्राथमिक कारण क्या है?",
+        "options": ["Lack of water", "Extreme pollution", "High speed of flow", "Dams"],
+        "optionsHi": ["पानी की कमी", "अति प्रदूषण", "प्रवाह की उच्च गति", "बाँध"],
+        "correctAnswer": "Extreme pollution",
+        "correctAnswerHi": "अति प्रदूषण",
+        "explanation": "Pollution levels are so high that aquatic life cannot survive.",
+        "explanationHi": "कोयला खदान और औद्योगिक क्षेत्रों से प्रवाहित होने के कारण यह देश की अति प्रदूषित नदी बन गई है... यह जैविक मरुस्थल होकर रह गई है।"
+      },
+      {
+        "question": "Which of the following is NOT a symptom of excessive Fluoride intake?",
+        "questionHi": "निम्नलिखित में से कौन-सा फ्लोराइड के अत्यधिक सेवन का लक्षण नहीं है?",
+        "options": ["Mottling of teeth", "Humped back", "Knock-knee", "Black Foot"],
+        "optionsHi": ["दाँतों का कर्बुरण", "कूबड़पीठ", "नॉक-नी", "ब्लैक फुट"],
+        "correctAnswer": "Black Foot",
+        "correctAnswerHi": "ब्लैक फुट",
+        "explanation": "Black Foot is caused by Arsenic, not Fluoride.",
+        "explanationHi": "आर्सेनिक के लगातार संपर्क से ब्लैक फुट नामक बीमारी होती है।"
+      },
+      {
+        "question": "What is the role of anaerobic bacteria in a bio-toilet?",
+        "questionHi": "जैव शौचालय में अवायवीय जीवाणुओं की क्या भूमिका है?",
+        "options": ["To produce oxygen", "To decompose waste into water and gas", "To clean the tracks", "To filter water"],
+        "optionsHi": ["ऑक्सीजन बनाना", "अपशिष्ट पदार्थों को पानी और गैस में विखंडित करना", "पटरियों को साफ करना", "पानी छानना"],
+        "correctAnswer": "To decompose waste into water and gas",
+        "correctAnswerHi": "अपशिष्ट पदार्थों को पानी और गैस में विखंडित करना",
+        "explanation": "They break down organic matter without oxygen.",
+        "explanationHi": "जैव शौचालय प्रणाली में अवायवीय जीवाणु अपशिष्ट पदार्थों को विखंडित कर उसे पानी और गैस में परिवर्तित कर देते हैं।"
+      },
+      {
+        "question": "Which metal has the lowest permissible limit in drinking water according to the table?",
+        "questionHi": "तालिका के अनुसार पेयजल में किस धातु की अनुमेय सीमा सबसे कम है?",
+        "options": ["Iron", "Manganese", "Cadmium", "Zinc"],
+        "optionsHi": ["आयरन", "मैंगनीज", "कैडमियम", "जिंक"],
+        "correctAnswer": "Cadmium",
+        "correctAnswerHi": "कैडमियम",
+        "explanation": "Cadmium has a limit of 0.005 ppm, which is the lowest in the list.",
+        "explanationHi": "Cd (कैडमियम) की अधिकतम सांद्रता: 0.005 ppm।"
+      },
+      {
+        "question": "Which metal has the highest permissible limit in drinking water according to the table?",
+        "questionHi": "तालिका के अनुसार पेयजल में किस धातु की अनुमेय सीमा सबसे अधिक है?",
+        "options": ["Copper", "Zinc", "Iron", "Aluminum"],
+        "optionsHi": ["कॉपर", "जिंक", "आयरन", "एल्युमीनियम"],
+        "correctAnswer": "Zinc",
+        "correctAnswerHi": "जिंक",
+        "explanation": "Zinc has a limit of 5.0 ppm, the highest in the provided table.",
+        "explanationHi": "Zn (जिंक) की अधिकतम सांद्रता: 5.0 ppm।"
+      }
+    ]
+  }
+]

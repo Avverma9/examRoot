@@ -1,4 +1,7 @@
+import mongoose from "mongoose";
 import TestSeries from "../models/TestSeries.mjs";
+import SeriesTest from "../models/SeriesTest.mjs";
+import SeriesQuestion from "../models/SeriesQuestion.mjs";
 import MockTest from "../models/MockTest.mjs";
 import PracticeSet from "../models/PracticeSet.mjs";
 import User from "../models/User.mjs";
@@ -7,16 +10,202 @@ import { hasActiveSubscription } from "./paymentController.mjs";
 import { v4 as uuidv4 } from "uuid";
 import { getPresignedUploadUrl, deleteFromR2, keyFromUrl } from "../utils/r2.mjs";
 
+const toObjectId = (value) => {
+  if (!value) return null;
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  if (typeof value === "string" && mongoose.Types.ObjectId.isValid(value)) {
+    return new mongoose.Types.ObjectId(value);
+  }
+  return null;
+};
+
+const sanitizeQuestion = (question = {}) => ({
+  question: String(question.question || "").trim(),
+  questionHi: String(question.questionHi || ""),
+  options: Array.isArray(question.options) ? question.options.map((o) => String(o || "")) : [],
+  optionsHi: Array.isArray(question.optionsHi) ? question.optionsHi.map((o) => String(o || "")) : [],
+  correctAnswer: String(question.correctAnswer || ""),
+  correctAnswerHi: String(question.correctAnswerHi || ""),
+  explanation: String(question.explanation || ""),
+  explanationHi: String(question.explanationHi || ""),
+});
+
+const toBoolean = (value, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  if (typeof value === "number") return value !== 0;
+  if (value === null || value === undefined) return fallback;
+  return Boolean(value);
+};
+
+const sanitizeSeriesBody = (body = {}) => {
+  const payload = { ...body };
+  delete payload.tests;
+  delete payload._id;
+  return payload;
+};
+
+const normalizeIncomingTests = (tests = [], freeTestsCount = 1) =>
+  tests.map((test, index) => ({
+    ...test,
+    _id: toObjectId(test?._id) || new mongoose.Types.ObjectId(),
+    group: typeof test?.group === "string" ? test.group.trim() : "",
+    title: String(test?.title || "").trim(),
+    description: String(test?.description || ""),
+    duration: Number(test?.duration) || 0,
+    isFree: index < (freeTestsCount || 1) ? true : toBoolean(test?.isFree, false),
+    isPublished: Object.prototype.hasOwnProperty.call(test || {}, "isPublished") ? toBoolean(test.isPublished, true) : true,
+    order: Object.prototype.hasOwnProperty.call(test || {}, "order") ? Number(test.order) || 0 : index,
+    hasQuestionsInPayload: Object.prototype.hasOwnProperty.call(test || {}, "questions"),
+    questions: Array.isArray(test?.questions) ? test.questions.map((q) => sanitizeQuestion(q)) : [],
+  }));
+
+const groupQuestionsByTestId = (questions = []) => {
+  const map = new Map();
+  for (const item of questions) {
+    const key = String(item.testId);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  }
+  for (const [key, values] of map.entries()) {
+    values.sort((a, b) => (a.order || 0) - (b.order || 0));
+    map.set(
+      key,
+      values.map((q) => ({
+        question: q.question,
+        questionHi: q.questionHi || "",
+        options: q.options || [],
+        optionsHi: q.optionsHi || [],
+        correctAnswer: q.correctAnswer,
+        correctAnswerHi: q.correctAnswerHi || "",
+        explanation: q.explanation || "",
+        explanationHi: q.explanationHi || "",
+      }))
+    );
+  }
+  return map;
+};
+
+const fetchSeriesTests = async (seriesId) => {
+  const tests = await SeriesTest.find({ seriesId }).sort({ order: 1, createdAt: 1 }).lean();
+  return tests.map((test, index) => ({
+    _id: test._id,
+    group: test.group || "",
+    title: test.title,
+    description: test.description || "",
+    duration: test.duration,
+    totalQuestions: Number(test.totalQuestions) || 0,
+    isFree: toBoolean(test.isFree, false),
+    isPublished: toBoolean(test.isPublished, true),
+    order: Object.prototype.hasOwnProperty.call(test, "order") ? test.order : index,
+  }));
+};
+
+const fetchSeriesTestsWithQuestions = async (seriesId) => {
+  const tests = await fetchSeriesTests(seriesId);
+  if (!tests.length) return [];
+
+  const testIds = tests.map((t) => t._id);
+  const questions = await SeriesQuestion.find({ seriesId, testId: { $in: testIds } })
+    .sort({ testId: 1, order: 1 })
+    .lean();
+
+  const byTest = groupQuestionsByTestId(questions);
+
+  return tests.map((test) => {
+    const key = String(test._id);
+    const list = byTest.get(key) || [];
+    return {
+      ...test,
+      totalQuestions: list.length || test.totalQuestions || 0,
+      questions: list,
+    };
+  });
+};
+
+const replaceSeriesTestsWithQuestions = async ({ seriesId, tests, freeTestsCount, existingQuestionMap = new Map() }) => {
+  const normalized = normalizeIncomingTests(tests, freeTestsCount);
+
+  const testDocs = [];
+  const questionDocs = [];
+
+  normalized.forEach((test, index) => {
+    const questions = test.hasQuestionsInPayload
+      ? test.questions
+      : (existingQuestionMap.get(String(test._id)) || []);
+
+    testDocs.push({
+      _id: test._id,
+      seriesId,
+      group: test.group,
+      title: test.title,
+      description: test.description,
+      duration: test.duration,
+      totalQuestions: questions.length,
+      isFree: test.isFree,
+      isPublished: test.isPublished,
+      order: test.order ?? index,
+    });
+
+    questions.forEach((q, qIndex) => {
+      questionDocs.push({
+        seriesId,
+        testId: test._id,
+        order: qIndex,
+        ...sanitizeQuestion(q),
+      });
+    });
+  });
+
+  await SeriesQuestion.deleteMany({ seriesId });
+  await SeriesTest.deleteMany({ seriesId });
+
+  if (testDocs.length) await SeriesTest.insertMany(testDocs, { ordered: true });
+  if (questionDocs.length) await SeriesQuestion.insertMany(questionDocs, { ordered: true });
+
+  return testDocs;
+};
+
+const ensureSeriesShape = async (series, includeQuestions = false) => {
+  if (!series) return series;
+
+  const tests = includeQuestions
+    ? await fetchSeriesTestsWithQuestions(series._id)
+    : await fetchSeriesTests(series._id);
+
+  return {
+    ...series,
+    tests,
+    totalTests: tests.length,
+  };
+};
+
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 export const createTestSeries = async (req, res) => {
   try {
-    const body = req.body;
-    if (body.tests?.length) {
-      body.totalTests = body.tests.length;
-      body.tests = normalizeTests(body.tests, body.freeTestsCount);
+    const body = req.body || {};
+    const incomingTests = Array.isArray(body.tests) ? body.tests : [];
+
+    const series = await TestSeries.create({
+      ...sanitizeSeriesBody(body),
+      totalTests: incomingTests.length,
+    });
+
+    if (incomingTests.length) {
+      await replaceSeriesTestsWithQuestions({
+        seriesId: series._id,
+        tests: incomingTests,
+        freeTestsCount: body.freeTestsCount,
+      });
     }
-    const series = await TestSeries.create(body);
-    res.status(201).json({ success: true, data: series });
+
+    const reloadedSeries = await TestSeries.findById(series._id).lean();
+    const fullSeries = await ensureSeriesShape(reloadedSeries, false);
+    res.status(201).json({ success: true, data: fullSeries });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -26,99 +215,93 @@ export const createTestSeries = async (req, res) => {
 export const bulkCreateTestSeries = async (req, res) => {
   try {
     const items = normalizeBulkItems(req.body);
-    if (!items || items.length === 0)
+    if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: "No items provided" });
+    }
 
-    const normalized = items.map(item => ({
-      ...item,
-      totalTests: item.tests?.length || item.totalTests || 0,
-      tests: normalizeTests(item.tests || [], item.freeTestsCount),
-    }));
+    const inserted = [];
+    for (const item of items) {
+      const tests = Array.isArray(item.tests) ? item.tests : [];
+      const series = await TestSeries.create({
+        ...sanitizeSeriesBody(item),
+        totalTests: tests.length,
+      });
 
-    const series = await TestSeries.insertMany(normalized, { ordered: false });
-    res.status(201).json({ success: true, totalInserted: series.length, totalReceived: items.length, data: series });
+      if (tests.length) {
+        await replaceSeriesTestsWithQuestions({
+          seriesId: series._id,
+          tests,
+          freeTestsCount: item.freeTestsCount,
+        });
+      }
+      inserted.push(series);
+    }
+
+    res.status(201).json({
+      success: true,
+      totalInserted: inserted.length,
+      totalReceived: items.length,
+      data: inserted,
+    });
   } catch (error) {
-    const inserted = error?.insertedDocs || [];
     const formatted = formatBulkError(error);
-    if (inserted.length > 0)
-      return res.status(201).json({ success: true, message: "Partially succeeded", totalInserted: inserted.length, errors: formatted, data: inserted });
     res.status(500).json({ success: false, message: formatted.message || "Bulk import failed", errors: formatted });
   }
-};
-
-const ensureTestTotals = (series) => {
-  if (!series || !Array.isArray(series.tests)) return series;
-  series.tests = series.tests.map((test) => ({
-    ...test,
-    totalQuestions: Array.isArray(test.questions)
-      ? test.questions.length
-      : test.totalQuestions || 0,
-  }));
-  series.totalTests = Array.isArray(series.tests) ? series.tests.length : series.totalTests || 0;
-  return series;
 };
 
 // ─── GET ALL (list — no questions) ───────────────────────────────────────────
 export const getAllTestSeries = async (req, res) => {
   try {
-    const { subject, category, isPaid, search, includeDrafts, includeQuestions, mode, page = 1, limit = 20 } = req.query;
+    const { subject, category, isPaid, search, includeDrafts, mode, page = 1, limit = 20 } = req.query;
     const filter = includeDrafts === "true" ? {} : { isPublished: true };
 
-    if (subject)   filter.subject  = new RegExp(subject, "i");
-    if (category)  filter.category = new RegExp(category, "i");
+    if (subject) filter.subject = new RegExp(subject, "i");
+    if (category) filter.category = new RegExp(category, "i");
     if (isPaid !== undefined) filter.isPaid = isPaid === "true";
-    if (search)    filter.$or = [
-      { title:    new RegExp(search, "i") },
-      { bookName: new RegExp(search, "i") },
-      { author:   new RegExp(search, "i") },
-    ];
+    if (search) {
+      filter.$or = [
+        { title: new RegExp(search, "i") },
+        { bookName: new RegExp(search, "i") },
+        { author: new RegExp(search, "i") },
+      ];
+    }
 
     const safePage = Math.max(1, Number(page) || 1);
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (safePage - 1) * safeLimit;
 
-    let projection = "-tests.questions";
+    let projection = "-tests";
     if (mode === "summary") {
       projection = "title bookName subject category language isPaid price discountedPrice totalTests isPublished freeTestsCount createdAt updatedAt";
     }
 
-    let query = TestSeries.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(safeLimit)
-      .select(projection);
-
-    if (includeQuestions === "true" && mode !== "summary") {
-      query = query.select("+tests.questions");
-    }
-
     const [series, total] = await Promise.all([
-      query.lean(),
+      TestSeries.find(filter).sort({ createdAt: -1 }).skip(skip).limit(safeLimit).select(projection).lean(),
       TestSeries.countDocuments(filter),
     ]);
 
-    const normalized = series.map((item) => ensureTestTotals(item));
     res.status(200).json({
       success: true,
       total,
       page: safePage,
       limit: safeLimit,
       pages: Math.ceil(total / safeLimit),
-      data: normalized,
+      data: series,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── GET SERIES DETAIL (tests list — no questions) ───────────────────────────
+// ─── GET SERIES DETAIL (tests list — optional questions) ─────────────────────
 export const getTestSeriesById = async (req, res) => {
   try {
-    let query = TestSeries.findById(req.params.id);
-    if (req.query.includeQuestions !== "true") query = query.select("-tests.questions");
-    const series = await query.lean();
+    const series = await TestSeries.findById(req.params.id).lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
-    res.status(200).json({ success: true, data: ensureTestTotals(series) });
+
+    const includeQuestions = req.query.includeQuestions === "true";
+    const data = await ensureSeriesShape(series, includeQuestions);
+    res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -127,28 +310,45 @@ export const getTestSeriesById = async (req, res) => {
 // ─── GET SINGLE TEST WITH QUESTIONS (for player) ─────────────────────────────
 export const getTestById = async (req, res) => {
   try {
-    // Fetch only series metadata + the matched test (positional projection)
-    const series = await TestSeries.findOne({ _id: req.params.seriesId, "tests._id": req.params.testId })
-      .select("isPaid discountedPrice price _id tests.$")
+    const seriesId = toObjectId(req.params.seriesId);
+    const testId = toObjectId(req.params.testId);
+    if (!seriesId || !testId) {
+      return res.status(400).json({ success: false, message: "Invalid series or test id" });
+    }
+
+    const series = await TestSeries.findById(seriesId)
+      .select("isPaid discountedPrice price _id freeTestsCount")
       .lean();
 
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
 
-    const test = (series.tests && series.tests[0]) || null;
+    let test = await SeriesTest.findOne({ _id: testId, seriesId }).lean();
+    let questions = await SeriesQuestion.find({ seriesId, testId }).sort({ order: 1 }).lean();
     if (!test) return res.status(404).json({ success: false, message: "Test not found" });
 
-    // Free series → serve all tests without any check
-    if (!series.isPaid) return res.status(200).json({ success: true, data: test });
+    if (!series.isPaid || test.isFree) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...test,
+          questions: questions.map((q) => sanitizeQuestion(q)),
+          totalQuestions: questions.length || test.totalQuestions || 0,
+        },
+      });
+    }
 
-    // Free test inside a paid series → serve
-    if (test.isFree) return res.status(200).json({ success: true, data: test });
-
-    // Paid test — check active subscription
     const userId = req.userId;
     if (userId) {
       const user = await User.findById(userId).select("subscriptions").lean();
       if (user && hasActiveSubscription(user, series._id)) {
-        return res.status(200).json({ success: true, data: test });
+        return res.status(200).json({
+          success: true,
+          data: {
+            ...test,
+            questions: questions.map((q) => sanitizeQuestion(q)),
+            totalQuestions: questions.length || test.totalQuestions || 0,
+          },
+        });
       }
     }
 
@@ -167,21 +367,92 @@ export const getTestById = async (req, res) => {
 };
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
+// STRICT SAFETY RULE: this endpoint updates series-level metadata ONLY.
+// It must NEVER touch SeriesTest/SeriesQuestion. Tests are exclusively
+// managed via the dedicated endpoints below (addSeriesTests, updateSeriesTestMeta,
+// updateSeriesTestQuestions, deleteSeriesTest). Any `tests` field in the
+// request body is intentionally ignored (sanitizeSeriesBody strips it) so a
+// buggy/legacy caller can never trigger a full delete-and-reinsert of every
+// test/question in the series just to edit a title or price.
 export const updateTestSeries = async (req, res) => {
   try {
-    const body = req.body;
-    if (body.tests?.length) {
-      body.totalTests = body.tests.length;
-      body.tests = body.tests.map((t, idx) => ({
-        ...t,
-        group: typeof t.group === "string" ? t.group.trim() : "",
-        totalQuestions: t.questions?.length || t.totalQuestions || 0,
-        order: t.order ?? idx,
-      }));
+    const body = req.body || {};
+    const updateBody = sanitizeSeriesBody(body);
+
+    const series = await TestSeries.findById(req.params.id).select("_id").lean();
+    if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+
+    const updated = await TestSeries.findByIdAndUpdate(req.params.id, updateBody, {
+      returnDocument: "after",
+      runValidators: true,
+    }).lean();
+
+    const shaped = await ensureSeriesShape(updated, false);
+    res.status(200).json({ success: true, data: shaped });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// ─── ADD TESTS TO EXISTING SERIES (safe append — never touches existing tests) ─
+// POST /api/test-series/:id/tests/bulk
+// Body: { tests: [...] }
+export const addSeriesTests = async (req, res) => {
+  try {
+    const seriesId = toObjectId(req.params.id);
+    if (!seriesId) return res.status(400).json({ success: false, message: "Invalid series id" });
+
+    const body = req.body || {};
+    const incomingTests = Array.isArray(body.tests) ? body.tests : [];
+    if (!incomingTests.length) {
+      return res.status(400).json({ success: false, message: "tests must be a non-empty array" });
     }
-    const updated = await TestSeries.findByIdAndUpdate(req.params.id, body, { returnDocument: "after", runValidators: true });
-    if (!updated) return res.status(404).json({ success: false, message: "Test series not found" });
-    res.status(200).json({ success: true, data: updated });
+
+    const series = await TestSeries.findById(seriesId).select("freeTestsCount").lean();
+    if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+
+    const existingCount = await SeriesTest.countDocuments({ seriesId });
+    const normalized = normalizeIncomingTests(incomingTests, 0);
+
+    const testDocs = [];
+    const questionDocs = [];
+
+    normalized.forEach((test, index) => {
+      const order = existingCount + index;
+      testDocs.push({
+        _id: test._id,
+        seriesId,
+        group: test.group,
+        title: test.title,
+        description: test.description,
+        duration: test.duration,
+        totalQuestions: test.questions.length,
+        isFree: test.isFree,
+        isPublished: test.isPublished,
+        order,
+      });
+
+      test.questions.forEach((q, qIndex) => {
+        questionDocs.push({
+          seriesId,
+          testId: test._id,
+          order: qIndex,
+          ...sanitizeQuestion(q),
+        });
+      });
+    });
+
+    if (testDocs.length) await SeriesTest.insertMany(testDocs, { ordered: true });
+    if (questionDocs.length) await SeriesQuestion.insertMany(questionDocs, { ordered: true });
+
+    const totalTests = await SeriesTest.countDocuments({ seriesId });
+    await TestSeries.findByIdAndUpdate(seriesId, { totalTests });
+
+    res.status(201).json({
+      success: true,
+      message: `Added ${testDocs.length} test(s) with ${questionDocs.length} question(s)`,
+      data: { addedTests: testDocs.length, addedQuestions: questionDocs.length, totalTests },
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -208,7 +479,7 @@ export const updateSeriesTestMeta = async (req, res) => {
         if (field === "isFree" || field === "isPublished") {
           value = !!value;
         }
-        set[`tests.$.${field}`] = value;
+        set[field] = value;
       }
     }
 
@@ -216,17 +487,22 @@ export const updateSeriesTestMeta = async (req, res) => {
       return res.status(400).json({ success: false, message: "No valid fields to update" });
     }
 
-    const series = await TestSeries.findOneAndUpdate(
-      { _id: id, "tests._id": testId },
+    const seriesObjectId = toObjectId(id);
+    const testObjectId = toObjectId(testId);
+    if (!seriesObjectId || !testObjectId) {
+      return res.status(400).json({ success: false, message: "Invalid series/test id" });
+    }
+
+    const updatedTest = await SeriesTest.findOneAndUpdate(
+      { _id: testObjectId, seriesId: seriesObjectId },
       { $set: set },
       { returnDocument: "after", runValidators: true }
-    );
+    ).lean();
 
-    if (!series) {
+    if (!updatedTest) {
       return res.status(404).json({ success: false, message: "Test series/test not found" });
     }
 
-    const updatedTest = series.tests?.id(testId);
     return res.status(200).json({
       success: true,
       message: "Test updated successfully",
@@ -237,11 +513,96 @@ export const updateSeriesTestMeta = async (req, res) => {
   }
 };
 
-// ─── DELETE ──────────────────────────────────────────────────────────────────
+// ─── UPDATE SINGLE TEST QUESTIONS (fast path — touches only this test) ─────
+// PATCH /api/test-series/:id/tests/:testId/questions
+// Body: { questions: [...] }
+// Replaces the question list for exactly this one test. Never touches any
+// other test or question in the series.
+export const updateSeriesTestQuestions = async (req, res) => {
+  try {
+    const seriesId = toObjectId(req.params.id);
+    const testId = toObjectId(req.params.testId);
+    if (!seriesId || !testId) {
+      return res.status(400).json({ success: false, message: "Invalid series/test id" });
+    }
+
+    const body = req.body || {};
+    if (!Array.isArray(body.questions)) {
+      return res.status(400).json({ success: false, message: "questions must be an array" });
+    }
+
+    const test = await SeriesTest.findOne({ _id: testId, seriesId });
+    if (!test) {
+      return res.status(404).json({ success: false, message: "Test not found" });
+    }
+
+    const questionDocs = body.questions.map((q, index) => ({
+      seriesId,
+      testId,
+      order: index,
+      ...sanitizeQuestion(q),
+    }));
+
+    await SeriesQuestion.deleteMany({ seriesId, testId });
+    if (questionDocs.length) await SeriesQuestion.insertMany(questionDocs, { ordered: true });
+
+    test.totalQuestions = questionDocs.length;
+    await test.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Questions updated successfully",
+      data: { totalQuestions: questionDocs.length },
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// ─── DELETE SINGLE TEST ─────────────────────────────────────────────────────
+export const deleteSeriesTest = async (req, res) => {
+  try {
+    const testId = toObjectId(req.params.testId);
+
+    if (!seriesId || !testId) {
+      return res.status(400).json({ success: false, message: "Invalid series/test id" });
+    }
+
+    const deleted = await SeriesTest.findOneAndDelete({ _id: testId, seriesId });
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: "Test not found" });
+    }
+
+    await SeriesQuestion.deleteMany({ seriesId, testId });
+    const totalTests = await SeriesTest.countDocuments({ seriesId });
+    await TestSeries.findByIdAndUpdate(
+      seriesId,
+      {
+        totalTests,
+      },
+      { returnDocument: "after" }
+    );
+
+    return res.status(200).json({ success: true, message: "Test deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── DELETE SERIES ───────────────────────────────────────────────────────────
 export const deleteTestSeries = async (req, res) => {
   try {
-    const deleted = await TestSeries.findByIdAndDelete(req.params.id);
+    const seriesId = toObjectId(req.params.id);
+    if (!seriesId) return res.status(400).json({ success: false, message: "Invalid series id" });
+
+    const deleted = await TestSeries.findByIdAndDelete(seriesId);
     if (!deleted) return res.status(404).json({ success: false, message: "Test series not found" });
+
+    await Promise.all([
+      SeriesTest.deleteMany({ seriesId }),
+      SeriesQuestion.deleteMany({ seriesId }),
+    ]);
+
     res.status(200).json({ success: true, message: "Deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -251,37 +612,32 @@ export const deleteTestSeries = async (req, res) => {
 // ─── HELPER: shuffle array (Fisher-Yates) ────────────────────────────────────
 const shuffleArray = (arr) => {
   const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
+  for (let i = a.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 };
 
-const normalizeTests = (tests = [], freeTestsCount = 1) =>
-  tests.map((t, idx) => ({
-    ...t,
-    group: typeof t.group === "string" ? t.group.trim() : "",
-    totalQuestions: t.questions?.length || t.totalQuestions || 0,
-    isFree: idx < (freeTestsCount || 1) ? true : (t.isFree || false),
-    order: t.order ?? idx,
-  }));
-
 // ─── GET TESTS META (for generate modal — no questions) ──────────────────────
 // GET /api/test-series/:id/tests-meta
 export const getTestsMeta = async (req, res) => {
   try {
     const series = await TestSeries.findById(req.params.id).select(
-      "title subject category language tests._id tests.title tests.totalQuestions tests.description"
+      "title subject category language totalTests"
     ).lean();
+
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
-    series.tests = series.tests?.map((test) => ({
-      ...test,
-      totalQuestions: Array.isArray(test.questions)
-        ? test.questions.length
-        : test.totalQuestions || 0,
-    })) || [];
-    res.status(200).json({ success: true, data: series });
+
+    const tests = await fetchSeriesTests(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...series,
+        tests,
+      },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -292,7 +648,7 @@ export const getTestsMeta = async (req, res) => {
 // Body: { title, description, category, duration, testIds[], maxQuestions, shuffle }
 export const generateMockTest = async (req, res) => {
   try {
-    const series = await TestSeries.findById(req.params.id);
+    const series = await TestSeries.findById(req.params.id).select("category").lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
 
     const {
@@ -305,20 +661,28 @@ export const generateMockTest = async (req, res) => {
       shuffle = true,
     } = req.body;
 
-    if (!title)    return res.status(400).json({ success: false, message: "title is required" });
+    if (!title) return res.status(400).json({ success: false, message: "title is required" });
     if (!duration) return res.status(400).json({ success: false, message: "duration is required" });
 
-    const selectedTests = testIds?.length
-      ? series.tests.filter((t) => testIds.includes(String(t._id)))
-      : series.tests;
+    const selectedTests = await SeriesTest.find(
+      testIds?.length
+        ? { seriesId: req.params.id, _id: { $in: testIds.map((id) => toObjectId(id)).filter(Boolean) } }
+        : { seriesId: req.params.id }
+    ).lean();
 
-    if (!selectedTests.length)
-      return res.status(400).json({ success: false, message: "No tests found for given testIds" });
+    let allQuestions = [];
 
-    let allQuestions = selectedTests.flatMap((t) => t.questions || []);
+    if (selectedTests.length) {
+      const selectedTestIds = selectedTests.map((t) => t._id);
+      const docs = await SeriesQuestion.find({ seriesId: req.params.id, testId: { $in: selectedTestIds } })
+        .sort({ testId: 1, order: 1 })
+        .lean();
+      allQuestions = docs.map((q) => sanitizeQuestion(q));
+    }
 
-    if (!allQuestions.length)
+    if (!allQuestions.length) {
       return res.status(400).json({ success: false, message: "Selected tests have no questions" });
+    }
 
     if (shuffle) allQuestions = shuffleArray(allQuestions);
     if (maxQuestions && maxQuestions > 0) allQuestions = allQuestions.slice(0, maxQuestions);
@@ -348,7 +712,7 @@ export const generateMockTest = async (req, res) => {
 // Body: { title, description, subject, topic, level, testIds[], maxQuestions, shuffle, language, tags[] }
 export const generatePracticeSet = async (req, res) => {
   try {
-    const series = await TestSeries.findById(req.params.id);
+    const series = await TestSeries.findById(req.params.id).select("subject language").lean();
     if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
 
     const {
@@ -366,17 +730,25 @@ export const generatePracticeSet = async (req, res) => {
 
     if (!title) return res.status(400).json({ success: false, message: "title is required" });
 
-    const selectedTests = testIds?.length
-      ? series.tests.filter((t) => testIds.includes(String(t._id)))
-      : series.tests;
+    const selectedTests = await SeriesTest.find(
+      testIds?.length
+        ? { seriesId: req.params.id, _id: { $in: testIds.map((id) => toObjectId(id)).filter(Boolean) } }
+        : { seriesId: req.params.id }
+    ).lean();
 
-    if (!selectedTests.length)
-      return res.status(400).json({ success: false, message: "No tests found for given testIds" });
+    let allQuestions = [];
 
-    let allQuestions = selectedTests.flatMap((t) => t.questions || []);
+    if (selectedTests.length) {
+      const selectedTestIds = selectedTests.map((t) => t._id);
+      const docs = await SeriesQuestion.find({ seriesId: req.params.id, testId: { $in: selectedTestIds } })
+        .sort({ testId: 1, order: 1 })
+        .lean();
+      allQuestions = docs.map((q) => sanitizeQuestion(q));
+    }
 
-    if (!allQuestions.length)
+    if (!allQuestions.length) {
       return res.status(400).json({ success: false, message: "Selected tests have no questions" });
+    }
 
     if (shuffle) allQuestions = shuffleArray(allQuestions);
     if (maxQuestions && maxQuestions > 0) allQuestions = allQuestions.slice(0, maxQuestions);
@@ -404,7 +776,6 @@ export const generatePracticeSet = async (req, res) => {
   }
 };
 
-
 // ─── PRESIGNED URL FOR THUMBNAIL UPLOAD ───────────────────────────────────────
 // POST /api/test-series/:id/thumbnail-presign
 // Body: { filename, contentType }
@@ -428,13 +799,11 @@ export const getThumnailPresignedUrl = async (req, res) => {
       });
     }
 
-    // Verify series exists
     const series = await TestSeries.findById(req.params.id);
     if (!series) {
       return res.status(404).json({ success: false, message: "Test series not found" });
     }
 
-    // Build unique key: thumbnails/uuid-filename
     const ext = filename.split(".").pop().toLowerCase();
     const safeExt = ext.replace(/[^a-z0-9]/g, "");
     const key = `test-series-thumbnails/${uuidv4()}.${safeExt}`;
