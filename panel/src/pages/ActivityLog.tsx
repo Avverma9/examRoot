@@ -24,9 +24,15 @@ import {
 
 const moneyFormat = new Intl.NumberFormat('en-IN');
 
-const formatMinutes = (seconds?: number) => {
-  const mins = Math.max(0, Math.round((seconds || 0) / 60));
-  return mins >= 60 ? `${(mins / 60).toFixed(1)}h` : `${mins}m`;
+const formatDuration = (seconds?: number) => {
+  const totalSeconds = Math.max(0, Math.floor(seconds || 0));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
+  return `${remainingSeconds}s`;
 };
 
 const formatDateTime = (value?: string | Date | null) => {
@@ -81,6 +87,26 @@ const getCalendarDays = (year: number, monthIndex: number) => {
 
 const unwrapActivityPayload = (payload: any) => payload?.data ?? payload ?? {};
 
+const getSessionUniqueUserId = (session: any) => String(session?.userId?._id || session?.userId || '').trim();
+
+const toSessionArray = (value: any) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.currentSessions)) return value.currentSessions;
+  return [];
+};
+
+const getLiveSessionSeconds = (session: any, nowMs: number) => {
+  const savedSeconds = Math.max(0, Number(session?.durationSeconds || 0));
+  if (session?.endedAt) return savedSeconds;
+
+  const startedAt = session?.firstSeenAt || session?.lastSeenAt;
+  if (!startedAt) return savedSeconds;
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - new Date(startedAt).getTime()) / 1000));
+  return Math.max(savedSeconds, elapsedSeconds);
+};
+
 function MetricCard({
   icon: Icon,
   label,
@@ -129,20 +155,52 @@ function SectionCard({
 }
 
 export function ActivityLog() {
+  const [now, setNow] = useState(() => Date.now());
   const { data: overviewRes, isLoading: overviewLoading, error: overviewError } =
-    useGetActivityLogOverviewQuery({ days: 30 });
-  const { data: currentRes, isLoading: currentLoading } = useGetCurrentActivityLogQuery();
+    useGetActivityLogOverviewQuery(
+      { days: 30 },
+      {
+        pollingInterval: 10000,
+        refetchOnFocus: true,
+        refetchOnReconnect: true,
+        skipPollingIfUnfocused: true,
+      }
+    );
+  const { data: currentRes, isLoading: currentLoading } = useGetCurrentActivityLogQuery(undefined, {
+    pollingInterval: 5000,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+    skipPollingIfUnfocused: true,
+  });
   const { data: sessionsRes, isLoading: sessionsLoading } =
-    useGetActivityLogSessionsQuery({ days: 30, page: 1, limit: 60 });
+    useGetActivityLogSessionsQuery(
+      { days: 30, page: 1, limit: 60 },
+      {
+        pollingInterval: 15000,
+        refetchOnFocus: true,
+        refetchOnReconnect: true,
+        skipPollingIfUnfocused: true,
+      }
+    );
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const overviewData = unwrapActivityPayload(overviewRes);
   const currentData = unwrapActivityPayload(currentRes);
   const sessionsData = unwrapActivityPayload(sessionsRes);
 
-  const summary = overviewData?.summary || currentData?.summary || {};
-  const currentSessions = overviewData?.currentSessions || currentData?.data || currentData || [];
+  const summary = {
+    ...(overviewData?.summary || {}),
+    ...(currentData?.summary || {}),
+  };
+  const currentSessions = toSessionArray(currentData?.data ?? currentData?.currentSessions ?? overviewData?.currentSessions ?? currentData);
   const daily = overviewData?.daily || [];
-  const sessions = Array.isArray(sessionsData?.data) ? sessionsData.data : Array.isArray(sessionsData) ? sessionsData : [];
+  const sessions = toSessionArray(sessionsData?.data ?? sessionsData);
   const loading = overviewLoading || currentLoading || sessionsLoading;
   const todayKey = dateKey(new Date());
   const todayMonthKey = monthKeyFromDate(new Date());
@@ -179,7 +237,7 @@ export function ActivityLog() {
   }, [monthKeys, selectedMonthKey, todayMonthKey]);
 
   useEffect(() => {
-    if (!selectedDateKey || selectedDateKey !== todayKey) {
+    if (!selectedDateKey) {
       setSelectedDateKey(todayKey);
     }
   }, [selectedDateKey, todayKey]);
@@ -201,22 +259,25 @@ export function ActivityLog() {
 
   const selectedDayStats = useMemo(() => {
     if (!selectedDateKey) return null;
-    const stats = dailyByDate[selectedDateKey];
-    if (stats) return stats;
     const daySessions = sessions.filter((session: any) => {
       const started = session.firstSeenAt ? dateKey(new Date(session.firstSeenAt)) : null;
       return started === selectedDateKey;
     });
-    if (!daySessions.length) return null;
-    const activeSeconds = daySessions.reduce((sum: number, session: any) => sum + Math.max(0, Number(session.durationSeconds || 0)), 0);
+    const stats = dailyByDate[selectedDateKey];
+    const activeSeconds = daySessions.reduce(
+      (sum: number, session: any) => sum + getLiveSessionSeconds(session, now),
+      0
+    );
+    if (!stats && !daySessions.length) return null;
     return {
+      ...(stats || {}),
       date: selectedDateKey,
-      sessions: daySessions.length,
-      uniqueDevices: new Set(daySessions.map((session: any) => session.deviceId).filter(Boolean)).size,
-      uniqueUsers: new Set(daySessions.map((session: any) => String(session.userId?._id || session.userId || '')).filter(Boolean)).size,
+      sessions: stats?.sessions ?? daySessions.length,
+      uniqueDevices: stats?.uniqueDevices ?? new Set(daySessions.map((session: any) => session.deviceId).filter(Boolean)).size,
+      uniqueUsers: stats?.uniqueUsers ?? new Set(daySessions.map((session: any) => getSessionUniqueUserId(session)).filter(Boolean)).size,
       activeMinutes: Math.round((activeSeconds / 60) * 10) / 10,
     };
-  }, [dailyByDate, selectedDateKey, sessions]);
+  }, [dailyByDate, now, selectedDateKey, sessions]);
   const selectedSessions = useMemo(() => {
     if (!selectedDateKey) return [];
     return sessions.filter((session: any) => {
@@ -229,9 +290,33 @@ export function ActivityLog() {
   const selectedActiveMinutes = useMemo(() => {
     if (selectedDayStats?.activeMinutes != null) return selectedDayStats.activeMinutes;
     if (!selectedSessions.length) return 0;
-    const seconds = selectedSessions.reduce((sum: number, session: any) => sum + Math.max(0, Number(session.durationSeconds || 0)), 0);
+    const seconds = selectedSessions.reduce((sum: number, session: any) => sum + getLiveSessionSeconds(session, now), 0);
     return Math.round((seconds / 60) * 10) / 10;
-  }, [selectedDayStats, selectedSessions]);
+  }, [now, selectedDayStats, selectedSessions]);
+
+  const liveCurrentSessions = useMemo(
+    () =>
+      currentSessions.map((session: any) => ({
+        ...session,
+        liveDurationSeconds: getLiveSessionSeconds(session, now),
+      })),
+    [currentSessions, now]
+  );
+
+  const liveCurrentActiveDevices = useMemo(
+    () => new Set(liveCurrentSessions.map((session: any) => session.deviceId).filter(Boolean)).size,
+    [liveCurrentSessions]
+  );
+
+  const liveCurrentActiveUsers = useMemo(
+    () => new Set(liveCurrentSessions.map((session: any) => getSessionUniqueUserId(session)).filter(Boolean)).size,
+    [liveCurrentSessions]
+  );
+
+  const liveTotalActiveSeconds = useMemo(
+    () => liveCurrentSessions.reduce((sum: number, session: any) => sum + Math.max(0, Number(session.liveDurationSeconds || 0)), 0),
+    [liveCurrentSessions]
+  );
 
   if (loading) return <div className="text-zinc-400">Loading activity log...</div>;
   if (overviewError) return <div className="text-red-400">Failed to load activity log</div>;
@@ -240,13 +325,13 @@ export function ActivityLog() {
     {
       icon: Smartphone,
       label: 'Current Active Devices',
-      value: moneyFormat.format(summary.currentActiveDevices || 0),
+      value: moneyFormat.format(liveCurrentActiveDevices || summary.currentActiveDevices || 0),
       meta: `Heartbeat window: ${summary.activeWindowSeconds || 120}s`,
     },
     {
       icon: Users,
       label: 'Current Active Users',
-      value: moneyFormat.format(summary.currentActiveUsers || 0),
+      value: moneyFormat.format(liveCurrentActiveUsers || summary.currentActiveUsers || 0),
       meta: 'Foreground sessions right now',
     },
     {
@@ -258,8 +343,8 @@ export function ActivityLog() {
     {
       icon: Activity,
       label: 'Active Minutes',
-      value: formatMinutes((summary.totalActiveMinutes || 0) * 60),
-      meta: 'From current active sessions',
+      value: formatDuration(liveTotalActiveSeconds || Math.round((summary.totalActiveMinutes || 0) * 60)),
+      meta: 'Live and updating every second',
     },
     {
       icon: CalendarDays,
@@ -536,7 +621,7 @@ export function ActivityLog() {
             <div style={{ minWidth: 0, borderRadius: 16, background: '#FFFFFF', border: '1px solid #E2E8F0', padding: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active Minutes</div>
               <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: '#0F172A' }}>
-                {selectedDateKey ? `${selectedActiveMinutes} min` : '-'}
+                {selectedDateKey ? formatDuration(Math.round(selectedActiveMinutes * 60)) : '-'}
               </div>
             </div>
           </div>
@@ -563,8 +648,8 @@ export function ActivityLog() {
       <div className="grid grid-cols-1 gap-6 mt-6">
         <SectionCard title="Current Active Devices" subtitle="Live sessions seen within the heartbeat window.">
           <div className="space-y-3">
-            {currentSessions.length ? (
-              currentSessions.map((session: any) => (
+            {liveCurrentSessions.length ? (
+              liveCurrentSessions.map((session: any) => (
                 <div key={session.sessionId} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -575,7 +660,7 @@ export function ActivityLog() {
                         </div>
                       </div>
                       <div className="mt-1 text-xs text-zinc-500">
-                        {session.deviceLabel || session.platform || 'Mobile device'} · {session.ipAddress || 'IP hidden'}
+                        {session.deviceLabel || session.platform || 'Mobile device'} - {session.ipAddress || 'IP hidden'}
                       </div>
                     </div>
                     <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-300">
@@ -589,7 +674,7 @@ export function ActivityLog() {
                     </div>
                     <div>
                       <div className="text-zinc-600">Active for</div>
-                      <div className="mt-1 font-medium text-zinc-200">{formatMinutes(session.durationSeconds || 0)}</div>
+                      <div className="mt-1 font-medium text-zinc-200">{formatDuration(session.liveDurationSeconds || 0)}</div>
                     </div>
                     <div>
                       <div className="text-zinc-600">Started</div>
