@@ -1,26 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { useRouter } from 'expo-router';
-import { useGetAllMockTestsQuery } from '../../services/mockTestApi';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentUser } from '../../services/authApi';
 import { setUser } from '../../store/slices/authSlice';
 import { getRecentProgress } from '../../services/progressApi';
+import { getActiveBanners } from '../../services/bannerApi';
+import BannerCarousel from '../../components/BannerCarousel';
 import { BASE_URL } from '../../utils/baseUrl';
+import { useCallback } from 'react';
 
 export default function HomeScreen() {
   const user = useSelector((state) => state.auth.user);
   const token = useSelector((state) => state.auth.token);
   const dispatch = useDispatch();
   const router = useRouter();
-  const { data: mockData } = useGetAllMockTestsQuery();
-  const recommendedTests = (mockData?.data || []).slice(0, 5);
+
+  // ── Banners ───────────────────────────────────────────────────────────────
+  const [banners, setBanners] = useState([]);
 
   // ── Real "Continue Learning" data ─────────────────────────────────────────
   const [recentProgress, setRecentProgress] = useState([]);
   const [progressLoading, setProgressLoading] = useState(false);
   const [resumeLoadingId, setResumeLoadingId] = useState(null);
+
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const result = await getActiveBanners();
+        console.log('🎯 Banner API Response:', JSON.stringify(result, null, 2));
+        if (result.success) {
+          console.log('✅ Setting banners:', result.data?.length || 0, 'banners');
+          setBanners(result.data || []);
+        } else {
+          console.log('❌ Banner fetch failed:', result.message);
+        }
+      } catch (error) {
+        console.log('❌ Banner fetch error:', error.message);
+      }
+    };
+    fetchBanners();
+  }, []);
 
   useEffect(() => {
     const fetchUserStats = async () => {
@@ -31,7 +52,7 @@ export default function HomeScreen() {
             dispatch(setUser(data.user));
           }
         } catch (error) {
-          console.error('Error fetching user stats:', error);
+          // Silent catch
         }
       }
     };
@@ -48,6 +69,19 @@ export default function HomeScreen() {
       .catch(() => {})
       .finally(() => setProgressLoading(false));
   }, [token]);
+
+  // ── Auto-refresh progress when screen comes into focus (user returns from test) ──
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        getRecentProgress(token)
+          .then(res => {
+            if (res.success) setRecentProgress(res.data || []);
+          })
+          .catch(() => {});
+      }
+    }, [token])
+  );
 
   const handleContinueLearning = async (item) => {
     if (!item?.resourceType || !item?.resourceId) return;
@@ -74,7 +108,8 @@ export default function HomeScreen() {
         }
 
         if (!testData) {
-          router.push('/mock-test');
+          Alert.alert('Error', 'Failed to load test. Please try again.');
+          setResumeLoadingId(null);
           return;
         }
 
@@ -83,6 +118,8 @@ export default function HomeScreen() {
           params: {
             test: JSON.stringify(testData),
             currentQuestion: String(item.metadata?.currentQuestion ?? 0),
+            answers: JSON.stringify(item.metadata?.answers || {}),
+            timeLeft: String(item.metadata?.timeLeft ?? testData.duration * 60),
           },
         });
         return;
@@ -92,11 +129,13 @@ export default function HomeScreen() {
         const res = await fetch(`${BASE_URL}/practice/${item.resourceId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || 'Failed to load practice set');
+        
         router.push({
           pathname: '/practice-set-player',
           params: {
             practice: JSON.stringify(data?.data || data),
             currentQuestion: String(item.metadata?.currentQuestion ?? 0),
+            answers: JSON.stringify(item.metadata?.answers || {}),
           },
         });
         return;
@@ -120,16 +159,16 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Failed to resume progress:', error);
+      Alert.alert('Error', 'Failed to resume. Please try again.');
     } finally {
       setResumeLoadingId(null);
     }
   };
 
   const quickLinks = [
-    { id: 1, name: 'Mock Tests', icon: 'file-text', color: '#D97706', bg: 'bg-amber-100', route: '/mock-test' },
-    { id: 2, name: 'Practice', icon: 'book-open', color: '#059669', bg: 'bg-green-100', route: '/practice-set' },
-    { id: 3, name: 'Video Class', icon: 'play-circle', color: '#EA580C', bg: 'bg-orange-100', route: '/videos' },
-    { id: 4, name: 'PYQ Papers', icon: 'clock', color: '#7C3AED', bg: 'bg-purple-100', route: '/mock-test' },
+    { id: 1, name: 'Test Series', icon: 'book', color: '#2563EB', bg: 'bg-blue-100', route: '/(tabs)/test-series' },
+    { id: 2, name: 'PYQ Papers', icon: 'clock', color: '#7C3AED', bg: 'bg-purple-100', route: '/(tabs)/pyq' },
+    { id: 3, name: 'Video Class', icon: 'play-circle', color: '#EA580C', bg: 'bg-orange-100', route: '/(tabs)/videos' },
   ];
 
   // Map resourceType to display config
@@ -149,6 +188,9 @@ export default function HomeScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-50" showsVerticalScrollIndicator={false}>
         
+        {/* Banner Carousel */}
+        <BannerCarousel banners={banners} />
+
         {/* Stats Card */}
         <View className="px-5 mb-6">
           <View className="bg-white rounded-2xl p-5 flex-row justify-between items-center shadow-md border border-gray-100">
@@ -271,62 +313,17 @@ export default function HomeScreen() {
 
           {/* Recommended Mock Tests (Horizontal Scroll) */}
           <View className="flex-row justify-between items-end mb-4">
-            <Text className="text-lg font-extrabold text-gray-900 tracking-tight">Recommended Tests</Text>
-            <TouchableOpacity onPress={() => router.push('/mock-test')}>
-              <Text className="text-amber-600 font-bold text-sm">View All</Text>
+            <Text className="text-lg font-extrabold text-gray-900 tracking-tight">Featured Content</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/videos')}>
+              <Text className="text-amber-600 font-bold text-sm">Explore</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            className="mb-10"
-            contentContainerStyle={{ paddingRight: 20 }}
-          >
-            {recommendedTests.length === 0 ? (
-              <View className="bg-white w-[280px] p-6 rounded-3xl shadow-sm border border-gray-100 mr-4 items-center justify-center border-dashed">
-                <Feather name="inbox" size={32} color="#D1D5DB" className="mb-2" />
-                <Text className="text-gray-400 text-sm font-semibold mt-2">No tests available right now</Text>
-              </View>
-            ) : (
-              recommendedTests.map((test) => (
-                <View
-                  key={test._id}
-                  className="bg-white w-[280px] p-5 rounded-3xl shadow-sm border border-gray-100 mr-4 flex-col justify-between"
-                >
-                  <View>
-                    <View className="flex-row justify-between items-start mb-3">
-                      <Text className="text-base font-extrabold text-gray-900 flex-1 leading-snug" numberOfLines={2}>
-                        {test.title}
-                      </Text>
-                      <View className="bg-amber-50 px-2.5 py-1 rounded-md ml-3">
-                        <Text className="text-amber-600 text-[10px] font-black uppercase tracking-wider">{test.category || 'LIVE'}</Text>
-                      </View>
-                    </View>
-
-                    <View className="flex-row items-center mb-5">
-                      <View className="flex-row items-center bg-gray-50 px-2 py-1 rounded-md mr-2">
-                        <Feather name="help-circle" size={12} color="#6B7280" />
-                        <Text className="text-gray-500 text-xs font-semibold ml-1.5">{test.totalQuestions || 0} Qs</Text>
-                      </View>
-                      <View className="flex-row items-center bg-gray-50 px-2 py-1 rounded-md">
-                        <Feather name="clock" size={12} color="#6B7280" />
-                        <Text className="text-gray-500 text-xs font-semibold ml-1.5">{test.duration} Mins</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => router.push('/mock-test')}
-                    className="bg-amber-600 px-4 py-3 rounded-xl flex-row justify-center items-center"
-                  >
-                    <Text className="text-white text-sm font-bold mr-2">Start Test</Text>
-                    <Feather name="arrow-right" size={16} color="white" />
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </ScrollView>
+          <View className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-10 items-center justify-center">
+            <Feather name="star" size={32} color="#F59E0B" className="mb-2" />
+            <Text className="text-gray-900 text-sm font-semibold mt-2">More features coming soon!</Text>
+            <Text className="text-gray-400 text-xs mt-1">Stay tuned for exciting updates</Text>
+          </View>
 
         </View>
       </ScrollView>

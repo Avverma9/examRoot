@@ -11,6 +11,7 @@ import progressRoute from "./progressRoute.mjs";
 import adminRoute from "./adminRoute.mjs";
 import uploadRoute from "./uploadRoute.mjs";
 import bannerRoute from "./bannerRoute.mjs";
+import appUpdateRoute from "./appUpdateRoute.mjs";
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use("/progress",        progressRoute);
 router.use("/admin",           adminRoute);
 router.use("/upload",          uploadRoute);
 router.use("/banners",         bannerRoute);
+router.use("/app-update",      appUpdateRoute);
 
 export default router;

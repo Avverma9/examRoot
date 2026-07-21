@@ -13,6 +13,7 @@ import {
   Pressable,
   Platform,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -73,9 +74,17 @@ const FALLBACK_TEST = {
 };
 
 const safeParseTest = value => {
-  if (!value) return FALLBACK_TEST;
+  if (!value) {
+    console.warn('Test data is empty, using fallback');
+    return FALLBACK_TEST;
+  }
   try {
-    return JSON.parse(value);
+    const parsed = JSON.parse(Array.isArray(value) ? value[0] : value);
+    if (!parsed || typeof parsed !== 'object') {
+      console.warn('Parsed test is invalid, using fallback');
+      return FALLBACK_TEST;
+    }
+    return parsed;
   } catch (error) {
     console.error('Failed to parse mock test:', error);
     return FALLBACK_TEST;
@@ -85,26 +94,59 @@ const safeParseTest = value => {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function MockTestPlayer() {
   const insets = useSafeAreaInsets();
-  const { test, currentQuestion } = useLocalSearchParams();
+  const { test, currentQuestion, answers: answersParam, timeLeft: timeLeftParam } = useLocalSearchParams();
   const router = useRouter();
 
-  const [parsedTest, setParsedTest] = useState(() => safeParseTest(test));
-  const questions = parsedTest.questions || [];
+  const [parsedTest, setParsedTest] = useState(() => {
+    const result = safeParseTest(test);
+    console.log('Initial parsedTest:', result);
+    return result;
+  });
+  
+  const questions = (parsedTest && parsedTest.questions) ? parsedTest.questions : [];
   const initialQuestion = Math.max(0, Number.parseInt(Array.isArray(currentQuestion) ? currentQuestion[0] : currentQuestion || '0', 10) || 0);
 
+  // Parse answers and timeLeft from params if resuming
+  const initialAnswers = (() => {
+    try {
+      if (answersParam) {
+        const parsed = JSON.parse(Array.isArray(answersParam) ? answersParam[0] : answersParam);
+        return typeof parsed === 'object' ? parsed : {};
+      }
+    } catch (e) {
+      console.warn('Failed to parse answers:', e);
+    }
+    return {};
+  })();
+
+  const initialTimeLeft = (() => {
+    try {
+      if (timeLeftParam) {
+        const val = Array.isArray(timeLeftParam) ? timeLeftParam[0] : timeLeftParam;
+        const parsed = parseInt(val, 10);
+        return isNaN(parsed) ? (parsedTest?.duration || 120) * 60 : parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to parse timeLeft:', e);
+    }
+    return (parsedTest?.duration || 120) * 60;
+  })();
+
   const [current, setCurrent] = useState(initialQuestion);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState(initialAnswers);
   const [marked, setMarked] = useState({});
   const [savedQ, setSavedQ] = useState({});
   const [savingQ, setSavingQ] = useState({});
   const [lang, setLang] = useState('EN');
   const [fontScale, setFontScale] = useState(1);
-  const [timeLeft, setTimeLeft] = useState(parsedTest.duration * 60);
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
   const [timeTaken, setTimeTaken] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [isLoadingTest, setIsLoadingTest] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [exitDialogVisible, setExitDialogVisible] = useState(false);
+  const [isSavingExit, setIsSavingExit] = useState(false);
 
   const touchX = useRef(0);
   const token = useSelector((state) => state.auth?.token);
@@ -135,10 +177,14 @@ export default function MockTestPlayer() {
       .then(async response => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.message || 'Failed to load mock test');
-        setParsedTest(data?.data || parsedTest);
+        const result = data?.data || parsedTest;
+        console.log('Fetched test data:', result);
+        setParsedTest(result || FALLBACK_TEST);
       })
       .catch(error => {
+        console.error('Fetch error:', error);
         setLoadError(error.message || 'Failed to load mock test');
+        setParsedTest(FALLBACK_TEST);
       })
       .finally(() => setIsLoadingTest(false));
   }, [parsedTest?._id, questions.length]);
@@ -157,15 +203,27 @@ export default function MockTestPlayer() {
   }, [timeLeft, submitted, pulseAnim]);
 
   useEffect(() => {
+    // Start timer with initial or resumed timeLeft
+    console.log('Timer started with timeLeft:', initialTimeLeft);
+    
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current); setSubmitted(true); return 0; }
+        if (t <= 1) { 
+          clearInterval(timerRef.current); 
+          setSubmitted(true); 
+          return 0; 
+        }
         return t - 1;
       });
-      setTimeTaken(t => t + 1);
+      setTimeTaken(prev => prev + 1);
     }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, []);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []); // Empty dependency is correct - only start once
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -211,27 +269,38 @@ export default function MockTestPlayer() {
   };
 
   // ─── HELPERS ───────────────────────────────────────────────────────────────
+  async function handleSaveAndExit() {
+    setIsSavingExit(true);
+    try {
+      if (token && parsedTest?._id) {
+        await saveProgress(token, {
+          resourceId: parsedTest._id,
+          resourceType: 'mock_test',
+          resourceTitle: parsedTest.title || '',
+          currentQuestion: current,
+          totalQuestions: questions.length,
+          answeredCount: Object.keys(answers).length,
+          metadata: { 
+            answers,
+            timeLeft,
+            totalTime: (parsedTest?.duration || 120) * 60,
+            accuracy: getScore() > 0 ? Math.round((getScore() / questions.length) * 100) : 0,
+          },
+        });
+      }
+      clearInterval(timerRef.current);
+      setExitDialogVisible(false);
+      router.back();
+    } catch (error) {
+      console.error('Save error:', error);
+      Alert.alert('Error', 'Failed to save progress. Please try again.');
+    } finally {
+      setIsSavingExit(false);
+    }
+  }
+
   function confirmExit() {
-    Alert.alert('Exit Test', 'Your progress will be lost. Exit anyway?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Exit', style: 'destructive', onPress: () => {
-          clearInterval(timerRef.current);
-          if (token && parsedTest?._id) {
-            saveProgress(token, {
-              resourceId: parsedTest._id,
-              resourceType: 'mock_test',
-              resourceTitle: parsedTest.title || '',
-              currentQuestion: current,
-              totalQuestions: questions.length,
-              answeredCount: Object.keys(answers).length,
-              metadata: { timeLeft },
-            });
-          }
-          router.back();
-        },
-      },
-    ]);
+    setExitDialogVisible(true);
   }
 
   const handleSubmit = () => {
@@ -489,7 +558,8 @@ export default function MockTestPlayer() {
 
   // ─── MAIN TEST PLAYER ──────────────────────────────────────────────────────
   const q = questions[current];
-  if (isLoadingTest) {
+  
+  if (isLoadingTest || questions.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="light-content" backgroundColor="#F97316" translucent={false} />
@@ -520,6 +590,69 @@ export default function MockTestPlayer() {
   const timerWarn = timeLeft <= 300 && !timerUrgent;
   const timerColor = timerUrgent ? SEAL : timerWarn ? MARKED : INK;
   const kickerText = parsedTest.seriesTitle || 'MOCK TEST';
+
+  // ─── EXIT DIALOG MODAL ─────────────────────────────────────────────────────
+  const ExitDialog = () => (
+    <Modal
+      visible={exitDialogVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setExitDialogVisible(false)}
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View style={{ backgroundColor: PAPER_ELEV, borderRadius: 16, padding: 24, width: '100%', maxWidth: 320, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}>
+          {/* Icon & Title */}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: SEAL_SOFT, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <Feather name="alert-circle" size={28} color={SEAL} />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: INK, marginBottom: 8, textAlign: 'center' }}>
+              Exit Test?
+            </Text>
+            <Text style={{ fontSize: 14, color: INK_SOFT, textAlign: 'center', lineHeight: 20 }}>
+              Your progress will be saved. You can resume from where you left off.
+            </Text>
+          </View>
+
+          {/* Progress Info */}
+          <View style={{ backgroundColor: '#F5F3F0', borderRadius: 12, padding: 12, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View>
+              <Text style={{ fontSize: 12, color: INK_SOFT, fontWeight: '600', marginBottom: 4 }}>Questions Answered</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: INK }}>{Object.keys(answers).length}/{questions.length}</Text>
+            </View>
+            <View style={{ borderLeftWidth: 1, borderLeftColor: RULE, paddingLeft: 12 }}>
+              <Text style={{ fontSize: 12, color: INK_SOFT, fontWeight: '600', marginBottom: 4 }}>Time Left</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: timerColor }}>{formatTime(timeLeft)}</Text>
+            </View>
+          </View>
+
+          {/* Buttons */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={() => setExitDialogVisible(false)}
+              style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: INK_FAINT, alignItems: 'center', justifyContent: 'center' }}
+              disabled={isSavingExit}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: INK }}>Continue Test</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSaveAndExit}
+              style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: SEAL, alignItems: 'center', justifyContent: 'center' }}
+              disabled={isSavingExit}
+            >
+              {isSavingExit ? (
+                <ActivityIndicator size="small" color={PAPER_ELEV} />
+              ) : (
+                <>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: PAPER_ELEV }}>Save & Exit</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View style={styles.container} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -696,6 +829,7 @@ export default function MockTestPlayer() {
         </ScrollView>
       </Animated.View>
 
+      <ExitDialog />
     </View>
   );
 }

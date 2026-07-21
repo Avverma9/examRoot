@@ -1,27 +1,31 @@
-import { BASE_URL } from '../utils/baseUrl'
-
-const parseJsonResponse = async (res) => {
-  const contentType = res.headers.get('content-type') || ''
-  if (contentType.includes('application/json')) {
-    return res.json()
-  }
-
-  const text = await res.text()
-  throw new Error(text || `Unexpected response format from ${res.url}`)
-}
+import { BASE_URL } from '../utils/baseUrl';
 
 /**
- * Fetch all active banners for home screen
- * Returns array sorted by display order
+ * Get active banners for home screen carousel
  */
-export const getAllBanners = async () => {
+export const getActiveBanners = async () => {
   try {
-    const res = await fetch(`${BASE_URL}/banners`)
-    const data = await parseJsonResponse(res)
-    if (!res.ok) throw new Error(data?.message || 'Failed to fetch banners')
-    return data?.data || []
+    const url = `${BASE_URL}/banners/active`;
+    console.log('🔗 Fetching banners from:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    console.log('📦 Banner Response Status:', response.status);
+    console.log('📦 Banner Response Data:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch banners');
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error fetching banners:', error)
-    return []
+    console.log('💥 Banner API Error:', error.message);
+    return { success: false, message: error.message, data: [] };
   }
-}
+};

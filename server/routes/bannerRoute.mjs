@@ -1,25 +1,23 @@
 import express from "express";
 import {
+  getActiveBanners,
   getAllBanners,
-  getAllBannersAdmin,
   createBanner,
   updateBanner,
   deleteBanner,
-  getBannerPresignedUrl,
   reorderBanners,
 } from "../controllers/bannerController.mjs";
 
 const router = express.Router();
 
-// Public routes (mobile fetches these)
-router.get("/", getAllBanners);
+// Mobile routes
+router.get("/active", getActiveBanners);
 
 // Admin routes
-router.get("/admin/all", getAllBannersAdmin);
+router.get("/admin/all", getAllBanners);
 router.post("/admin", createBanner);
 router.put("/admin/:id", updateBanner);
 router.delete("/admin/:id", deleteBanner);
-router.post("/admin/presign", getBannerPresignedUrl);
 router.post("/admin/reorder", reorderBanners);
 
 export default router;

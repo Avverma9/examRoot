@@ -93,23 +93,23 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 2. MOCK TEST TAB */}
+      {/* 2. TEST SERIES TAB */}
       <Tabs.Screen
-        name="mock-test"
+        name="test-series"
         options={{
-          title: 'Mock Test',
-          headerTitle: 'Available Tests',
-          tabBarIcon: ({ color }) => <Feather name="file-text" size={24} color={color} />,
+          title: 'Test Series',
+          headerTitle: 'Book Test Series',
+          tabBarIcon: ({ color }) => <Feather name="book" size={24} color={color} />,
         }}
       />
 
-      {/* 3. PRACTICE SET TAB */}
+      {/* 3. PYQ TAB */}
       <Tabs.Screen
-        name="practice-set"
+        name="pyq"
         options={{
-          title: 'Practice', 
-          headerTitle: 'Subject Practice',
-          tabBarIcon: ({ color }) => <Feather name="book-open" size={24} color={color} />,
+          title: 'PYQ',
+          headerTitle: 'Previous Year Questions',
+          tabBarIcon: ({ color }) => <Feather name="clock" size={24} color={color} />,
         }}
       />
 
@@ -123,17 +123,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 5. TEST SERIES TAB */}
-      <Tabs.Screen
-        name="test-series"
-        options={{
-          title: 'Test Series',
-          headerTitle: 'Book Test Series',
-          tabBarIcon: ({ color }) => <Feather name="book" size={24} color={color} />,
-        }}
-      />
-
-      {/* 6. REELS TAB - hidden from tab bar */}
+      {/* REELS TAB - hidden from tab bar */}
       <Tabs.Screen
         name="reels"
         options={{

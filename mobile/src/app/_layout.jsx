@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { store } from '../store/store';
 import { AuthProvider } from '../context/AuthContext';
+import AppUpdateWrapper from '../components/AppUpdateWrapper';
 import "../global.css";
 
 export default function RootLayout() {
@@ -10,24 +11,26 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <Provider store={store}>
         <AuthProvider>
-          <Stack>
-            <Stack.Screen name="index"               options={{ headerShown: false }} />
-            <Stack.Screen name="intro"               options={{ headerShown: false }} />
-            <Stack.Screen name="login"               options={{ headerShown: false }} />
-            <Stack.Screen name="otp-verify"          options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)"              options={{ headerShown: false }} />
-            <Stack.Screen name="mock-test-player"    options={{ headerShown: false }} />
-            <Stack.Screen name="practice-set-player" options={{ headerShown: false }} />
-            <Stack.Screen name="test-series-detail"  options={{ headerShown: false }} />
-            <Stack.Screen name="video-player"        options={{ headerShown: false }} />
-            <Stack.Screen name="cashfree-checkout"   options={{ headerShown: false }} />
-            <Stack.Screen name="my-subscriptions"    options={{ headerShown: false }} />
-            <Stack.Screen name="oauth2redirect"      options={{ headerShown: false }} />
-            <Stack.Screen name="saved-questions"     options={{ headerShown: false }} />
-            <Stack.Screen name="my-performance"      options={{ headerShown: false }} />
-            <Stack.Screen name="settings"            options={{ headerShown: false }} />
-            <Stack.Screen name="help-support"        options={{ headerShown: false }} />
-          </Stack>
+          <AppUpdateWrapper>
+            <Stack>
+              <Stack.Screen name="index"               options={{ headerShown: false }} />
+              <Stack.Screen name="intro"               options={{ headerShown: false }} />
+              <Stack.Screen name="login"               options={{ headerShown: false }} />
+              <Stack.Screen name="otp-verify"          options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)"              options={{ headerShown: false }} />
+              <Stack.Screen name="mock-test-player"    options={{ headerShown: false }} />
+              <Stack.Screen name="practice-set-player" options={{ headerShown: false }} />
+              <Stack.Screen name="test-series-detail"  options={{ headerShown: false }} />
+              <Stack.Screen name="video-player"        options={{ headerShown: false }} />
+              <Stack.Screen name="cashfree-checkout"   options={{ headerShown: false }} />
+              <Stack.Screen name="my-subscriptions"    options={{ headerShown: false }} />
+              <Stack.Screen name="oauth2redirect"      options={{ headerShown: false }} />
+              <Stack.Screen name="saved-questions"     options={{ headerShown: false }} />
+              <Stack.Screen name="my-performance"      options={{ headerShown: false }} />
+              <Stack.Screen name="settings"            options={{ headerShown: false }} />
+              <Stack.Screen name="help-support"        options={{ headerShown: false }} />
+            </Stack>
+          </AppUpdateWrapper>
         </AuthProvider>
       </Provider>
     </SafeAreaProvider>

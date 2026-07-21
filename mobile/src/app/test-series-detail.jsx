@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity, Image,
   ActivityIndicator, Alert, useWindowDimensions, StatusBar,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
@@ -430,6 +430,23 @@ export default function TestSeriesDetail() {
       <StatusBar barStyle="light-content" backgroundColor="#F97316" translucent={false} />
 
       <View style={{ backgroundColor: '#F97316', paddingTop: insets.top }} />
+      
+      {/* Hero Banner */}
+      {series.coverImage && (
+        <View className="relative h-40 bg-gray-200 overflow-hidden mb-3">
+          <Image 
+            source={{ uri: series.coverImage }}
+            style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+          />
+          <View className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <View className="absolute bottom-0 left-0 right-0 p-4">
+            <Text className="text-white font-bold text-lg leading-6" numberOfLines={2}>
+              {series.title}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={{ backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
         <View
           className="flex-row items-center px-4 py-3"

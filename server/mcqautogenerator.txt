@@ -1,0 +1,277 @@
+function getGeminiKey() {
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.CHATGPT_API_KEY;
+}
+
+function getGeminiModel() {
+  return process.env.GEMINI_MODEL || "gemini-3.5-flash";
+}
+
+async function callGemini(ocrText) {
+  const apiKey = getGeminiKey();
+
+  if (!apiKey) {
+    throw new Error("Missing GEMINI_API_KEY in .env");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${getGeminiModel()}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  "You are an expert bilingual exam question generator. Generate EXACTLY 10 unique MCQs from the provided source. Output MUST be an array containing a single test object following this structure: [{ \"group\": \"<Subject Name>\", \"title\": \"<Subject> Page <Page Number>\", \"description\": \"Generate exactly 10 unique MCQs from the given page.\", \"duration\": 60, \"isFree\": true, \"isPublished\": true, \"questions\": [ { \"question\": \"English Question\", \"questionHi\": \"Hindi Question\", \"options\": [\"Option 1\", \"Option 2\", \"Option 3\", \"Option 4\"], \"optionsHi\": [\"विकल्प 1\", \"विकल्प 2\", \"विकल्प 3\", \"विकल्प 4\"], \"correctAnswer\": \"Must exactly match one value from options\", \"correctAnswerHi\": \"Must exactly match one value from optionsHi\", \"explanation\": \"Short explanation in English.\", \"explanationHi\": \"Short explanation in Hindi.\" } ] }]. Return JSON only. Do not wrap in markdown. Do not add commentary. Keep the result strictly valid JSON.\n\nSOURCE TEXT:\n" +
+                  ocrText,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+          maxOutputTokens: 16384,
+        },
+      }),
+    }
+  );
+
+  const raw = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Gemini API error: ${response.status} ${raw.slice(0, 800)}`);
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(`Gemini returned non-JSON content: ${raw.slice(0, 300)}`);
+  }
+}
+
+function extractGeminiJson(responseJson) {
+  const candidates = responseJson.candidates || [];
+
+  for (const candidate of candidates) {
+    const parts = candidate.content?.parts || [];
+    const text = parts
+      .map((part) => (typeof part.text === "string" ? part.text : ""))
+      .join("")
+      .trim();
+
+    if (text) return text;
+  }
+
+  return "";
+}
+
+function cleanJsonText(text) {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  }
+
+  return trimmed;
+}
+
+function normalizeMcqPayload(parsed) {
+  const arrayPayload = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+
+  return arrayPayload.map((item) => ({
+    group: item?.group || "General",
+    title: item?.title || "OCR Page",
+    description:
+      item?.description || "Generate exactly 10 unique MCQs from the given page.",
+    duration: Number.isInteger(item?.duration) ? item.duration : 60,
+    isFree: typeof item?.isFree === "boolean" ? item.isFree : true,
+    isPublished: typeof item?.isPublished === "boolean" ? item.isPublished : true,
+    questions: Array.isArray(item?.questions) ? item.questions : [],
+  }));
+}
+
+export async function mcqController(req, res) {
+  try {
+    const { text } = req.body || {};
+
+    if (!text || typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "OCR text is required.",
+      });
+    }
+
+    const responseJson = await callGemini(text.trim());
+    const outputText = extractGeminiJson(responseJson);
+
+    if (!outputText) {
+      throw new Error("Empty response from Gemini.");
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJsonText(outputText));
+    } catch (jsonError) {
+      throw new Error(`Gemini returned invalid JSON: ${jsonError.message}`);
+    }
+
+    const normalized = normalizeMcqPayload(parsed);
+
+    return res.json({
+      success: true,
+      mcq: normalized,
+      raw: parsed,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "MCQ generation failed",
+      error: error.message,
+    });
+  }
+}
+
+
+
+
+ocr controller -> 
+import fs from "fs/promises";
+import path from "path";
+import Tesseract from "tesseract.js";
+import { preprocess } from "../utils/preprocess.js";
+
+export async function ocrController(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image file uploaded. Use form field name 'image'.",
+      });
+    }
+
+    const processedDir = path.resolve("processed");
+    await fs.mkdir(processedDir, { recursive: true });
+
+    const input = req.file.path;
+    const output = path.join(processedDir, `${path.parse(req.file.filename).name}.png`);
+
+    await preprocess(input, output);
+
+    const worker = await Tesseract.createWorker(["eng", "hin"], 1, {
+      logger: (m) => console.log(m),
+    });
+
+    await worker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+    });
+
+    const result = await worker.recognize(output);
+    await worker.terminate();
+
+    await fs.unlink(input).catch(() => {});
+    await fs.unlink(output).catch(() => {});
+
+    return res.json({
+      success: true,
+      text: result.data.text,
+      confidence: result.data.confidence,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "OCR processing failed",
+      error: error.message,
+    });
+  }
+}
+
+preprocess.js ->
+import sharp from "sharp";
+import { Jimp } from "jimp";
+
+export async function preprocess(input, output) {
+  const buffer = await sharp(input)
+    .rotate()
+    .resize({ width: 2200, withoutEnlargement: false })
+    .grayscale()
+    .normalize()
+    .sharpen()
+    .threshold(170)
+    .toBuffer();
+
+  const image = await Jimp.read(buffer);
+
+  image.contrast(0.5).normalize();
+
+  await image.write(output);
+}
+
+
+server.jso
+
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import ocrRoutes from "./routes/ocr.routes.js";
+import { loadEnvFile } from "./utils/env.js";
+
+loadEnvFile();
+
+const app = express();
+const port = process.env.PORT || 3000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, "..");
+
+app.use(express.json());
+app.use(express.static(rootDir));
+app.use("/api", ocrRoutes);
+
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(rootDir, "index.html"));
+});
+
+app.get("/health", (_req, res) => {
+  res.json({ success: true, message: "OCR server is running" });
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
+ocr-routes.js 
+
+import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { ocrController } from "../controllers/ocr.controller.js";
+import { mcqController } from "../controllers/mcq.controller.js";
+
+const router = Router();
+
+const uploadDir = path.resolve("uploads");
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({ storage });
+
+router.post("/ocr", upload.single("image"), ocrController);
+router.post("/mcq", mcqController);
+
+export default router;

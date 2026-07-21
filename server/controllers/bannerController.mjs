@@ -1,44 +1,58 @@
 import Banner from "../models/Banner.mjs";
-import { v4 as uuidv4 } from "uuid";
-import { getPresignedUploadUrl, deleteFromR2, keyFromUrl } from "../utils/r2.mjs";
 
-// ─── GET ALL BANNERS (sorted by order) ───────────────────────────────────────
+// Get active banners for mobile (sorted by displayOrder)
+export const getActiveBanners = async (req, res) => {
+  try {
+    console.log('🔍 Fetching active banners...');
+    
+    // Simplified query - just get active banners
+    const banners = await Banner.find({ isActive: true })
+      .sort({ displayOrder: 1 })
+      .lean();
+
+    console.log('✅ Found', banners.length, 'active banners');
+
+    res.status(200).json({ success: true, data: banners });
+  } catch (error) {
+    console.error('❌ Banner fetch error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get all banners (admin)
 export const getAllBanners = async (req, res) => {
   try {
-    const banners = await Banner.find({ isActive: true }).sort({ order: 1 });
+    const banners = await Banner.find()
+      .sort({ displayOrder: 1, createdAt: -1 });
+
     res.status(200).json({ success: true, data: banners });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── GET ALL BANNERS (for admin — includes inactive) ────────────────────────
-export const getAllBannersAdmin = async (req, res) => {
-  try {
-    const banners = await Banner.find().sort({ order: 1 });
-    res.status(200).json({ success: true, data: banners });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ─── CREATE BANNER ────────────────────────────────────────────────────────────
+// Create banner (admin)
 export const createBanner = async (req, res) => {
   try {
-    const { title, subtitle, imageUrl, color, order, isActive, link } = req.body;
+    const { title, description, imageUrl, actionType, actionValue, displayOrder, startDate, endDate } = req.body;
 
     if (!title || !imageUrl) {
-      return res.status(400).json({ success: false, message: "title and imageUrl are required" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Title and Image URL are required" 
+      });
     }
 
     const banner = await Banner.create({
       title,
-      subtitle,
+      description: description || "",
       imageUrl,
-      color: color || "#FF6B6B",
-      order: order ?? 0,
-      isActive: isActive !== false,
-      link: link || "",
+      actionType: actionType || "none",
+      actionValue: actionValue || "",
+      displayOrder: displayOrder || 0,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      isActive: true
     });
 
     res.status(201).json({ success: true, data: banner });
@@ -47,23 +61,26 @@ export const createBanner = async (req, res) => {
   }
 };
 
-// ─── UPDATE BANNER ────────────────────────────────────────────────────────────
+// Update banner (admin)
 export const updateBanner = async (req, res) => {
   try {
-    const { title, subtitle, imageUrl, color, order, isActive, link } = req.body;
+    const { id } = req.params;
+    const { title, description, imageUrl, actionType, actionValue, displayOrder, isActive, startDate, endDate } = req.body;
 
     const banner = await Banner.findByIdAndUpdate(
-      req.params.id,
+      id,
       {
         title,
-        subtitle,
+        description,
         imageUrl,
-        color,
-        order,
+        actionType,
+        actionValue,
+        displayOrder,
         isActive,
-        link,
+        startDate,
+        endDate
       },
-      { returnDocument: "after", runValidators: true }
+      { new: true, runValidators: true }
     );
 
     if (!banner) {
@@ -76,92 +93,40 @@ export const updateBanner = async (req, res) => {
   }
 };
 
-// ─── DELETE BANNER ────────────────────────────────────────────────────────────
+// Delete banner (admin)
 export const deleteBanner = async (req, res) => {
   try {
-    const banner = await Banner.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+
+    const banner = await Banner.findByIdAndDelete(id);
 
     if (!banner) {
       return res.status(404).json({ success: false, message: "Banner not found" });
     }
 
-    // Delete image from R2 if exists
-    if (banner.imageUrl) {
-      const key = keyFromUrl(banner.imageUrl);
-      if (key) {
-        await deleteFromR2(key);
-      }
-    }
-
-    res.status(200).json({ success: true, message: "Banner deleted" });
+    res.status(200).json({ success: true, message: "Banner deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── REORDER BANNERS ──────────────────────────────────────────────────────────
-// POST /api/banners/admin/reorder
-// Body: { banners: [{ id, order }, ...] }
+// Reorder banners (admin)
 export const reorderBanners = async (req, res) => {
   try {
     const { banners } = req.body;
 
-    if (!Array.isArray(banners) || banners.length === 0) {
-      return res.status(400).json({ success: false, message: "banners array is required" });
+    if (!Array.isArray(banners)) {
+      return res.status(400).json({ success: false, message: "Banners must be an array" });
     }
 
-    // Update order for each banner
-    const updatePromises = banners.map(({ id, order }) =>
-      Banner.findByIdAndUpdate(id, { order }, { returnDocument: "after" })
+    const updatePromises = banners.map((item, index) =>
+      Banner.findByIdAndUpdate(item._id, { displayOrder: index })
     );
 
     await Promise.all(updatePromises);
 
-    // Return updated list
-    const updated = await Banner.find().sort({ order: 1 });
-
-    res.status(200).json({ success: true, message: "Banners reordered", data: updated });
+    res.status(200).json({ success: true, message: "Banners reordered successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ─── GET PRESIGNED URL FOR BANNER IMAGE UPLOAD ────────────────────────────────
-// POST /api/banners/presign
-export const getBannerPresignedUrl = async (req, res) => {
-  try {
-    const { filename, contentType } = req.body;
-
-    if (!filename || !contentType) {
-      return res.status(400).json({
-        success: false,
-        message: "filename and contentType are required",
-      });
-    }
-
-    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedMimes.includes(contentType)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid contentType. Allowed: ${allowedMimes.join(", ")}`,
-      });
-    }
-
-    // Build unique key for banner image
-    const ext = filename.split(".").pop().toLowerCase();
-    const safeExt = ext.replace(/[^a-z0-9]/g, "");
-    const key = `banners/${uuidv4()}.${safeExt}`;
-
-    const { uploadUrl, publicUrl } = await getPresignedUploadUrl(key, contentType);
-
-    return res.status(200).json({
-      success: true,
-      uploadUrl,
-      publicUrl,
-      key,
-    });
-  } catch (error) {
-    console.error("getBannerPresignedUrl error:", error);
-    res.status(500).json({ success: false, message: error.message || "Failed to generate upload URL" });
   }
 };

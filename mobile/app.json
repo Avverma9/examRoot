@@ -5,7 +5,7 @@
     },
     "name": "ExamRoot",
     "slug": "examroot",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/app-logo.png",
     "scheme": "examroot",
@@ -14,7 +14,7 @@
       "icon": "./assets/app-logo.png"
     },
     "android": {
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/app-logo.png"

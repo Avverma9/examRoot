@@ -31,6 +31,16 @@ const userSchema = new mongoose.Schema({
   streak: { type: Number, default: 0 },
   subscriptions: { type: [subscriptionSchema], default: [] },
 
+  // App Version Tracking
+  installedAppVersion: { type: String, default: null }, // e.g., "1.0.5"
+  installedVersionCode: { type: Number, default: null }, // e.g., 10005
+  lastAppUpdate: { type: Date, default: null },
+  deviceInfo: {
+    platform: { type: String }, // "android" or "ios"
+    osVersion: { type: String },
+    deviceModel: { type: String },
+  },
+
 }, { timestamps: true });
 
 // Hash password before saving if it's modified

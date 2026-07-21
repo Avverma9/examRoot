@@ -3,6 +3,17 @@ import User from "../models/User.mjs";
 
 // ── Save in-progress session (called when user leaves mid-way) ────────────────
 // POST /api/progress/save
+// Body: {
+//   resourceId, resourceType, resourceTitle,
+//   currentQuestion, totalQuestions, answeredCount,
+//   metadata: { 
+//     answers: [{q: 0, a: "A"}, ...],
+//     timeLeft: 1200,
+//     totalTime: 1800,
+//     accuracy: 75,
+//     ...
+//   }
+// }
 export const saveProgress = async (req, res) => {
   try {
     const userId = req.userId;
@@ -13,7 +24,7 @@ export const saveProgress = async (req, res) => {
       currentQuestion,
       totalQuestions,
       answeredCount,
-      metadata,       // { answers, timeLeft, etc. }
+      metadata,       // { answers, timeLeft, totalTime, accuracy, etc. }
     } = req.body;
 
     if (!resourceId || !resourceType) {
@@ -35,6 +46,10 @@ export const saveProgress = async (req, res) => {
         metadata: {
           currentQuestion: currentQuestion || 0,
           answeredCount: answeredCount || 0,
+          timeLeft: metadata?.timeLeft || 0,
+          totalTime: metadata?.totalTime || 0,
+          answers: metadata?.answers || [],
+          accuracy: metadata?.accuracy || 0,
           ...metadata,
         },
       },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,10 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { updateProfile, updatePassword } from '../services/authApi';
 import { setUser } from '../store/slices/authSlice';
+import { getCurrentUpdate, getAppVersionInfo } from '../services/appUpdateApi';
+import * as Application from 'expo-application';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = Application.nativeApplicationVersion || '1.0.0';
 
 const SectionHeader = ({ title }) => (
   <Text className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2 mt-5">
@@ -62,6 +64,56 @@ export default function SettingsScreen() {
   const [passwordSaving,  setPasswordSaving]  = useState(false);
   const [passwordError,   setPasswordError]   = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  
+  // App Update state
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  const handleCheckForUpdates = async () => {
+    try {
+      setCheckingUpdate(true);
+      const result = await getCurrentUpdate(token);
+      
+      if (!result.success) {
+        Alert.alert('Error', result.message || 'Failed to check for updates');
+        return;
+      }
+
+      if (result.updateAvailable && result.data) {
+        const update = result.data;
+        const changelog = language === 'hi' ? update.changelogHindi : update.changelogEnglish;
+        
+        Alert.alert(
+          `नया अपडेट उपलब्ध है! 🎉\nNew Update Available!`,
+          `Version ${update.version}\n\n${changelog || update.description || 'Bug fixes and improvements'}`,
+          [
+            {
+              text: language === 'hi' ? 'बाद में' : 'Later',
+              style: 'cancel',
+            },
+            {
+              text: language === 'hi' ? 'अपडेट करें' : 'Update Now',
+              onPress: () => {
+                Linking.openURL(update.downloadLink).catch(() =>
+                  Alert.alert('Error', 'Unable to open download link')
+                );
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          language === 'hi' ? 'आप अप-टू-डेट हैं! ✅' : 'You\'re up to date! ✅',
+          language === 'hi' 
+            ? `वर्तमान संस्करण: ${APP_VERSION}\n\nआप नवीनतम संस्करण का उपयोग कर रहे हैं।`
+            : `Current Version: ${APP_VERSION}\n\nYou're using the latest version.`
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to check for updates');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -305,6 +357,18 @@ export default function SettingsScreen() {
             icon="info"
             label="Version"
             right={<Text className="text-xs text-gray-400">{APP_VERSION}</Text>}
+          />
+          <RowItem
+            icon="download-cloud"
+            label={language === 'hi' ? 'अपडेट जांचें' : 'Check for Updates'}
+            onPress={handleCheckForUpdates}
+            right={
+              checkingUpdate ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <Feather name="chevron-right" size={16} color="#9ca3af" />
+              )
+            }
           />
         </View>
 
