@@ -11,7 +11,6 @@ const appActivitySessionSchema = new mongoose.Schema(
     sessionId: {
       type: String,
       required: true,
-      unique: true,
       index: true,
     },
     deviceId: {
@@ -98,6 +97,8 @@ const appActivitySessionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Ensure uniqueness per user+sessionId instead of global uniqueness on sessionId
+appActivitySessionSchema.index({ userId: 1, sessionId: 1 }, { unique: true, background: true });
 appActivitySessionSchema.index({ userId: 1, deviceId: 1, lastSeenAt: -1 });
 appActivitySessionSchema.index({ isActive: 1, lastSeenAt: -1 });
 appActivitySessionSchema.index({ firstSeenAt: -1 });

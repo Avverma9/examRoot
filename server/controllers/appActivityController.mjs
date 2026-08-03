@@ -68,6 +68,7 @@ const upsertSession = async (req, res, { forceEnd = false, reason = "" } = {}) =
 
     const payload = buildSessionPayload(req);
     if (!payload.sessionId || !payload.deviceId) {
+      console.warn('Invalid app session payload, missing sessionId/deviceId', { userId, payload });
       return res.status(400).json({
         success: false,
         message: "sessionId and deviceId are required",
@@ -78,10 +79,8 @@ const upsertSession = async (req, res, { forceEnd = false, reason = "" } = {}) =
     const ipAddress = getClientIp(req);
     const userAgent = String(req.headers["user-agent"] || "");
 
-    let session = await AppActivitySession.findOne({
-      sessionId: payload.sessionId,
-      userId,
-    });
+    // Upsert by userId + sessionId to avoid cross-user collisions
+    let session = await AppActivitySession.findOne({ userId, sessionId: payload.sessionId });
 
     if (!session) {
       session = await AppActivitySession.create({
@@ -115,21 +114,50 @@ const upsertSession = async (req, res, { forceEnd = false, reason = "" } = {}) =
     }
 
     if (forceEnd) {
-      if (!session.endedAt) {
+      // Log unexpected forceEnd events for diagnosis
+      console.info('Force-ending app session', { userId, sessionId: payload.sessionId, reason });
+      if (session && !session.endedAt) {
         session.endedAt = now;
         session.isActive = false;
         session.endReason = reason || session.endReason || "manual";
-      }
-      session.lastSeenAt = now;
-      session.lastIpAddress = ipAddress || session.lastIpAddress;
-      session.durationSeconds = computeDurationSeconds(session, now);
-      await session.save();
+        session.lastSeenAt = now;
+        session.lastIpAddress = ipAddress || session.lastIpAddress;
+        session.durationSeconds = computeDurationSeconds(session, now);
+        await session.save();
 
-      return res.status(200).json({
-        success: true,
-        message: "Session ended",
-        data: serializeSession(session),
+        return res.status(200).json({
+          success: true,
+          message: "Session ended",
+          data: serializeSession(session),
+        });
+      }
+
+      // If there's no existing session, still record an ended session record to avoid missing telemetry
+      const ended = await AppActivitySession.create({
+        userId,
+        sessionId: payload.sessionId,
+        deviceId: payload.deviceId,
+        deviceLabel: payload.deviceLabel,
+        platform: payload.platform,
+        osVersion: payload.osVersion,
+        appVersion: payload.appVersion,
+        buildVersion: payload.buildVersion,
+        locale: payload.locale,
+        timeZone: payload.timeZone,
+        ipAddress,
+        lastIpAddress: ipAddress,
+        userAgent,
+        firstSeenAt: now,
+        lastSeenAt: now,
+        endedAt: now,
+        durationSeconds: 0,
+        heartbeatCount: 0,
+        isActive: false,
+        endReason: reason || "manual",
+        metadata: payload.metadata,
       });
+
+      return res.status(201).json({ success: true, message: 'Session recorded (ended)', data: serializeSession(ended) });
     }
 
     session.deviceLabel = payload.deviceLabel || session.deviceLabel;
