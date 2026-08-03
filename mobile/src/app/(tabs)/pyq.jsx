@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BASE_URL } from '../../utils/baseUrl';
+import { API_URLS } from '../../config/app.config';
 
 const PYQPage = () => {
   const router = useRouter();
@@ -38,7 +38,7 @@ const PYQPage = () => {
 
   const fetchExams = async () => {
     try {
-      const response = await fetch(`${BASE_URL}/api/pyq/exams`);
+      const response = await fetch(`${API_URLS.BASE}/api/pyq/exams`);
       const data = await response.json();
       if (data.success) {
         setExams(data.data || []);
@@ -55,7 +55,7 @@ const PYQPage = () => {
       if (selectedExam) params.append('examName', selectedExam);
       if (searchText.trim()) params.append('search', searchText);
 
-      const url = `${BASE_URL}/api/pyq?${params.toString()}`;
+      const url = `${API_URLS.BASE}/api/pyq?${params.toString()}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.success) {

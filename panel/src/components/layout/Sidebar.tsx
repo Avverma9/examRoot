@@ -6,6 +6,7 @@ import {
   PenTool,
   Layers,
   Image as ImageIcon,
+  Smartphone,
   Sparkles,
   Activity,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ const managementItems = [
   { name: 'Practice Sets', path: '/practice-sets', icon: PenTool },
   { name: 'Test Series', path: '/test-series', icon: Layers },
   { name: 'Banners', path: '/banners', icon: ImageIcon },
+  { name: 'App Update', path: '/app-update', icon: Smartphone },
 ];
 
 const toolItems = [

@@ -1,0 +1,319 @@
+import React, { useState } from 'react';
+import {
+  useGetVideosQuery,
+  useCreateVideoMutation,
+  useUpdateVideoMutation,
+  useDeleteVideoMutation,
+} from '../store/api';
+
+interface VideoData {
+  _id?: string;
+  title: string;
+  description: string;
+  youtubeUrl: string;
+  category: string;
+  duration: number;
+  thumbnail: string;
+  views: number;
+  isPublished: boolean;
+}
+
+export default function Videos() {
+  const { data: videosData, isLoading } = useGetVideosQuery(undefined);
+  const [createVideo] = useCreateVideoMutation();
+  const [updateVideo] = useUpdateVideoMutation();
+  const [deleteVideo] = useDeleteVideoMutation();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<VideoData | null>(null);
+  const [formData, setFormData] = useState<VideoData>({
+    title: '',
+    description: '',
+    youtubeUrl: '',
+    category: '',
+    duration: 0,
+    thumbnail: '',
+    views: 0,
+    isPublished: true,
+  });
+
+  const videos = videosData?.data || [];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingVideo?._id) {
+        await updateVideo({ id: editingVideo._id, ...formData }).unwrap();
+        alert('Video updated successfully!');
+      } else {
+        await createVideo(formData).unwrap();
+        alert('Video created successfully!');
+      }
+      handleCloseModal();
+    } catch (error: any) {
+      alert(error?.data?.message || 'Failed to save video');
+    }
+  };
+
+  const handleEdit = (video: any) => {
+    setEditingVideo(video);
+    setFormData({
+      title: video.title,
+      description: video.description,
+      youtubeUrl: video.youtubeUrl,
+      category: video.category,
+      duration: video.duration || 0,
+      thumbnail: video.thumbnail,
+      views: video.views || 0,
+      isPublished: video.isPublished,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this video?')) return;
+    try {
+      await deleteVideo(id).unwrap();
+      alert('Video deleted successfully!');
+    } catch (error: any) {
+      alert(error?.data?.message || 'Failed to delete video');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingVideo(null);
+    setFormData({
+      title: '',
+      description: '',
+      youtubeUrl: '',
+      category: '',
+      duration: 0,
+      thumbnail: '',
+      views: 0,
+      isPublished: true,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Videos</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition"
+        >
+          + Add Video
+        </button>
+      </div>
+
+      {/* Videos List */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="text-left p-4 font-semibold text-gray-700">Title</th>
+              <th className="text-left p-4 font-semibold text-gray-700">Category</th>
+              <th className="text-center p-4 font-semibold text-gray-700">Duration</th>
+              <th className="text-center p-4 font-semibold text-gray-700">Views</th>
+              <th className="text-center p-4 font-semibold text-gray-700">Status</th>
+              <th className="text-center p-4 font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {videos.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center p-8 text-gray-500">
+                  No videos found. Create one to get started.
+                </td>
+              </tr>
+            ) : (
+              videos.map((video: any) => (
+                <tr key={video._id} className="border-b hover:bg-gray-50">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      {video.thumbnail && (
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          className="w-12 h-12 rounded object-cover"
+                        />
+                      )}
+                      <div>
+                        <div className="font-semibold text-gray-900">{video.title}</div>
+                        <div className="text-xs text-gray-500">{video.description?.substring(0, 50)}...</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4 text-gray-700">{video.category}</td>
+                  <td className="p-4 text-center text-gray-700">{video.duration} min</td>
+                  <td className="p-4 text-center text-gray-700">{video.views}</td>
+                  <td className="p-4 text-center">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                        video.isPublished
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {video.isPublished ? 'Published' : 'Draft'}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => handleEdit(video)}
+                        className="text-blue-600 hover:text-blue-800 px-3 py-1 rounded hover:bg-blue-50 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(video._id)}
+                        className="text-red-600 hover:text-red-800 px-3 py-1 rounded hover:bg-red-50 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">
+              {editingVideo ? 'Edit Video' : 'Add New Video'}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 bg-white"
+                    placeholder="Video title"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 bg-white"
+                    rows={3}
+                    placeholder="Video description"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    YouTube URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.youtubeUrl}
+                    onChange={(e) => setFormData({ ...formData, youtubeUrl: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 bg-white"
+                    placeholder="https://youtube.com/watch?v=..."
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 bg-white"
+                      placeholder="e.g., History"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.duration}
+                      onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 bg-white"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Thumbnail URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.thumbnail}
+                    onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 bg-white"
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPublished"
+                    checked={formData.isPublished}
+                    onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                    className="w-4 h-4 text-orange-600"
+                  />
+                  <label htmlFor="isPublished" className="text-sm font-semibold text-gray-900">
+                    Publish this video
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-900 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium"
+                >
+                  {editingVideo ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

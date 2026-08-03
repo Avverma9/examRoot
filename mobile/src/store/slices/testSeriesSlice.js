@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { BASE_URL } from '../../utils/baseUrl'
+import { API_URLS } from '../../config/app.config';
 
 const initialState = {
   items: [],
@@ -16,7 +16,7 @@ const initialState = {
 export const fetchTestSeries = createAsyncThunk('testSeries/fetchAll', async (params = {}, { rejectWithValue }) => {
   try {
     const query = new URLSearchParams(params).toString()
-    const res = await fetch(`${BASE_URL}/test-series${query ? `?${query}` : ''}`)
+    const res = await fetch(`${API_URLS.BASE}/test-series${query ? `?${query}` : ''}`)
     const data = await res.json()
     if (!res.ok) throw new Error(data?.message || 'Failed to fetch')
     return data?.data || []
@@ -27,7 +27,7 @@ export const fetchTestSeries = createAsyncThunk('testSeries/fetchAll', async (pa
 
 export const fetchTestSeriesById = createAsyncThunk('testSeries/fetchById', async (id, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${BASE_URL}/test-series/${id}?includeQuestions=false`)
+    const res = await fetch(`${API_URLS.BASE}/test-series/${id}?includeQuestions=false`)
     const data = await res.json()
     if (!res.ok) throw new Error(data?.message || 'Failed to fetch')
     return data?.data
@@ -38,7 +38,7 @@ export const fetchTestSeriesById = createAsyncThunk('testSeries/fetchById', asyn
 
 export const fetchSeriesTestsMeta = createAsyncThunk('testSeries/fetchTestsMeta', async (id, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${BASE_URL}/test-series/${id}/tests-meta`)
+    const res = await fetch(`${API_URLS.BASE}/test-series/${id}/tests-meta`)
     const data = await res.json()
     if (!res.ok) throw new Error(data?.message || 'Failed to fetch tests meta')
     return data?.data?.tests || []
@@ -49,7 +49,7 @@ export const fetchSeriesTestsMeta = createAsyncThunk('testSeries/fetchTestsMeta'
 
 export const fetchTestById = createAsyncThunk('testSeries/fetchTest', async ({ seriesId, testId }, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${BASE_URL}/test-series/${seriesId}/test/${testId}`)
+    const res = await fetch(`${API_URLS.BASE}/test-series/${seriesId}/test/${testId}`)
     const data = await res.json()
     if (!res.ok) throw new Error(data?.message || 'Failed to fetch test')
     return data?.data

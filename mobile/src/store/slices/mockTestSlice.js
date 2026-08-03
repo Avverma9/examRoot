@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { BASE_URL } from '../../utils/baseUrl'
+import { API_URLS } from '../../config/app.config';
 
 const initialState = {
   items: [],
@@ -13,7 +13,7 @@ const initialState = {
 
 export const fetchMockTests = createAsyncThunk('mockTest/fetchMockTests', async (_, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/mock`)
+    const response = await fetch(`${API_URLS.BASE}/mock`)
     const data = await response.json()
     if (!response.ok) throw new Error(data?.message || 'Failed to fetch mock tests')
     return data?.data || []
@@ -24,7 +24,7 @@ export const fetchMockTests = createAsyncThunk('mockTest/fetchMockTests', async 
 
 export const createMockTest = createAsyncThunk('mockTest/createMockTest', async (mockTest, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/mock`, {
+    const response = await fetch(`${API_URLS.BASE}/mock`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(mockTest),
@@ -39,7 +39,7 @@ export const createMockTest = createAsyncThunk('mockTest/createMockTest', async 
 
 export const updateMockTest = createAsyncThunk('mockTest/updateMockTest', async ({ id, ...mockTest }, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/mock/${id}`, {
+    const response = await fetch(`${API_URLS.BASE}/mock/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(mockTest),
@@ -54,7 +54,7 @@ export const updateMockTest = createAsyncThunk('mockTest/updateMockTest', async 
 
 export const deleteMockTest = createAsyncThunk('mockTest/deleteMockTest', async (id, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/mock/${id}`, {
+    const response = await fetch(`${API_URLS.BASE}/mock/${id}`, {
       method: 'DELETE',
     })
     const data = await response.json()
@@ -67,7 +67,7 @@ export const deleteMockTest = createAsyncThunk('mockTest/deleteMockTest', async 
 
 export const bulkCreateMockTests = createAsyncThunk('mockTest/bulkCreateMockTests', async (payload, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/mock/bulk`, {
+    const response = await fetch(`${API_URLS.BASE}/mock/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

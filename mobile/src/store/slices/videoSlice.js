@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { BASE_URL } from '../../utils/baseUrl'
+import { API_URLS } from '../../config/app.config';
 
 const initialState = {
   items: [],
@@ -13,7 +13,7 @@ const initialState = {
 
 export const fetchVideos = createAsyncThunk('video/fetchVideos', async (_, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/videos`)
+    const response = await fetch(`${API_URLS.BASE}/videos`)
     const data = await response.json()
     if (!response.ok) throw new Error(data?.message || 'Failed to fetch videos')
     return data?.data || []
@@ -24,7 +24,7 @@ export const fetchVideos = createAsyncThunk('video/fetchVideos', async (_, { rej
 
 export const createVideo = createAsyncThunk('video/createVideo', async (video, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/videos`, {
+    const response = await fetch(`${API_URLS.BASE}/videos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(video),
@@ -39,7 +39,7 @@ export const createVideo = createAsyncThunk('video/createVideo', async (video, {
 
 export const updateVideo = createAsyncThunk('video/updateVideo', async ({ id, ...video }, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/videos/${id}`, {
+    const response = await fetch(`${API_URLS.BASE}/videos/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(video),
@@ -54,7 +54,7 @@ export const updateVideo = createAsyncThunk('video/updateVideo', async ({ id, ..
 
 export const deleteVideo = createAsyncThunk('video/deleteVideo', async (id, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/videos/${id}`, {
+    const response = await fetch(`${API_URLS.BASE}/videos/${id}`, {
       method: 'DELETE',
     })
     const data = await response.json()
@@ -67,7 +67,7 @@ export const deleteVideo = createAsyncThunk('video/deleteVideo', async (id, { re
 
 export const bulkCreateVideos = createAsyncThunk('video/bulkCreateVideos', async (videos, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/videos/bulk`, {
+    const response = await fetch(`${API_URLS.BASE}/videos/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(videos),

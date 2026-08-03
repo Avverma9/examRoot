@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { Feather } from '@expo/vector-icons';
 import { preloadTranslations } from '../utils/translator';
-import { BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 import { toggleSavedQuestion, getSavedStatus } from '../services/savedQuestionsApi';
 import { saveProgress, completeProgress } from '../services/progressApi';
 
@@ -89,7 +89,7 @@ export default function PracticeSetPlayer() {
     setIsLoadingPractice(true);
     setLoadError('');
 
-    fetch(`${BASE_URL}/practice/${parsedPractice._id}`)
+    fetch(`${API_URLS.BASE}/practice/${parsedPractice._id}`)
       .then(async response => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.message || 'Failed to load practice set');

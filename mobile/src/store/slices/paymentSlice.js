@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { BASE_URL } from '../../utils/baseUrl'
+import { API_URLS } from '../../config/app.config';
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
 
@@ -8,7 +8,7 @@ export const createOrder = createAsyncThunk(
   'payment/createOrder',
   async ({ seriesId, token }, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/payment/create-order`, {
+      const res = await fetch(`${API_URLS.BASE}/payment/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ seriesId }),
@@ -27,7 +27,7 @@ export const verifyOrder = createAsyncThunk(
   'payment/verifyOrder',
   async ({ orderId, token }, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/payment/verify/${orderId}`, {
+      const res = await fetch(`${API_URLS.BASE}/payment/verify/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -44,7 +44,7 @@ export const fetchSubscriptions = createAsyncThunk(
   'payment/fetchSubscriptions',
   async (token, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/payment/subscriptions`, {
+      const res = await fetch(`${API_URLS.BASE}/payment/subscriptions`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()

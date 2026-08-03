@@ -5,8 +5,8 @@
     },
     "name": "ExamRoot",
     "slug": "examroot",
-    "version": "1.0.1",
-    "orientation": "portrait",
+    "version": "1.0.9",
+    "orientation": "default",
     "icon": "./assets/app-logo.png",
     "scheme": "examroot",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
       "icon": "./assets/app-logo.png"
     },
     "android": {
-      "versionCode": 6,
+      "versionCode": 9,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/app-logo.png"
@@ -72,7 +72,13 @@
           ]
         }
       ],
-      "expo-image"
+      "expo-image",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -82,6 +88,15 @@
       "router": {},
       "eas": {
         "projectId": "6af03f9c-9a85-45e0-961f-126db961b4f8"
+      },
+      "apiConfig": {
+        "baseUrl": "https://backend.examroot.cc",
+        "apiPath": "/api",
+        "timeout": 30000
+      },
+      "googleAuth": {
+        "androidClientId": "1094183809507-020798lscgvs0geugvi07v9r581enm7d.apps.googleusercontent.com",
+        "webClientId": "139031461465-srum45v6munuerhk9h0skga7uf8rfb2l.apps.googleusercontent.com"
       }
     },
     "owner": "avverma9"

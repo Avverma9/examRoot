@@ -1,9 +1,11 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useGetAllVideosQuery } from '../../services/videoApi';
 
 export default function VideosScreen() {
+  const router = useRouter();
   const { data, isLoading, isError, refetch } = useGetAllVideosQuery();
   const videos = data?.data || [];
 
@@ -28,22 +30,69 @@ export default function VideosScreen() {
   }
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity className="mb-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+    <TouchableOpacity 
+      onPress={() => router.push({
+        pathname: '/video-player',
+        params: { video: JSON.stringify(item) }
+      })}
+      className="mb-6 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100"
+      activeOpacity={0.7}
+    >
+      {/* Video Thumbnail */}
       <View className="h-48 bg-gray-200 items-center justify-center relative">
-        <Feather name="play-circle" size={48} color="white" />
+        {item.thumbnail ? (
+          <>
+            <Image 
+              source={{ uri: item.thumbnail }} 
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+            {/* Play overlay */}
+            <View className="absolute inset-0 bg-black/30 items-center justify-center">
+              <View className="bg-white/90 rounded-full p-4">
+                <Feather name="play" size={32} color="#F59E0B" />
+              </View>
+            </View>
+          </>
+        ) : (
+          <View className="items-center justify-center">
+            <View className="bg-amber-50 rounded-full p-4 mb-2">
+              <Feather name="play-circle" size={48} color="#F59E0B" />
+            </View>
+            <Text className="text-gray-400 text-sm">No Thumbnail</Text>
+          </View>
+        )}
+        
+        {/* Duration badge */}
         {item.duration && (
-          <View className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded">
-            <Text className="text-white text-xs font-bold">{item.duration}</Text>
+          <View className="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded">
+            <Text className="text-white text-xs font-bold">{item.duration} min</Text>
           </View>
         )}
       </View>
+      
+      {/* Video Info */}
       <View className="p-4">
         <Text className="text-lg font-bold text-gray-800" numberOfLines={2}>
-          {item.videoTitle}
+          {item.videoTitle || item.title || 'Untitled Video'}
         </Text>
-        <Text className="text-gray-500 text-sm mt-1">
-          {item.category} {item.views != null ? `• ${item.views} Views` : ''}
-        </Text>
+        <View className="flex-row items-center mt-2">
+          {item.category && (
+            <View className="bg-blue-50 px-2 py-1 rounded mr-2">
+              <Text className="text-blue-600 text-xs font-bold">{item.category}</Text>
+            </View>
+          )}
+          {item.views != null && (
+            <Text className="text-gray-500 text-sm">
+              {item.views.toLocaleString()} views
+            </Text>
+          )}
+        </View>
+        {item.description && (
+          <Text className="text-gray-500 text-sm mt-2" numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );

@@ -3,31 +3,23 @@ import User from "../models/User.mjs";
 
 // ── Save in-progress session (called when user leaves mid-way) ────────────────
 // POST /api/progress/save
-// Body: {
-//   resourceId, resourceType, resourceTitle,
-//   currentQuestion, totalQuestions, answeredCount,
-//   metadata: { 
-//     answers: [{q: 0, a: "A"}, ...],
-//     timeLeft: 1200,
-//     totalTime: 1800,
-//     accuracy: 75,
-//     ...
-//   }
-// }
 export const saveProgress = async (req, res) => {
   try {
     const userId = req.userId;
     const {
       resourceId,
-      resourceType,   // mock_test | practice_set | test_series
+      resourceType,
       resourceTitle,
       currentQuestion,
       totalQuestions,
       answeredCount,
-      metadata,       // { answers, timeLeft, totalTime, accuracy, etc. }
+      metadata,
     } = req.body;
 
+    console.log('📥 Save progress request:', { userId, resourceId, resourceType, currentQuestion });
+
     if (!resourceId || !resourceType) {
+      console.log('❌ Missing required fields');
       return res.status(400).json({ success: false, message: "resourceId and resourceType are required" });
     }
 
@@ -53,12 +45,13 @@ export const saveProgress = async (req, res) => {
           ...metadata,
         },
       },
-      { upsert: true, returnDocument: "after" }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    console.log('✅ Progress saved:', doc._id);
     res.status(200).json({ success: true, data: doc });
   } catch (error) {
-    console.error("saveProgress error:", error);
+    console.error("❌ saveProgress error:", error);
     res.status(500).json({ success: false, message: error.message || "Failed to save progress" });
   }
 };
@@ -130,16 +123,40 @@ export const completeProgress = async (req, res) => {
 export const getRecentProgress = async (req, res) => {
   try {
     const userId = req.userId;
+    console.log('📋 Fetching recent progress for user:', userId);
 
-    // Latest in_progress records (one per resource type, max 5)
-    const inProgress = await Tracking.find({ userId, status: "in_progress" })
-      .sort({ updatedAt: -1 })
-      .limit(5)
-      .lean();
+    // Get UNIQUE in_progress records (one per resourceId, latest first)
+    const inProgress = await Tracking.aggregate([
+      {
+        $match: {
+          userId: userId,
+          status: "in_progress"
+        }
+      },
+      {
+        $sort: { updatedAt: -1 }
+      },
+      {
+        $group: {
+          _id: "$resourceId",
+          doc: { $first: "$$ROOT" }
+        }
+      },
+      {
+        $replaceRoot: { newRoot: "$doc" }
+      },
+      {
+        $sort: { updatedAt: -1 }
+      },
+      {
+        $limit: 5
+      }
+    ]);
 
+    console.log('✅ Found', inProgress.length, 'unique in-progress items');
     res.status(200).json({ success: true, data: inProgress });
   } catch (error) {
-    console.error("getRecentProgress error:", error);
+    console.error("❌ getRecentProgress error:", error);
     res.status(500).json({ success: false, message: error.message || "Failed to fetch recent progress" });
   }
 };

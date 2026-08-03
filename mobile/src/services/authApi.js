@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 
 const parseApiResponse = async (response, fallbackMessage) => {
   const contentType = response.headers.get('content-type') || '';
@@ -19,7 +19,7 @@ const parseApiResponse = async (response, fallbackMessage) => {
 };
 
 export const requestOTP = async ({ email }) => {
-  const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/request-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -28,7 +28,7 @@ export const requestOTP = async ({ email }) => {
 };
 
 export const resendOTP = async ({ email }) => {
-  const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/resend-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -40,7 +40,7 @@ export const verifyOTPAndLogin = async ({ email, otp, name }) => {
   const payload = { email, otp };
   if (name) payload.name = name;
 
-  const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -49,7 +49,7 @@ export const verifyOTPAndLogin = async ({ email, otp, name }) => {
 };
 
 export const googleLoginApi = async (idToken) => {
-  const response = await fetch(`${API_BASE_URL}/auth/google`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
@@ -58,7 +58,7 @@ export const googleLoginApi = async (idToken) => {
 };
 
 export const passwordLogin = async ({ email, password, name }) => {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, name }),
@@ -72,7 +72,7 @@ export const updatePassword = async (token, { currentPassword, newPassword }) =>
     payload.currentPassword = currentPassword;
   }
 
-  const response = await fetch(`${API_BASE_URL}/auth/password`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/password`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),
@@ -81,14 +81,14 @@ export const updatePassword = async (token, { currentPassword, newPassword }) =>
 };
 
 export const getCurrentUser = async (token) => {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return parseApiResponse(response, 'Failed to get user');
 };
 
 export const updateProfile = async (token, updates) => {
-  const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+  const response = await fetch(`${API_URLS.BASE}/auth/profile`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(updates),

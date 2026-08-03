@@ -12,7 +12,8 @@ import User from "./models/User.mjs";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Default backend server port should be 5000; panel runs on 3000 locally
+const PORT = process.env.PORT || 5000;
 const WORKER_COUNT = Number(process.env.WORKER_COUNT) || os.cpus().length;
 const USE_CLUSTER = process.env.USE_CLUSTER === "true" && Boolean(process.env.MONGO_URI);
 
@@ -125,7 +126,7 @@ const startServer = async () => {
   app.get("/", (req, res) => {
     res.send("🚀 Server is running...");
   });
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server is running on port ${PORT} (pid: ${process.pid})`);
   });
 };

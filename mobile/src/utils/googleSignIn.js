@@ -1,8 +1,22 @@
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri, exchangeCodeAsync, loadAsync, ResponseType } from 'expo-auth-session';
+import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { GOOGLE_AUTH } from '../config/app.config';
+
+// NOTE: maybeCompleteAuthSession() is called in oauth2redirect.jsx screen
+// DO NOT call it here - it must be called in the redirect screen
+
+// Safely extract functions with fallbacks
+const makeRedirectUri = AuthSession?.makeRedirectUri || (() => {
+  console.warn('makeRedirectUri not available');
+  return 'examroot://oauth2redirect';
+});
+const exchangeCodeAsync = AuthSession?.exchangeCodeAsync || (async () => {
+  throw new Error('exchangeCodeAsync not available');
+});
+const loadAsync = AuthSession?.loadAsync;
+const ResponseType = AuthSession?.ResponseType || { Code: 'code' };
 
 // NOTE: maybeCompleteAuthSession() is called in oauth2redirect.jsx screen
 // DO NOT call it here - it must be called in the redirect screen
@@ -14,10 +28,9 @@ const discovery = {
   revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
 };
 
-// ── Client IDs (from .env) ────────────────────────────────────────────────────
-const publicConfig = Constants.expoConfig?.extra?.publicConfig || {};
-const WEB_CLIENT_ID = publicConfig.googleClientId;
-const ANDROID_CLIENT_ID = publicConfig.googleAndroidClientId;
+// ── Client IDs (from app.json) ────────────────────────────────────────────────
+const WEB_CLIENT_ID = GOOGLE_AUTH.WEB_CLIENT_ID;
+const ANDROID_CLIENT_ID = GOOGLE_AUTH.ANDROID_CLIENT_ID;
 
 // ── Redirect URI ──────────────────────────────────────────────────────────────
 // Android → native com.googleusercontent scheme

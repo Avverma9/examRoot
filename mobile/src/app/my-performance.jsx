@@ -7,7 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { API_BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const headers = (token) => ({ Authorization: `Bearer ${token}` });
@@ -75,8 +75,8 @@ export default function MyPerformanceScreen() {
     if (!silent) setLoading(true);
     try {
       const [anaRes, histRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/tracking/analytics?days=${days}`, { headers: headers(token) }),
-        fetch(`${API_BASE_URL}/tracking/history?limit=10`, { headers: headers(token) }),
+        fetch(`${API_URLS.ROOT}/tracking/analytics?days=${days}`, { headers: headers(token) }),
+        fetch(`${API_URLS.ROOT}/tracking/history?limit=10`, { headers: headers(token) }),
       ]);
       const [ana, hist] = await Promise.all([anaRes.json(), histRes.json()]);
 

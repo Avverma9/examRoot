@@ -1,11 +1,11 @@
-import { BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 
 /**
  * Get active banners for home screen carousel
  */
 export const getActiveBanners = async () => {
   try {
-    const url = `${BASE_URL}/banners/active`;
+    const url = `${API_URLS.BASE}/banners/active`;
     console.log('🔗 Fetching banners from:', url);
     
     const response = await fetch(url, {

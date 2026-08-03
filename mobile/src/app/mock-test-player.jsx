@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { Feather } from '@expo/vector-icons';
-import { BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 import { toggleSavedQuestion, getSavedStatus } from '../services/savedQuestionsApi';
 import { saveProgress, completeProgress } from '../services/progressApi';
 
@@ -173,7 +173,7 @@ export default function MockTestPlayer() {
     setIsLoadingTest(true);
     setLoadError('');
 
-    fetch(`${BASE_URL}/mock/${parsedTest._id}`)
+    fetch(`${API_URLS.BASE}/mock/${parsedTest._id}`)
       .then(async response => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.message || 'Failed to load mock test');
@@ -270,10 +270,17 @@ export default function MockTestPlayer() {
 
   // ─── HELPERS ───────────────────────────────────────────────────────────────
   async function handleSaveAndExit() {
+    if (isSavingExit) {
+      console.log('⚠️ Already saving, ignoring duplicate click');
+      return; // Prevent multiple clicks
+    }
+    
     setIsSavingExit(true);
+    console.log('💾 Saving progress before exit...');
+    
     try {
       if (token && parsedTest?._id) {
-        await saveProgress(token, {
+        const progressData = {
           resourceId: parsedTest._id,
           resourceType: 'mock_test',
           resourceTitle: parsedTest.title || '',
@@ -286,17 +293,34 @@ export default function MockTestPlayer() {
             totalTime: (parsedTest?.duration || 120) * 60,
             accuracy: getScore() > 0 ? Math.round((getScore() / questions.length) * 100) : 0,
           },
-        });
+        };
+        
+        console.log('📤 Sending progress:', progressData);
+        const result = await saveProgress(token, progressData);
+        console.log('✅ Progress saved:', result);
+      } else {
+        console.log('⚠️ No token or test ID, skipping save');
       }
+      
+      // Clear timer
       clearInterval(timerRef.current);
+      
+      // Close dialog
       setExitDialogVisible(false);
+      
+      // Small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('🏠 Navigating back...');
+      // Navigate back
       router.back();
+      
     } catch (error) {
-      console.error('Save error:', error);
+      console.error('❌ Save error:', error);
       Alert.alert('Error', 'Failed to save progress. Please try again.');
-    } finally {
-      setIsSavingExit(false);
+      setIsSavingExit(false); // Re-enable button on error
     }
+    // Note: Don't set setIsSavingExit(false) on success - let unmount handle it
   }
 
   function confirmExit() {

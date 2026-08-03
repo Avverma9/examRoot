@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { BASE_URL } from '../../utils/baseUrl'
+import { API_URLS } from '../../config/app.config';
 
 const initialState = {
   items: [],
@@ -13,7 +13,7 @@ const initialState = {
 
 export const fetchPracticeSets = createAsyncThunk('practiceSet/fetchPracticeSets', async (_, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/practice`)
+    const response = await fetch(`${API_URLS.BASE}/practice`)
     const data = await response.json()
     if (!response.ok) throw new Error(data?.message || 'Failed to fetch practice sets')
     return data?.data || []
@@ -24,7 +24,7 @@ export const fetchPracticeSets = createAsyncThunk('practiceSet/fetchPracticeSets
 
 export const createPracticeSet = createAsyncThunk('practiceSet/createPracticeSet', async (practiceSet, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/practice`, {
+    const response = await fetch(`${API_URLS.BASE}/practice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(practiceSet),
@@ -39,7 +39,7 @@ export const createPracticeSet = createAsyncThunk('practiceSet/createPracticeSet
 
 export const updatePracticeSet = createAsyncThunk('practiceSet/updatePracticeSet', async ({ id, ...practiceSet }, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/practice/${id}`, {
+    const response = await fetch(`${API_URLS.BASE}/practice/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(practiceSet),
@@ -54,7 +54,7 @@ export const updatePracticeSet = createAsyncThunk('practiceSet/updatePracticeSet
 
 export const deletePracticeSet = createAsyncThunk('practiceSet/deletePracticeSet', async (id, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/practice/${id}`, {
+    const response = await fetch(`${API_URLS.BASE}/practice/${id}`, {
       method: 'DELETE',
     })
     const data = await response.json()
@@ -67,7 +67,7 @@ export const deletePracticeSet = createAsyncThunk('practiceSet/deletePracticeSet
 
 export const bulkCreatePracticeSets = createAsyncThunk('practiceSet/bulkCreatePracticeSets', async (payload, { rejectWithValue }) => {
   try {
-    const response = await fetch(`${BASE_URL}/practice/bulk`, {
+    const response = await fetch(`${API_URLS.BASE}/practice/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

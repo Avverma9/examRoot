@@ -15,7 +15,7 @@
  *   // publicUrl = "https://pub-xxx.r2.dev/banners/uuid.jpg"
  */
 
-import { API_BASE_URL } from './baseUrl';
+import { API_URLS } from '../config/app.config';
 
 /**
  * @param {object} options
@@ -29,7 +29,7 @@ import { API_BASE_URL } from './baseUrl';
  */
 export async function uploadToR2({ token, fileUri, contentType, type, filename, onProgress }) {
   // 1. Get presigned URL from our server
-  const presignRes = await fetch(`${API_BASE_URL}/upload/presign`, {
+  const presignRes = await fetch(`${API_URLS.ROOT}/upload/presign`, {
     method:  'POST',
     headers: {
       'Content-Type':  'application/json',
@@ -98,7 +98,7 @@ function uploadWithProgress(url, blob, contentType, onProgress) {
  * @param {string} publicUrl - public R2 URL to delete
  */
 export async function deleteFromR2(token, publicUrl) {
-  const res = await fetch(`${API_BASE_URL}/upload`, {
+  const res = await fetch(`${API_URLS.ROOT}/upload`, {
     method:  'DELETE',
     headers: {
       'Content-Type':  'application/json',

@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { API_BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 
 const DEVICE_ID_KEY = '@examroot_device_id';
 
@@ -54,7 +54,7 @@ export const buildActivityMeta = async () => {
 };
 
 const post = async (path, token, body) => {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${API_URLS.ROOT}${path}`, {
     method: 'POST',
     headers: headers(token),
     body: JSON.stringify(body),

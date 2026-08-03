@@ -8,7 +8,7 @@ import { setUser } from '../../store/slices/authSlice';
 import { getRecentProgress } from '../../services/progressApi';
 import { getActiveBanners } from '../../services/bannerApi';
 import BannerCarousel from '../../components/BannerCarousel';
-import { BASE_URL } from '../../utils/baseUrl';
+import { API_URLS } from '../../config/app.config';
 import { useCallback } from 'react';
 
 export default function HomeScreen() {
@@ -74,45 +74,72 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (token) {
+        console.log('🔄 Home screen focused, refreshing progress...');
         getRecentProgress(token)
           .then(res => {
-            if (res.success) setRecentProgress(res.data || []);
+            if (res.success) {
+              console.log('✅ Progress refreshed, items:', res.data?.length || 0);
+              setRecentProgress(res.data || []);
+            } else {
+              console.log('⚠️ Progress refresh failed:', res.message);
+            }
           })
-          .catch(() => {});
+          .catch((err) => {
+            console.log('❌ Progress refresh error:', err.message);
+          });
       }
     }, [token])
   );
 
   const handleContinueLearning = async (item) => {
-    if (!item?.resourceType || !item?.resourceId) return;
+    if (!item?.resourceType || !item?.resourceId) {
+      console.log('❌ Missing resourceType or resourceId:', item);
+      return;
+    }
 
+    console.log('▶️ Resuming:', item.resourceType, item.resourceId);
     setResumeLoadingId(item.resourceId);
+    
     try {
       if (item.resourceType === 'mock_test') {
+        console.log('🎯 Loading mock test:', item.resourceId);
         let testData = null;
 
-        const exactRes = await fetch(`${BASE_URL}/mock/${item.resourceId}`);
-        const exactJson = await exactRes.json();
-        if (exactRes.ok) {
-          testData = exactJson?.data || exactJson;
+        // Try to fetch exact test by ID
+        try {
+          const exactRes = await fetch(`${API_URLS.BASE}/mock/${item.resourceId}`);
+          const exactJson = await exactRes.json();
+          if (exactRes.ok && exactJson?.data) {
+            testData = exactJson.data;
+          }
+        } catch (e) {
+          console.log('Failed to fetch exact test, trying list:', e.message);
+        }
+
+        // Fallback: Search in all tests
+        if (!testData) {
+          try {
+            const listRes = await fetch(`${API_URLS.BASE}/mock`);
+            const listJson = await listRes.json();
+            const allTests = listJson?.data || [];
+            testData = allTests.find((test) => String(test._id) === String(item.resourceId));
+          } catch (e) {
+            console.log('Failed to fetch test list:', e.message);
+          }
         }
 
         if (!testData) {
-          const listRes = await fetch(`${BASE_URL}/mock`);
-          const listJson = await listRes.json();
-          const allTests = listJson?.data || [];
-          testData =
-            allTests.find((test) => String(test._id) === String(item.resourceId)) ||
-            allTests.find((test) => test.title === item.resourceTitle) ||
-            null;
-        }
-
-        if (!testData) {
-          Alert.alert('Error', 'Failed to load test. Please try again.');
+          console.log('❌ Test not found:', item.resourceId);
+          Alert.alert(
+            'Test Unavailable', 
+            'This test may have been removed. Your progress will be cleared.',
+            [{ text: 'OK' }]
+          );
           setResumeLoadingId(null);
           return;
         }
 
+        console.log('✅ Test loaded, resuming at question:', item.metadata?.currentQuestion);
         router.push({
           pathname: '/mock-test-player',
           params: {
@@ -126,10 +153,15 @@ export default function HomeScreen() {
       }
 
       if (item.resourceType === 'practice_set') {
-        const res = await fetch(`${BASE_URL}/practice/${item.resourceId}`);
+        console.log('📝 Loading practice set:', item.resourceId);
+        const res = await fetch(`${API_URLS.BASE}/practice/${item.resourceId}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || 'Failed to load practice set');
         
+        if (!res.ok) {
+          throw new Error(data?.message || 'Failed to load practice set');
+        }
+        
+        console.log('✅ Practice set loaded');
         router.push({
           pathname: '/practice-set-player',
           params: {
@@ -142,9 +174,15 @@ export default function HomeScreen() {
       }
 
       if (item.resourceType === 'video') {
-        const res = await fetch(`${BASE_URL}/videos/${item.resourceId}`);
+        console.log('🎥 Loading video:', item.resourceId);
+        const res = await fetch(`${API_URLS.BASE}/videos/${item.resourceId}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || 'Failed to load video');
+        
+        if (!res.ok) {
+          throw new Error(data?.message || 'Failed to load video');
+        }
+        
+        console.log('✅ Video loaded');
         router.push({
           pathname: '/video-player',
           params: {
@@ -155,11 +193,18 @@ export default function HomeScreen() {
       }
 
       if (item.resourceType === 'test_series') {
-        router.push({ pathname: '/test-series-detail', params: { id: String(item.resourceId) } });
+        console.log('📚 Navigating to test series:', item.resourceId);
+        router.push({ 
+          pathname: '/test-series-detail', 
+          params: { id: String(item.resourceId) } 
+        });
+        return;
       }
+
+      console.log('⚠️ Unknown resource type:', item.resourceType);
     } catch (error) {
-      console.error('Failed to resume progress:', error);
-      Alert.alert('Error', 'Failed to resume. Please try again.');
+      console.error('❌ Failed to resume progress:', error);
+      Alert.alert('Error', error.message || 'Failed to resume. Please try again.');
     } finally {
       setResumeLoadingId(null);
     }

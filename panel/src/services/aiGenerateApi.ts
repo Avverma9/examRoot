@@ -25,6 +25,22 @@ export const aiGenerateApi = api.injectEndpoints({
       }),
       invalidatesTags: ['PracticeSets'],
     }),
+    autoGenerateMcqFromPdf: builder.mutation<any, { seriesId: string; file: File }>(
+      {
+        query: ({ seriesId, file }) => {
+          const formData = new FormData();
+          formData.append('seriesId', seriesId);
+          formData.append('file', file);
+
+          return {
+            url: '/mcq-auto-generate',
+            method: 'POST',
+            body: formData,
+          };
+        },
+        invalidatesTags: ['TestSeries'],
+      }
+    ),
   }),
 });
 
@@ -32,4 +48,5 @@ export const {
   useGenerateQuestionsMutation,
   useGenerateMockFromSeriesMutation,
   useGeneratePracticeFromSeriesMutation,
+  useAutoGenerateMcqFromPdfMutation,
 } = aiGenerateApi;

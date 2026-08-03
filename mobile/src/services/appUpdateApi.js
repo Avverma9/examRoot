@@ -1,5 +1,5 @@
-import { BASE_URL } from '../utils/baseUrl';
 import * as Application from 'expo-application';
+import { API_URLS } from '../config/app.config';
 import { Platform } from 'react-native';
 
 /**
@@ -30,7 +30,7 @@ export const getCurrentUpdate = async (token) => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const url = `${BASE_URL}/app-update/current?currentVersionCode=${versionCode}&currentVersion=${version}&platform=${platform}`;
+    const url = `${API_URLS.BASE}/app-update/current?currentVersionCode=${versionCode}&currentVersion=${version}&platform=${platform}`;
     console.log('[API] Fetching update from:', url);
 
     const response = await fetch(url, {
@@ -78,7 +78,7 @@ export const dismissUpdate = async (token, updateId, installed = false) => {
       return { success: false, message: 'Not authenticated' };
     }
 
-    const response = await fetch(`${BASE_URL}/app-update/dismiss`, {
+    const response = await fetch(`${API_URLS.BASE}/app-update/dismiss`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

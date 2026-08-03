@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../utils/baseUrl';
+import { API_URLS } from '../config/app.config';
 
 const headers = (token) => ({
   'Content-Type': 'application/json',
@@ -7,7 +7,7 @@ const headers = (token) => ({
 
 // ── Toggle save/unsave a question ─────────────────────────────────────────────
 export const toggleSavedQuestion = async (token, questionData) => {
-  const res = await fetch(`${API_BASE_URL}/saved-questions/toggle`, {
+  const res = await fetch(`${API_URLS.BASE}/saved-questions/toggle`, {
     method: 'POST',
     headers: headers(token),
     body: JSON.stringify(questionData),
@@ -20,7 +20,7 @@ export const toggleSavedQuestion = async (token, questionData) => {
 // ── Get all saved questions ───────────────────────────────────────────────────
 export const getSavedQuestions = async (token, params = {}) => {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE_URL}/saved-questions${query ? `?${query}` : ''}`, {
+  const res = await fetch(`${API_URLS.BASE}/saved-questions${query ? `?${query}` : ''}`, {
     headers: headers(token),
   });
   const data = await res.json();
@@ -30,7 +30,7 @@ export const getSavedQuestions = async (token, params = {}) => {
 
 // ── Get saved indices for a resource ─────────────────────────────────────────
 export const getSavedStatus = async (token, resourceId) => {
-  const res = await fetch(`${API_BASE_URL}/saved-questions/status/${resourceId}`, {
+  const res = await fetch(`${API_URLS.BASE}/saved-questions/status/${resourceId}`, {
     headers: headers(token),
   });
   const data = await res.json();
@@ -40,7 +40,7 @@ export const getSavedStatus = async (token, resourceId) => {
 
 // ── Delete a saved question by _id ────────────────────────────────────────────
 export const deleteSavedQuestion = async (token, id) => {
-  const res = await fetch(`${API_BASE_URL}/saved-questions/${id}`, {
+  const res = await fetch(`${API_URLS.BASE}/saved-questions/${id}`, {
     method: 'DELETE',
     headers: headers(token),
   });

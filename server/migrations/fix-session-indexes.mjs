@@ -1,10 +1,16 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import AppActivitySession from '../models/AppActivitySession.mjs';
 
-dotenv.config();
+// Ensure we load server/.env (this script may be run from repo root)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const MONGO = process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/examroot';
+// Prefer MONGO_URI (used in server/.env), fall back to other common names
+const MONGO = process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/examroot';
 
 async function run() {
   // Use default mongoose connection options (avoid legacy parser options)
