@@ -36,9 +36,21 @@ try {
   console.warn('⚠️ Could not load Constants, using hardcoded config');
 }
 
+// If running in Expo dev (debuggerHost present) and no extra config provided,
+// prefer a local dev backend using the debugger host so the app can reach your machine.
+let devHost;
+try {
+  const dbg = Constants?.manifest?.debuggerHost || Constants?.debuggerHost || null;
+  if (dbg && typeof dbg === 'string') {
+    devHost = dbg.split(':')[0];
+  }
+} catch (e) {
+  // ignore
+}
+
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: extraConfig?.apiConfig?.baseUrl || PRODUCTION_CONFIG.API_BASE_URL,
+  BASE_URL: extraConfig?.apiConfig?.baseUrl || (devHost ? `http://${devHost}:5000` : PRODUCTION_CONFIG.API_BASE_URL),
   API_PATH: extraConfig?.apiConfig?.apiPath || PRODUCTION_CONFIG.API_PATH,
   TIMEOUT: extraConfig?.apiConfig?.timeout || PRODUCTION_CONFIG.TIMEOUT,
 };

@@ -54,14 +54,22 @@ export const buildActivityMeta = async () => {
 };
 
 const post = async (path, token, body) => {
-  const res = await fetch(`${API_URLS.ROOT}${path}`, {
-    method: 'POST',
-    headers: headers(token),
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.message || 'Activity tracking failed');
-  return data;
+  try {
+    const res = await fetch(`${API_URLS.ROOT}${path}`, {
+      method: 'POST',
+      headers: headers(token),
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      console.warn('Activity tracking responded with non-OK status', res.status, data);
+      return { success: false, status: res.status, message: data?.message || 'Activity tracking failed' };
+    }
+    return data;
+  } catch (err) {
+    console.warn('Activity tracking network error:', err?.message || err);
+    return { success: false, message: err?.message || 'Network error' };
+  }
 };
 
 export const startAppActivitySession = async (token, sessionId) => {

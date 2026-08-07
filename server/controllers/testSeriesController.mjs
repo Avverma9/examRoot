@@ -562,6 +562,7 @@ export const updateSeriesTestQuestions = async (req, res) => {
 // ─── DELETE SINGLE TEST ─────────────────────────────────────────────────────
 export const deleteSeriesTest = async (req, res) => {
   try {
+    const seriesId = toObjectId(req.params.seriesId);
     const testId = toObjectId(req.params.testId);
 
     if (!seriesId || !testId) {
