@@ -366,6 +366,47 @@ export const getTestById = async (req, res) => {
   }
 };
 
+// GET /api/test-series/test/:testId
+// Resolve a SeriesTest by its own id. Progress records only store resourceId,
+// so Resume cannot reliably know the parent series id.
+export const getStandaloneTestById = async (req, res) => {
+  try {
+    const testId = toObjectId(req.params.testId);
+    if (!testId) return res.status(400).json({ success: false, message: "Invalid test id" });
+
+    const test = await SeriesTest.findById(testId).lean();
+    if (!test) return res.status(404).json({ success: false, message: "Test not found" });
+
+    const series = await TestSeries.findById(test.seriesId)
+      .select("isPaid discountedPrice price _id freeTestsCount")
+      .lean();
+    if (!series) return res.status(404).json({ success: false, message: "Test series not found" });
+
+    if (series.isPaid && !test.isFree) {
+      const user = req.userId
+        ? await User.findById(req.userId).select("subscriptions").lean()
+        : null;
+      if (!user || !hasActiveSubscription(user, series._id)) {
+        return res.status(403).json({ success: false, message: "This test requires a paid subscription", requiresPurchase: true });
+      }
+    }
+
+    const questions = await SeriesQuestion.find({ seriesId: test.seriesId, testId })
+      .sort({ order: 1 })
+      .lean();
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...test,
+        questions: questions.map((q) => sanitizeQuestion(q)),
+        totalQuestions: questions.length || test.totalQuestions || 0,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || "Failed to fetch test" });
+  }
+};
+
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
 // STRICT SAFETY RULE: this endpoint updates series-level metadata ONLY.
 // It must NEVER touch SeriesTest/SeriesQuestion. Tests are exclusively

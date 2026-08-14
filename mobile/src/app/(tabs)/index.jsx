@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentUser } from '../../services/authApi';
 import { setUser } from '../../store/slices/authSlice';
-import { getRecentProgress } from '../../services/progressApi';
+import { getRecentProgress, getProgressHistory } from '../../services/progressApi';
 import { getActiveBanners } from '../../services/bannerApi';
 import BannerCarousel from '../../components/BannerCarousel';
 import { API_URLS } from '../../config/app.config';
@@ -24,6 +24,10 @@ export default function HomeScreen() {
   const [recentProgress, setRecentProgress] = useState([]);
   const [progressLoading, setProgressLoading] = useState(false);
   const [resumeLoadingId, setResumeLoadingId] = useState(null);
+
+  // ── Completed-attempt history ──────────────────────────────────────────────
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -75,6 +79,11 @@ export default function HomeScreen() {
     useCallback(() => {
       if (token) {
         console.log('🔄 Home screen focused, refreshing progress...');
+        getCurrentUser(token)
+          .then(data => {
+            if (data.success && data.user) dispatch(setUser(data.user));
+          })
+          .catch(err => console.log('⚠️ Stats refresh failed:', err.message));
         getRecentProgress(token)
           .then(res => {
             if (res.success) {
@@ -87,6 +96,11 @@ export default function HomeScreen() {
           .catch((err) => {
             console.log('❌ Progress refresh error:', err.message);
           });
+        setHistoryLoading(true);
+        getProgressHistory(token, 6)
+          .then(setHistory)
+          .catch(() => {})
+          .finally(() => setHistoryLoading(false));
       }
     }, [token])
   );
@@ -107,7 +121,8 @@ export default function HomeScreen() {
 
         // Try to fetch exact test by ID
         try {
-          const exactRes = await fetch(`${API_URLS.BASE}/mock/${item.resourceId}`);
+          const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+          const exactRes = await fetch(`${API_URLS.BASE}/test-series/test/${item.resourceId}`, { headers: authHeaders });
           const exactJson = await exactRes.json();
           if (exactRes.ok && exactJson?.data) {
             testData = exactJson.data;
@@ -119,7 +134,9 @@ export default function HomeScreen() {
         // Fallback: Search in all tests
         if (!testData) {
           try {
-            const listRes = await fetch(`${API_URLS.BASE}/mock`);
+            const listRes = await fetch(`${API_URLS.BASE}/mock`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             const listJson = await listRes.json();
             const allTests = listJson?.data || [];
             testData = allTests.find((test) => String(test._id) === String(item.resourceId));
@@ -354,6 +371,56 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               );
             })
+          )}
+
+          {/* Test History (completed attempts) */}
+          <View className="flex-row justify-between items-end mb-4">
+            <Text className="text-lg font-extrabold text-gray-900 tracking-tight">History</Text>
+          </View>
+
+          {historyLoading ? (
+            <View className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8 items-center justify-center" style={{ height: 80 }}>
+              <ActivityIndicator size="small" color="#F59E0B" />
+            </View>
+          ) : history.length === 0 ? (
+            <View className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8 items-center flex-row" style={{ gap: 14 }}>
+              <View className="bg-gray-50 p-3 rounded-2xl">
+                <Feather name="clock" size={20} color="#94A3B8" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-gray-700">No completed attempts yet</Text>
+                <Text className="text-xs text-gray-400 mt-0.5">Finish a test to see it here</Text>
+              </View>
+            </View>
+          ) : (
+            <View className="bg-white rounded-3xl shadow-sm border border-gray-100 mb-8 overflow-hidden">
+              {history.map((item, idx) => {
+                const cfg = getProgressConfig(item);
+                const accuracy = item.accuracy != null ? Math.round(item.accuracy) : null;
+                return (
+                  <View
+                    key={item._id}
+                    className={`flex-row items-center px-4 py-3.5 ${idx !== history.length - 1 ? 'border-b border-gray-50' : ''}`}
+                  >
+                    <View className={`${cfg.iconBg} p-2.5 rounded-xl mr-3`}>
+                      <Feather name="check" size={16} color={cfg.iconColor} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-[13px] font-bold text-gray-900" numberOfLines={1}>
+                        {item.resourceTitle || 'Untitled'}
+                      </Text>
+                      <Text className="text-[11px] text-gray-400 font-semibold mt-0.5">
+                        {item.correctAnswers ?? 0}/{item.totalQuestions ?? 0} correct
+                        {accuracy != null ? ` • ${accuracy}% accuracy` : ''}
+                      </Text>
+                    </View>
+                    <Text className="text-[10.5px] text-gray-400 font-semibold ml-2">
+                      {new Date(item.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           )}
 
           {/* Recommended Mock Tests (Horizontal Scroll) */}

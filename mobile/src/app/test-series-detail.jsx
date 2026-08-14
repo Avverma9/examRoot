@@ -1,29 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, Image,
+  View, Text, ScrollView, TouchableOpacity, Image, TextInput,
   ActivityIndicator, Alert, useWindowDimensions, StatusBar,
 } from 'react-native'
+import Svg, { Circle } from 'react-native-svg'
 import { Feather } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchTestSeriesById, fetchSeriesTestsMeta, fetchTestById, clearSelectedTest } from '../store/slices/testSeriesSlice'
 import { createOrder, clearCurrentOrder } from '../store/slices/paymentSlice'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { getProgressStatusBatch, getRecentProgress } from '../services/progressApi'
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-// ── Subject group config ─────────────────────────────────────────────────────
-const GROUP_STYLES = {
-  History:   { icon: 'clock',        bg: '#EEEDFE', fg: '#534AB7' },
-  Geography: { icon: 'globe',        bg: '#E6F1FB', fg: '#185FA5' },
-  Polity:    { icon: 'shield',       bg: '#FAECE7', fg: '#993C1D' },
-  Economy:   { icon: 'trending-up',  bg: '#EAF3DE', fg: '#3B6D11' },
-  Science:   { icon: 'zap',          bg: '#FAEEDA', fg: '#854F0B' },
-  Maths:     { icon: 'percent',      bg: '#FBEAF0', fg: '#993556' },
-  Reasoning: { icon: 'cpu',          bg: '#E1F5EE', fg: '#0F6E56' },
-  English:   { icon: 'book-open',    bg: '#FCEBEB', fg: '#A32D2D' },
-  Ungrouped: { icon: 'folder',       bg: '#F1EFE8', fg: '#5F5E5A' },
-}
-const DEFAULT_GROUP_STYLE = { icon: 'grid', bg: '#FFF3E0', fg: '#EA580C' }
-const getGroupStyle = (name) => GROUP_STYLES[name] || DEFAULT_GROUP_STYLE
+// ── Subject / topic config — matched by keyword against the free-text group name ────
+const LUCENT_LOGO = require('../../assets/lucent.png')
+
+const TOPIC_REGISTRY = [
+  { match: /geograph/i,            icon: 'globe',       bg: '#fff', fg: '#1D8FCC', asset: require('../../assets/geography.png') },
+  { match: /ecolog|environment/i,  icon: 'feather',      bg: '#fff', fg: '#3B8F2E', asset: require('../../assets/ecology.png') },
+  { match: /econom/i,              icon: 'trending-up', bg: '#fff', fg: '#D89B2E', asset: require('../../assets/economy.png') },
+  { match: /histor/i,              icon: 'clock',        bg: '#fff', fg: '#6D5CDE', asset: require('../../assets/history.png') },
+  { match: /polity|constitution/i, icon: 'shield',       bg: '#fff', fg: '#C2622C', asset: require('../../assets/indian-constitution.png') },
+  { match: /science/i,             icon: 'zap',          bg: '#FAEEDA', fg: '#B4820F' },
+  { match: /math/i,                icon: 'percent',      bg: '#FBEAF0', fg: '#C24E7C' },
+  { match: /reason/i,              icon: 'cpu',          bg: '#E1F5EE', fg: '#12967A' },
+  { match: /english/i,             icon: 'book-open',    bg: '#FCEBEB', fg: '#C43E3E' },
+]
+const DEFAULT_TOPIC_STYLE = { icon: 'grid', bg: '#f8f8f8', fg: '#D89B2E', asset: null }
+const getTopicStyle = (name) => TOPIC_REGISTRY.find(t => t.match.test(name)) || DEFAULT_TOPIC_STYLE
 
 // ── Responsive grid helpers ──────────────────────────────────────────────────
 const H_PAD = 14
@@ -35,6 +40,40 @@ const getContentMaxW   = (w) => (w >= 900 ? 900 : undefined)
 const SHADOW_SM  = { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,  elevation: 1 }
 const SHADOW_MD  = { shadowColor: '#EA580C', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 }
 const SHADOW_LG  = { shadowColor: '#C2410C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1,  shadowRadius: 10, elevation: 3 }
+
+// ── Small circular % ring used on "Resume" test rows ─────────────────────────
+function ProgressRing({ percent = 0, size = 34, strokeWidth = 3, color = '#2563EB' }) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference * (1 - Math.min(100, Math.max(0, percent)) / 100)
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#E2E8F0" strokeWidth={strokeWidth} fill="none" />
+        <Circle
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke={color} strokeWidth={strokeWidth} fill="none"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <Text style={{ position: 'absolute', fontSize: 8.5, fontWeight: '800', color }}>
+        {Math.round(percent)}%
+      </Text>
+    </View>
+  )
+}
+
+// Compact "1.4k" style formatter for the global attempts badge
+const formatCount = (n) => {
+  if (!n) return '0'
+  if (n >= 100000) return `${Math.round(n / 1000)}k`
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  return String(n)
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function TestSeriesDetail() {
@@ -57,6 +96,11 @@ export default function TestSeriesDetail() {
   const [activeGroup, setActiveGroup] = useState(null)
   // Track which test is specifically loading to fix the global spinner bug
   const [loadingTestId, setLoadingTestId] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  // { [testId]: { status: 'in_progress' | 'completed', percent, accuracy } }
+  const [progressMap, setProgressMap] = useState({})
+  const resumeProgressRef = useRef(null)
 
   const hasActiveSub = subscriptions.some(
     sub => sub.isActive && String(sub.seriesId?._id || sub.seriesId) === String(id)
@@ -70,6 +114,7 @@ export default function TestSeriesDetail() {
 
   useEffect(() => {
     if (testStatus === 'succeeded' && selectedTest) {
+      const resume = resumeProgressRef.current
       router.push({
         pathname: '/mock-test-player',
         params: {
@@ -78,8 +123,16 @@ export default function TestSeriesDetail() {
             title: selectedTest.title || series?.title,
             seriesTitle: series?.title,
           }),
+          ...(resume?.status === 'in_progress'
+            ? {
+                currentQuestion: String(resume.metadata?.currentQuestion ?? 0),
+                answers: JSON.stringify(resume.metadata?.answers || {}),
+                timeLeft: String(resume.metadata?.timeLeft ?? ((selectedTest.duration || 120) * 60)),
+              }
+            : {}),
         },
       })
+      resumeProgressRef.current = null
       dispatch(clearSelectedTest())
     }
 
@@ -107,6 +160,45 @@ export default function TestSeriesDetail() {
     }
   }, [orderStatus, currentOrder])
 
+  // ── Refresh per-test progress (Resume %, Completed) whenever screen regains focus ──
+  const testIdsKey = (selectedSeriesTests || series?.tests || []).map(t => t._id).join(',')
+  useFocusEffect(
+    useCallback(() => {
+      if (!token || !testIdsKey) return
+      const resourceIds = testIdsKey.split(',').filter(Boolean)
+      if (!resourceIds.length) return
+      getProgressStatusBatch(token, resourceIds).then(async (map) => {
+        if (Object.keys(map || {}).length > 0) {
+          setProgressMap(map)
+          return
+        }
+
+        // Fallback for an older deployment where status-batch is not available.
+        // The saved session still contains enough data to show Resume and %.
+        try {
+          const recent = await getRecentProgress(token)
+          const fallback = {}
+          for (const item of recent?.data || []) {
+            if (!resourceIds.includes(String(item.resourceId))) continue
+            const total = item.totalQuestions || item.metadata?.totalQuestions || 0
+            const answered = item.metadata?.answeredCount || 0
+            fallback[item.resourceId] = {
+              status: item.status,
+              percent: total > 0 ? Math.min(100, Math.round((answered / total) * 100)) : 0,
+              accuracy: null,
+              attemptCount: 1,
+              globalAttempts: 0,
+              metadata: item.metadata || {},
+            }
+          }
+          setProgressMap(fallback)
+        } catch (_) {
+          setProgressMap({})
+        }
+      })
+    }, [token, testIdsKey])
+  )
+
   // ── Loading / empty guards ─────────────────────────────────────────────────
   if (seriesStatus === 'loading') return (
     <View className="flex-1 items-center justify-center bg-orange-50">
@@ -119,6 +211,9 @@ export default function TestSeriesDetail() {
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleStartTestClick = (test) => {
     if (!series.isPaid || test.isFree || hasActiveSub) {
+      resumeProgressRef.current = progressMap[test._id]?.status === 'in_progress'
+        ? progressMap[test._id]
+        : null
       // Only set loading for this specific test ID
       setLoadingTestId(test._id)
       dispatch(fetchTestById({ seriesId: series._id, testId: test._id }))
@@ -156,10 +251,18 @@ export default function TestSeriesDetail() {
   }, [])
 
   const activeGroupData = activeGroup ? groups.find(g => g.title === activeGroup) : null
+  const activeGroupTests = activeGroupData?.data || []
+  const filteredActiveGroupTests = searchQuery.trim()
+    ? activeGroupTests.filter(t =>
+        t.title?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+        t.description?.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+    : activeGroupTests
+  const completedInGroup = activeGroupTests.filter(t => progressMap[t._id]?.status === 'completed').length
 
   // ── Subject tile (grid cell) ───────────────────────────────────────────────
   const renderGroupTile = (item) => {
-    const st       = getGroupStyle(item.title)
+    const st        = getTopicStyle(item.title)
     const freeCount = item.data.filter(t => t.isFree).length
     return (
       <TouchableOpacity
@@ -171,42 +274,42 @@ export default function TestSeriesDetail() {
           backgroundColor: '#fff',
           borderRadius: 18,
           overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: '#E8E4F4',
         }]}
       >
         <View
           className="items-center justify-center"
-          style={{ height: 78, backgroundColor: st.bg }}
+          style={{ height: 100, backgroundColor: st.bg }}
         >
-          <View
-            className="w-11 h-11 rounded-full items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.48)' }}
-          >
-            <Feather name={st.icon} size={22} color={st.fg} />
-          </View>
-        </View>
-
-        <View className="px-2.5 py-2">
-          <Text
-            className="text-[12.5px] font-extrabold text-slate-900 mb-0.5"
-            numberOfLines={1}
-          >
-            {item.title}
-          </Text>
-          <Text className="text-[10.5px] text-slate-400 font-semibold">
-            {item.data.length} test{item.data.length !== 1 ? 's' : ''}
-          </Text>
+          {st.asset ? (
+            <Image
+              source={st.asset}
+              style={{ width: 76, height: 76 }}
+              resizeMode="contain"
+            />
+          ) : (
+            <Feather name={st.icon} size={32} color={st.fg} />
+          )}
         </View>
 
         {freeCount > 0 && (
-          <View className="absolute top-1.5 right-1.5 bg-emerald-50 rounded-md px-1.5 py-0.5">
-            <Text className="text-[8.5px] font-extrabold text-emerald-800">
+          <View className="absolute top-2 right-2 bg-emerald-500 rounded-md px-1.5 py-0.5">
+            <Text className="text-[8.5px] font-extrabold text-white">
               {freeCount} FREE
             </Text>
           </View>
         )}
-        <View style={{ height: 2.5, backgroundColor: st.fg, opacity: 0.25 }} />
+
+        <View className="px-3 py-2.5">
+          <Text
+            className="text-[13px] font-extrabold text-slate-900 mb-0.5"
+            numberOfLines={1}
+          >
+            {item.title}
+          </Text>
+          <Text className="text-[11px] text-slate-400 font-semibold">
+            {item.data.length} test{item.data.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
       </TouchableOpacity>
     )
   }
@@ -215,6 +318,9 @@ export default function TestSeriesDetail() {
   const renderTestCard = (item, index) => {
     const isLocked = series.isPaid && !item.isFree && !hasActiveSub
     const isThisTestLoading = isTestLoading && loadingTestId === item._id
+    const progress = progressMap[item._id]
+    const isCompleted  = progress?.status === 'completed'
+    const isInProgress = progress?.status === 'in_progress'
 
     return (
       <View
@@ -226,11 +332,11 @@ export default function TestSeriesDetail() {
         <View className="flex-1 flex-row items-center">
           <View
             className={`w-9 h-9 rounded-xl items-center justify-center mr-3
-              ${isLocked ? 'bg-slate-100' : 'bg-orange-50'}`}
+              ${isLocked ? 'bg-slate-100' : 'bg-slate-100'}`}
           >
             {isLocked
               ? <Feather name="lock" size={13} color="#94A3B8" />
-              : <Text className="text-[13px] font-black text-orange-500">{index + 1}</Text>
+              : <Text className="text-[13px] font-black text-slate-600">{index + 1}</Text>
             }
           </View>
 
@@ -261,23 +367,44 @@ export default function TestSeriesDetail() {
                   <Text className="text-[8.5px] font-extrabold text-emerald-800">FREE</Text>
                 </View>
               )}
+              {(progress?.attemptCount > 0 || progress?.globalAttempts > 0) && (
+                <View className="flex-row items-center bg-slate-100 rounded-full px-1.5 py-0.5 ml-2">
+                  <Feather name="user" size={8} color="#64748B" />
+                  <Text className="text-[8.5px] font-extrabold text-slate-600 ml-0.5">
+                    {formatCount(progress.attemptCount || progress.globalAttempts)} Attempts
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
 
         <TouchableOpacity
           onPress={() => handleStartTestClick(item)}
-          disabled={isTestLoading || isOrderLoading} 
-          className={`items-center justify-center px-4 py-2.5 rounded-xl ml-3 min-w-[70px]
-            ${isLocked ? 'bg-slate-100' : 'bg-orange-500'}`}
+          disabled={isTestLoading || isOrderLoading}
+          className={`flex-row items-center justify-center px-4 py-2.5 rounded-xl ml-3 min-w-[70px]
+            ${isLocked ? 'bg-slate-100' : isCompleted || isInProgress ? 'bg-blue-600' : 'bg-orange-500'}`}
         >
-          {isThisTestLoading
-            ? <ActivityIndicator size="small" color={isLocked ? '#94A3B8' : '#fff'} />
-            : <Text className={`text-[11px] font-extrabold
-                ${isLocked ? 'text-slate-500' : 'text-white'}`}>
-                {isLocked ? 'Unlock' : 'Start'}
-              </Text>
-          }
+          {isThisTestLoading ? (
+            <ActivityIndicator size="small" color={isLocked ? '#94A3B8' : '#fff'} />
+          ) : isLocked ? (
+            <>
+              <Feather name="lock" size={11} color="#64748B" style={{ marginRight: 4 }} />
+              <Text className="text-[11px] font-extrabold text-slate-500">Unlock</Text>
+            </>
+          ) : isCompleted ? (
+            <>
+              <Text className="text-[11px] font-extrabold text-white mr-2">Re-attempt</Text>
+              <ProgressRing percent={progress.percent ?? 100} size={26} strokeWidth={2.5} color="#22C55E" />
+            </>
+          ) : isInProgress ? (
+            <>
+              <Text className="text-[11px] font-extrabold text-white mr-2">Resume</Text>
+              <ProgressRing percent={progress.percent} size={26} strokeWidth={2.5} color="#fff" />
+            </>
+          ) : (
+            <Text className="text-[11px] font-extrabold text-white">Start Now</Text>
+          )}
         </TouchableOpacity>
       </View>
     )
@@ -286,64 +413,63 @@ export default function TestSeriesDetail() {
   // ── Series header ──────────────────────────────────────────────────────────
   const renderSeriesHeader = () => (
     <View>
-      <View
-        className="bg-white rounded-2xl p-4 mb-3 border border-slate-200/80"
-        style={SHADOW_LG}
-      >
-        <View className="flex-row items-start mb-3">
-          <View className="w-12 h-12 rounded-[14px] bg-orange-50 items-center justify-center mr-3">
-            <Feather name="book" size={24} color="#F97316" />
-          </View>
-
-          <View className="flex-1 mr-2">
-            <Text
-              className="text-[15px] font-extrabold text-slate-900 leading-[22px]"
-              numberOfLines={2}
-            >
-              {series.title}
-            </Text>
-            <Text className="text-[11px] text-slate-500 font-semibold mt-0.5">
-              📖 {series.bookName}
-            </Text>
-            {series.author ? (
-              <Text className="text-[10.5px] text-slate-400 font-medium mt-0.5">
-                by {series.author}
-              </Text>
-            ) : null}
-          </View>
-
-          <View className={`self-start px-2 py-1 rounded-lg
-            ${series.isPaid
-              ? 'bg-amber-50 border border-amber-200'
-              : 'bg-emerald-50 border border-emerald-200'
-            }`}
-          >
-            <Text className={`text-[9px] font-extrabold tracking-widest
-              ${series.isPaid ? 'text-amber-800' : 'text-emerald-800'}`}
-            >
-              {series.isPaid ? 'PAID' : 'FREE'}
-            </Text>
-          </View>
+      <View style={{ marginBottom: -48, zIndex: 2 }} className="flex-row items-center px-3">
+        <View style={[SHADOW_LG, { transform: [{ rotate: '-8deg' }] }]}>
+          <Image
+            source={LUCENT_LOGO}
+            style={{ width: 88, height: 116, borderRadius: 8 }}
+            resizeMode="contain"
+          />
         </View>
 
+        <View className="flex-1 ml-3 mr-2">
+          <Text
+            className="text-[15px] font-extrabold text-slate-900 leading-[20px]"
+            numberOfLines={2}
+          >
+            {series.title}
+          </Text>
+          {series.author ? (
+            <Text className="text-[11px] text-slate-400 font-semibold mt-0.5">
+              by {series.author}
+            </Text>
+          ) : null}
+        </View>
+
+        <View
+          className="w-14 h-14 rounded-full items-center justify-center border-4 border-white"
+          style={[SHADOW_MD, { backgroundColor: '#123B3B' }]}
+        >
+          <Feather name="award" size={22} color="#F5C242" />
+        </View>
+      </View>
+
+      <View
+        className="bg-white rounded-2xl px-4 pb-4 mb-3 border border-slate-200/80 items-center"
+        style={[SHADOW_LG, { paddingTop: 56 }]}
+      >
         {series.description ? (
-          <Text className="text-[12.5px] text-slate-500 leading-5 mb-3">
+          <Text className="text-[12.5px] text-slate-500 leading-5 text-center">
             {series.description}
           </Text>
         ) : null}
 
-        <View className="flex-row border-t border-slate-100 pt-3">
+        <View className="flex-row w-full mt-3" style={{ gap: 8 }}>
           {[
-            { icon: 'layers', val: `${testsForRender.length || 0}`, label: 'Tests' },
-            { icon: 'tag',    val: series.subject,                  label: 'Subject' },
-            { icon: 'grid',   val: series.category,                 label: 'Category' },
+            { icon: 'layers', val: `${testsForRender.length || 0}`, label: 'Tests',    fg: '#2C5AA0', bg: '#E6F1FB' },
+            { icon: 'tag',    val: series.subject,                  label: 'Subject',  fg: '#C2622C', bg: '#FBEDE5' },
+            { icon: 'grid',   val: series.category,                 label: 'Category', fg: '#6D5CDE', bg: '#EDEBFD' },
           ].map((s, i) => (
-            <View key={i} className="flex-1 items-center gap-1">
-              <Feather name={s.icon} size={13} color="#F97316" />
-              <Text className="text-[12.5px] font-extrabold text-slate-900 mt-0.5">
+            <View
+              key={i}
+              className="flex-1 items-center px-2 py-2 rounded-xl border border-slate-100"
+              style={{ backgroundColor: s.bg }}
+            >
+              <Feather name={s.icon} size={13} color={s.fg} />
+              <Text className="text-[11.5px] font-extrabold text-slate-900 mt-1" numberOfLines={1}>
                 {s.val}
               </Text>
-              <Text className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-wide">
+              <Text className="text-[8.5px] text-slate-500 font-semibold uppercase tracking-wide mt-0.5">
                 {s.label}
               </Text>
             </View>
@@ -384,37 +510,49 @@ export default function TestSeriesDetail() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View className="flex-row items-center bg-amber-50 rounded-2xl p-3.5 mb-3 border-2 border-amber-300">
-            <View className="w-8 h-8 rounded-xl bg-amber-100 items-center justify-center mr-2.5">
-              <Feather name="lock" size={14} color="#92400E" />
+          <LinearGradient
+            colors={['#7C3AED', '#F97316']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ borderRadius: 18, padding: 14, marginBottom: 12 }}
+            className="flex-row items-center"
+          >
+            <View className="w-8 h-8 rounded-xl bg-white/25 items-center justify-center mr-2.5">
+              <Feather name="lock" size={14} color="#fff" />
             </View>
             <View className="flex-1">
-              <Text className="text-[12.5px] font-extrabold text-amber-900">
+              <Text className="text-[12.5px] font-extrabold text-white">
                 Premium Series
               </Text>
-              <Text className="text-[10.5px] text-amber-700 mt-0.5 leading-4">
-                {series.freeTestsCount || 1} free test{series.freeTestsCount > 1 ? 's' : ''} available
-                {' • '}Full unlock:{' '}
-                {series.discountedPrice > 0 && series.discountedPrice < series.price
-                  ? `₹${series.discountedPrice}`
-                  : `₹${series.price}`}
-                {' '}/ 30 days
+              <Text className="text-[10.5px] text-white/85 mt-0.5 leading-4">
+                Free for a limited time • Unlock all mock tests today
               </Text>
             </View>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={handleBuyNow}
               disabled={isOrderLoading}
-              className={`bg-orange-500 px-3.5 py-2.5 rounded-xl min-w-[70px] items-center
+              className={`bg-white px-3.5 py-2.5 rounded-xl min-w-[70px] items-center
                 ${isOrderLoading ? 'opacity-70' : ''}`}
             >
               {isOrderLoading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text className="text-white font-extrabold text-xs">
-                    Buy ₹{displayAmount}
+                ? <ActivityIndicator size="small" color="#F97316" />
+                : (
+                  <Text className="text-orange-600 font-extrabold text-xs">
+                    {series.discountedPrice > 0 && series.discountedPrice < series.price ? (
+                      <>
+                        <Text style={{ textDecorationLine: 'line-through', color: '#C2410C99' }}>
+                          ₹{series.price}
+                        </Text>
+                        {'  '}₹{displayAmount}
+                      </>
+                    ) : (
+                      <>Buy ₹{displayAmount}</>
+                    )}
                   </Text>
+                )
               }
-            </TouchableOpacity>
-          </View>
+            </TouchableOpacity> */}
+          </LinearGradient>
         )
       )}
 
@@ -430,22 +568,6 @@ export default function TestSeriesDetail() {
       <StatusBar barStyle="light-content" backgroundColor="#F97316" translucent={false} />
 
       <View style={{ backgroundColor: '#F97316', paddingTop: insets.top }} />
-      
-      {/* Hero Banner */}
-      {series.coverImage && (
-        <View className="relative h-40 bg-gray-200 overflow-hidden mb-3">
-          <Image 
-            source={{ uri: series.coverImage }}
-            style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-          />
-          <View className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          <View className="absolute bottom-0 left-0 right-0 p-4">
-            <Text className="text-white font-bold text-lg leading-6" numberOfLines={2}>
-              {series.title}
-            </Text>
-          </View>
-        </View>
-      )}
 
       <View style={{ backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
         <View
@@ -463,6 +585,15 @@ export default function TestSeriesDetail() {
             {activeGroup || series.title}
           </Text>
 
+          {activeGroup && (
+            <TouchableOpacity
+              onPress={() => { setSearchOpen(o => !o); if (searchOpen) setSearchQuery('') }}
+              className="p-2 rounded-xl bg-gray-100 mr-2"
+            >
+              <Feather name={searchOpen ? 'x' : 'search'} size={18} color="#1C2B42" />
+            </TouchableOpacity>
+          )}
+
           {isAuthenticated && !activeGroup && (
             <TouchableOpacity
               onPress={() => router.push('/my-subscriptions')}
@@ -472,6 +603,20 @@ export default function TestSeriesDetail() {
             </TouchableOpacity>
           )}
         </View>
+
+        {activeGroup && searchOpen && (
+          <View className="flex-row items-center mx-4 mb-3 px-3 py-2 rounded-xl bg-gray-100">
+            <Feather name="search" size={14} color="#94A3B8" />
+            <TextInput
+              autoFocus
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={`Search in ${activeGroup}...`}
+              placeholderTextColor="#94A3B8"
+              className="flex-1 ml-2 text-[13px] text-slate-800"
+            />
+          </View>
+        )}
       </View>
 
       {/* ── Scrollable body ── */}
@@ -485,43 +630,53 @@ export default function TestSeriesDetail() {
         {activeGroup ? (
           <>
             <View
-              className="flex-row items-center rounded-2xl p-3 mb-3"
-              style={{ backgroundColor: getGroupStyle(activeGroup).bg }}
+              className="flex-row items-center bg-white rounded-2xl p-3 mb-4 border border-slate-200/80"
+              style={SHADOW_MD}
             >
               <View
-                className="w-10 h-10 rounded-[12px] items-center justify-center mr-2.5"
-                style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}
+                className="w-16 h-16 rounded-xl items-center justify-center mr-3"
+                style={{ backgroundColor: getTopicStyle(activeGroup).bg }}
               >
-                <Feather
-                  name={getGroupStyle(activeGroup).icon}
-                  size={18}
-                  color={getGroupStyle(activeGroup).fg}
-                />
+                {getTopicStyle(activeGroup).asset ? (
+                  <Image
+                    source={getTopicStyle(activeGroup).asset}
+                    style={{ width: 56, height: 56 }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Feather name={getTopicStyle(activeGroup).icon} size={30} color={getTopicStyle(activeGroup).fg} />
+                )}
               </View>
+
               <View className="flex-1">
-                <Text
-                  className="text-[13.5px] font-extrabold"
-                  style={{ color: getGroupStyle(activeGroup).fg }}
-                >
-                  {activeGroup}
+                <Text className="text-[15px] font-extrabold text-slate-900">
+                  {activeGroupTests.length} Test{activeGroupTests.length !== 1 ? 's' : ''} available
                 </Text>
-                <Text
-                  className="text-[10.5px] font-semibold mt-0.5 opacity-75"
-                  style={{ color: getGroupStyle(activeGroup).fg }}
-                >
-                  {activeGroupData?.data.length || 0}{' '}
-                  test{(activeGroupData?.data.length || 0) !== 1 ? 's' : ''}
+                <View className="h-1.5 rounded-full bg-slate-100 mt-2 overflow-hidden">
+                  <View
+                    className="h-full rounded-full bg-blue-600"
+                    style={{
+                      width: `${activeGroupTests.length ? Math.round((completedInGroup / activeGroupTests.length) * 100) : 0}%`,
+                    }}
+                  />
+                </View>
+                <Text className="text-[10.5px] text-slate-400 font-semibold mt-1.5">
+                  {completedInGroup}/{activeGroupTests.length} Completed
                 </Text>
               </View>
             </View>
 
-            {activeGroupData?.data.length
-              ? activeGroupData.data.map((item, idx) => renderTestCard(item, idx))
+            <Text className="text-[13px] font-extrabold text-slate-800 mb-3 tracking-wide">
+              {activeGroup} Test Pages
+            </Text>
+
+            {filteredActiveGroupTests.length
+              ? filteredActiveGroupTests.map((item, idx) => renderTestCard(item, idx))
               : (
                 <View className="items-center justify-center py-14">
                   <Feather name="inbox" size={34} color="#CBD5E1" />
                   <Text className="text-slate-400 font-semibold text-sm mt-3">
-                    No tests in this group yet
+                    {searchQuery.trim() ? 'No tests match your search' : 'No tests in this group yet'}
                   </Text>
                 </View>
               )

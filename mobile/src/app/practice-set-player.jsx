@@ -49,15 +49,24 @@ const safeParsePractice = value => {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function PracticeSetPlayer() {
   const insets = useSafeAreaInsets();
-  const { practice, currentQuestion } = useLocalSearchParams();
+  const { practice, currentQuestion, answers: answersParam } = useLocalSearchParams();
   const router = useRouter();
 
   const [parsedPractice, setParsedPractice] = useState(() => safeParsePractice(practice));
   const questions = parsedPractice.questions || [];
   const initialQuestion = Math.max(0, Number.parseInt(Array.isArray(currentQuestion) ? currentQuestion[0] : currentQuestion || '0', 10) || 0);
+  const initialAnswers = (() => {
+    try {
+      const raw = Array.isArray(answersParam) ? answersParam[0] : answersParam;
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  })();
 
   const [current, setCurrent] = useState(initialQuestion);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState(initialAnswers);
   const [showAnswer, setShowAnswer] = useState({});
   const [bookmarked, setBookmarked] = useState({});   // { index: true/false }
   const [savingBookmark, setSavingBookmark] = useState({}); // { index: true } while API call
@@ -67,6 +76,7 @@ export default function PracticeSetPlayer() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [isLoadingPractice, setIsLoadingPractice] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const progressStartedRef = React.useRef(false);
 
   const token = useSelector((state) => state.auth.token);
 
@@ -101,6 +111,21 @@ export default function PracticeSetPlayer() {
       })
       .finally(() => setIsLoadingPractice(false));
   }, [parsedPractice?._id, questions.length]);
+
+  // Ensure direct completion is recorded and Resume has a server-side session.
+  useEffect(() => {
+    if (!token || !parsedPractice?._id || questions.length === 0 || progressStartedRef.current) return;
+    progressStartedRef.current = true;
+    saveProgress(token, {
+      resourceId: parsedPractice._id,
+      resourceType: 'practice_set',
+      resourceTitle: parsedPractice.title || '',
+      currentQuestion: initialQuestion,
+      totalQuestions: questions.length,
+      answeredCount: Object.keys(answers).length,
+      metadata: { answers },
+    });
+  }, [token, parsedPractice?._id, questions.length]);
 
   // ─── PRELOAD TRANSLATIONS ───
   useEffect(() => {
@@ -142,6 +167,7 @@ export default function PracticeSetPlayer() {
               currentQuestion: current,
               totalQuestions: questions.length,
               answeredCount: Object.keys(answers).length,
+              metadata: { answers },
             });
           }
           router.back();

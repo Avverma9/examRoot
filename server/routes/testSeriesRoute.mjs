@@ -6,6 +6,7 @@ import {
   getAllTestSeries,
   getTestSeriesById,
   getTestById,
+  getStandaloneTestById,
   updateTestSeries,
   addSeriesTests,
   updateSeriesTestMeta,
@@ -25,6 +26,7 @@ const router = express.Router();
 router.post("/", createTestSeries);
 router.post("/bulk", bulkCreateTestSeries);
 router.get("/", getAllTestSeries);
+router.get("/test/:testId", optionalAuth, getStandaloneTestById);
 router.get("/:id", getTestSeriesById);
 router.get("/:id/tests-meta", getTestsMeta);
 

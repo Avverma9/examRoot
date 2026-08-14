@@ -151,8 +151,16 @@ export default function MockTestPlayer() {
   const touchX = useRef(0);
   const token = useSelector((state) => state.auth?.token);
   const timerRef = useRef(null);
+  const answersRef = useRef(answers);
+  const submittedRef = useRef(submitted);
+  const completeTestRef = useRef(null);
+  const progressStartedRef = useRef(false);
+  const saveExitLockRef = useRef(false);
   const pulseAnim = useMemo(() => new Animated.Value(1), []);
   const paletteAnim = useRef(new Animated.Value(0)).current;
+
+  answersRef.current = answers;
+  submittedRef.current = submitted;
 
   // ─── EFFECTS ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -189,6 +197,51 @@ export default function MockTestPlayer() {
       .finally(() => setIsLoadingTest(false));
   }, [parsedTest?._id, questions.length]);
 
+  // Create the in-progress record as soon as the test is opened. This makes a
+  // direct Submit count as an attempt and also gives Resume something to load.
+  useEffect(() => {
+    if (!token || !parsedTest?._id || questions.length === 0 || progressStartedRef.current) return;
+    progressStartedRef.current = true;
+    saveProgress(token, {
+      resourceId: parsedTest._id,
+      resourceType: 'mock_test',
+      resourceTitle: parsedTest.title || '',
+      currentQuestion: initialQuestion,
+      totalQuestions: questions.length,
+      answeredCount: Object.keys(answersRef.current).length,
+      metadata: {
+        answers: answersRef.current,
+        timeLeft: initialTimeLeft,
+        totalTime: (parsedTest?.duration || 120) * 60,
+      },
+    });
+  }, [token, parsedTest?._id, questions.length]);
+
+  const completeTest = (reason = 'manual') => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    clearInterval(timerRef.current);
+    setSubmitted(true);
+
+    if (token && parsedTest?._id) {
+      const currentAnswers = answersRef.current;
+      const score = questions.filter((q, i) => currentAnswers[i] === (q.options?.indexOf(q.correctAnswer) ?? -1)).length;
+      const acc = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+      completeProgress(token, {
+        resourceId: parsedTest._id,
+        resourceType: 'mock_test',
+        resourceTitle: parsedTest.title || '',
+        status: 'completed',
+        score,
+        accuracy: acc,
+        totalQuestions: questions.length,
+        correctAnswers: score,
+        metadata: { completionReason: reason },
+      });
+    }
+  };
+  completeTestRef.current = completeTest;
+
   useEffect(() => {
     if (timeLeft <= 60 && !submitted) {
       Animated.loop(
@@ -210,7 +263,7 @@ export default function MockTestPlayer() {
       setTimeLeft(t => {
         if (t <= 1) { 
           clearInterval(timerRef.current); 
-          setSubmitted(true); 
+          completeTestRef.current?.('timeout');
           return 0; 
         }
         return t - 1;
@@ -223,7 +276,7 @@ export default function MockTestPlayer() {
         clearInterval(timerRef.current);
       }
     };
-  }, []); // Empty dependency is correct - only start once
+  }, []); // Timer starts once; refs keep completion state current.
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -270,11 +323,12 @@ export default function MockTestPlayer() {
 
   // ─── HELPERS ───────────────────────────────────────────────────────────────
   async function handleSaveAndExit() {
-    if (isSavingExit) {
+    if (saveExitLockRef.current || isSavingExit) {
       console.log('⚠️ Already saving, ignoring duplicate click');
       return; // Prevent multiple clicks
     }
     
+    saveExitLockRef.current = true;
     setIsSavingExit(true);
     console.log('💾 Saving progress before exit...');
     
@@ -297,6 +351,7 @@ export default function MockTestPlayer() {
         
         console.log('📤 Sending progress:', progressData);
         const result = await saveProgress(token, progressData);
+        if (!result?.success) throw new Error(result?.message || 'Progress was not saved');
         console.log('✅ Progress saved:', result);
       } else {
         console.log('⚠️ No token or test ID, skipping save');
@@ -309,7 +364,6 @@ export default function MockTestPlayer() {
       setExitDialogVisible(false);
       
       // Small delay to ensure state updates
-      await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('🏠 Navigating back...');
       // Navigate back
@@ -318,6 +372,7 @@ export default function MockTestPlayer() {
     } catch (error) {
       console.error('❌ Save error:', error);
       Alert.alert('Error', 'Failed to save progress. Please try again.');
+      saveExitLockRef.current = false;
       setIsSavingExit(false); // Re-enable button on error
     }
     // Note: Don't set setIsSavingExit(false) on success - let unmount handle it
@@ -336,21 +391,7 @@ export default function MockTestPlayer() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Submit', onPress: () => {
-            clearInterval(timerRef.current);
-            setSubmitted(true);
-            if (token && parsedTest?._id) {
-              const score = questions.filter((q, i) => answers[i] === (q.options?.indexOf(q.correctAnswer) ?? -1)).length;
-              const acc = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-              completeProgress(token, {
-                resourceId: parsedTest._id,
-                resourceType: 'mock_test',
-                status: 'completed',
-                score,
-                accuracy: acc,
-                totalQuestions: questions.length,
-                correctAnswers: score,
-              });
-            }
+            completeTest('manual');
           },
         },
       ]
@@ -616,7 +657,7 @@ export default function MockTestPlayer() {
   const kickerText = parsedTest.seriesTitle || 'MOCK TEST';
 
   // ─── EXIT DIALOG MODAL ─────────────────────────────────────────────────────
-  const ExitDialog = () => (
+  const exitDialog = (
     <Modal
       visible={exitDialogVisible}
       transparent
@@ -853,7 +894,7 @@ export default function MockTestPlayer() {
         </ScrollView>
       </Animated.View>
 
-      <ExitDialog />
+      {exitDialog}
     </View>
   );
 }

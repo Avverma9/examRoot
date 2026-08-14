@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, TextInput, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchTestSeries } from '../../store/slices/testSeriesSlice'
 import { useRouter } from 'expo-router'
 
+const LUCENT_LOGO = require('../../../assets/lucent.png')
 const FILTERS = ['All', 'Free', 'Paid']
 
 export default function TestSeriesScreen() {
@@ -82,76 +84,71 @@ export default function TestSeriesScreen() {
             <Text style={styles.emptyText}>No test series found</Text>
           </View>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const hasDiscount = item.isPaid && item.discountedPrice > 0 && item.discountedPrice < item.price
+          const discountPct = hasDiscount ? Math.round((1 - item.discountedPrice / item.price) * 100) : 0
+          return (
           <TouchableOpacity
             onPress={() => router.push({ pathname: '/test-series-detail', params: { id: item._id } })}
             style={styles.card}
             activeOpacity={0.85}
           >
-            {/* Thumbnail Image or Icon */}
-            {item.thumbnail ? (
-              <View style={styles.thumbnailWrap}>
-                <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-              </View>
-            ) : null}
-
-            {/* Top: Title + Badge */}
             <View style={styles.cardTop}>
-              <View style={styles.cardIconWrap}>
-                <Feather name="book" size={20} color="#8B5CF6" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.cardBook} numberOfLines={1}>📖 {item.bookName}</Text>
-              </View>
-              <View style={[styles.badge, item.isPaid ? styles.badgePaid : styles.badgeFree]}>
-                <Text style={[styles.badgeText, item.isPaid ? styles.badgeTextPaid : styles.badgeTextFree]}>
-                  {item.isPaid ? 'PAID' : 'FREE'}
-                </Text>
-              </View>
-            </View>
+              <Image source={LUCENT_LOGO} style={styles.coverImage} resizeMode="contain" />
 
-            {/* Meta */}
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Feather name="layers" size={12} color="#64748B" />
-                <Text style={styles.metaText}>{item.totalTests || item.tests?.length || 0} Tests</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Feather name="tag" size={12} color="#64748B" />
-                <Text style={styles.metaText}>{item.subject}</Text>
-              </View>
-              {item.author ? (
-                <View style={styles.metaItem}>
-                  <Feather name="user" size={12} color="#64748B" />
-                  <Text style={styles.metaText} numberOfLines={1}>{item.author}</Text>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                {item.author ? (
+                  <Text style={styles.cardBook} numberOfLines={1}>{item.author}</Text>
+                ) : null}
+                {item.description ? (
+                  <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+                ) : null}
+
+                <View style={styles.pillRow}>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>{item.totalTests || item.tests?.length || 0} Tests</Text>
+                  </View>
+                  {item.subject ? (
+                    <View style={styles.pill}>
+                      <Text style={styles.pillText} numberOfLines={1}>{item.subject}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
+              </View>
             </View>
 
             {/* Footer */}
             <View style={styles.cardFooter}>
               {item.isPaid ? (
                 <View style={styles.priceWrap}>
-                  {item.discountedPrice > 0 && item.discountedPrice < item.price ? (
-                    <>
-                      <Text style={styles.priceFinal}>₹{item.discountedPrice}</Text>
-                      <Text style={styles.priceOld}>₹{item.price}</Text>
-                    </>
-                  ) : (
-                    <Text style={styles.priceFinal}>₹{item.price}</Text>
+                  {hasDiscount && (
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountBadgeText}>{discountPct}% OFF</Text>
+                    </View>
                   )}
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                    <Text style={styles.priceFinal}>₹{hasDiscount ? item.discountedPrice : item.price}</Text>
+                    {hasDiscount && <Text style={styles.priceOld}>₹{item.price}</Text>}
+                  </View>
                 </View>
               ) : (
                 <Text style={styles.freeLabel}>Free Access</Text>
               )}
-              <View style={styles.startBtn}>
+
+              <LinearGradient
+                colors={['#8B5CF6', '#EC4899']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.startBtn}
+              >
                 <Text style={styles.startBtnText}>View Series</Text>
-                <Feather name="chevron-right" size={14} color="#8B5CF6" />
-              </View>
+                <Feather name="chevron-right" size={14} color="#fff" />
+              </LinearGradient>
             </View>
           </TouchableOpacity>
-        )}
+          )
+        }}
       />
     </View>
   )
@@ -177,29 +174,23 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 14, paddingBottom: 20 },
 
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 4, elevation: 2 },
-  thumbnailWrap: { width: '100%', height: 160, borderRadius: 12, overflow: 'hidden', marginBottom: 12, backgroundColor: '#F1F5F9' },
-  thumbnail: { width: '100%', height: '100%', resizeMode: 'cover' },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  cardIconWrap: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', lineHeight: 20, marginBottom: 3 },
-  cardBook: { fontSize: 12, color: '#64748B', fontWeight: '500' },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  coverImage: { width: 76, height: 100, borderRadius: 6 },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A', lineHeight: 20, marginBottom: 2 },
+  cardBook: { fontSize: 12, color: '#64748B', fontWeight: '600', marginBottom: 4 },
+  cardDesc: { fontSize: 11.5, color: '#94A3B8', fontWeight: '500', lineHeight: 16, marginBottom: 8 },
 
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginLeft: 8 },
-  badgeFree: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
-  badgePaid: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  badgeTextFree: { color: '#065F46' },
-  badgeTextPaid: { color: '#92400E' },
-
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 14 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  pillText: { fontSize: 10.5, fontWeight: '700', color: '#475569' },
 
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12 },
-  priceWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  priceFinal: { fontSize: 16, fontWeight: '900', color: '#0F172A' },
+  priceWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  discountBadge: { backgroundColor: '#CCFBF1', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  discountBadgeText: { fontSize: 10, fontWeight: '800', color: '#0F766E' },
+  priceFinal: { fontSize: 17, fontWeight: '900', color: '#0F172A' },
   priceOld: { fontSize: 12, color: '#94A3B8', textDecorationLine: 'line-through', fontWeight: '600' },
   freeLabel: { fontSize: 13, fontWeight: '700', color: '#10B981' },
-  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F5F3FF', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  startBtnText: { fontSize: 12, fontWeight: '800', color: '#8B5CF6' },
+  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12 },
+  startBtnText: { fontSize: 12, fontWeight: '800', color: '#fff' },
 })

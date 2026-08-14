@@ -57,6 +57,8 @@ export const API_CONFIG = {
 
 // Computed API URLs
 export const API_URLS = {
+  // For local development, apiConfig from app.json is authoritative. Do not
+  // let the stale EXPO_PUBLIC_API_BASE_URL override the LAN server address.
   BASE: `${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}`,
   ROOT: API_CONFIG.BASE_URL,
 };

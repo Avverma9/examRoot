@@ -1,9 +1,41 @@
 import { Tabs, useRouter, Redirect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+
+// Floating pill behind the active tab icon — gives the bar a raised, 3D feel
+function TabIcon({ name, focused, color }) {
+  if (!focused) {
+    return <Feather name={name} size={23} color={color} />;
+  }
+  return (
+    <LinearGradient
+      colors={['#FDBA74', '#F97316']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -18,
+        shadowColor: '#C2410C',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 8,
+        borderWidth: 3,
+        borderColor: '#ffffff',
+      }}
+    >
+      <Feather name={name} size={20} color="#ffffff" />
+    </LinearGradient>
+  );
+}
 
 export default function TabLayout() {
   const router = useRouter();
@@ -40,15 +72,22 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
             paddingBottom: Math.max(5, insets.bottom),
-            paddingTop: 5,
-            height: 60 + Math.max(0, insets.bottom),
+            paddingTop: 12,
+            height: 64 + Math.max(0, insets.bottom),
             backgroundColor: '#ffffff',
-            borderTopWidth: 1,
-            borderTopColor: '#FED7AA',
+            borderTopWidth: 0,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 14,
+            elevation: 16,
         },
         tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '600',
+            marginTop: 2,
         },
         headerStyle: {
           backgroundColor: '#F97316',
@@ -76,7 +115,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Feather name="home" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="home" color={color} focused={focused} />,
           headerTitle: () => (
             <View className="flex-row items-center">
               <Image 
@@ -99,7 +138,7 @@ export default function TabLayout() {
         options={{
           title: 'Test Series',
           headerTitle: 'Book Test Series',
-          tabBarIcon: ({ color }) => <Feather name="book" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="book" color={color} focused={focused} />,
         }}
       />
 
@@ -109,7 +148,7 @@ export default function TabLayout() {
         options={{
           title: 'PYQ',
           headerTitle: 'Previous Year Questions',
-          tabBarIcon: ({ color }) => <Feather name="clock" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="clock" color={color} focused={focused} />,
         }}
       />
 
@@ -119,7 +158,7 @@ export default function TabLayout() {
         options={{
           title: 'Videos',
           headerTitle: 'Video Lectures',
-          tabBarIcon: ({ color }) => <Feather name="play-circle" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name="play-circle" color={color} focused={focused} />,
         }}
       />
 
