@@ -1,15 +1,13 @@
+import "dotenv/config";
 import cluster from "cluster";
 import os from "os";
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import compression from "compression";
-import dotenv from "dotenv";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import routes from "./routes/index.mjs";
 import User from "./models/User.mjs";
-
-dotenv.config();
 
 const app = express();
 // Default backend server port should be 5000; panel runs on 3000 locally

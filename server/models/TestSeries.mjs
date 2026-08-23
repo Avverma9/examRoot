@@ -10,6 +10,7 @@ const testSeriesSchema = new mongoose.Schema(
     subject: { type: String, required: true },
     category: { type: String, required: true },
     coverImage: { type: String, default: "" },
+    groupIcons: { type: Map, of: String, default: {} }, // group name -> R2 public image URL
     thumbnail: { type: String, default: "" }, // R2 public URL for series thumbnail
     language: { type: String, default: "English" },
     isPaid: { type: Boolean, default: false },

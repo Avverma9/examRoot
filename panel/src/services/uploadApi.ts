@@ -9,6 +9,9 @@ export const uploadApi = api.injectEndpoints({
         body,
       }),
     }),
+    uploadSeriesIcon: builder.mutation<any, FormData>({
+      query: (body) => ({ url: '/upload/series-icon', method: 'POST', body }),
+    }),
     deleteUpload: builder.mutation<any, { url: string }>({
       query: (body) => ({
         url: '/upload',
@@ -21,5 +24,6 @@ export const uploadApi = api.injectEndpoints({
 
 export const {
   useGetPresignedUrlMutation,
+  useUploadSeriesIconMutation,
   useDeleteUploadMutation,
 } = uploadApi;

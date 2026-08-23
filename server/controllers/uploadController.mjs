@@ -1,5 +1,29 @@
 import { v4 as uuidv4 } from "uuid";
-import { getPresignedUploadUrl, deleteFromR2, keyFromUrl } from "../utils/r2.mjs";
+import { getPresignedUploadUrl, putObjectToR2, deleteFromR2, keyFromUrl } from "../utils/r2.mjs";
+import multer from "multer";
+
+const directUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+export const uploadSeriesIconFile = directUpload.single("icon");
+
+export const uploadSeriesIcon = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "Icon file is required" });
+    if (!["image/jpeg", "image/png", "image/webp"].includes(req.file.mimetype)) {
+      return res.status(400).json({ success: false, message: "Only JPG, PNG, and WEBP images are allowed" });
+    }
+    const ext = req.file.originalname.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+    const key = `series-covers/${uuidv4()}.${ext}`;
+    const publicUrl = await putObjectToR2(key, req.file.buffer, req.file.mimetype);
+    return res.status(201).json({ success: true, publicUrl, key });
+  } catch (error) {
+    console.error("uploadSeriesIcon error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to upload series icon" });
+  }
+};
 
 /**
  * Allowed upload types with their folder and accepted MIME types.

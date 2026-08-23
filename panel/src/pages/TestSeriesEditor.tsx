@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGetTestSeriesByIdQuery, useGetTestSeriesMetaQuery, useUpdateTestSeriesMutation, useCreateTestSeriesMutation, useAddSeriesTestsMutation, usePatchTestMetaMutation, useUpdateTestQuestionsMutation, useDeleteTestMutation } from '../services/testSeriesApi';
-import { Loader2, Plus, Trash2, ArrowLeft, X, Pencil, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { useUploadSeriesIconMutation } from '../services/uploadApi';
+import { Loader2, Plus, Trash2, ArrowLeft, X, Pencil, ChevronLeft, ChevronRight, Copy, Upload } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const bulkTestExample = `[
@@ -171,6 +172,8 @@ export function TestSeriesEditor() {
   const [patchTestMeta, { isLoading: isPatchingMeta }] = usePatchTestMetaMutation();
   const [updateTestQuestions, { isLoading: isSavingQuestions }] = useUpdateTestQuestionsMutation();
   const [deleteTest] = useDeleteTestMutation();
+  const [uploadSeriesIcon] = useUploadSeriesIconMutation();
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
 
   const [formData, setFormData] = useState<any>({
     title: '',
@@ -401,6 +404,43 @@ export function TestSeriesEditor() {
     }
   };
 
+  const handleIconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    return handleGroupIconUpload(event, '__series__');
+  };
+
+  const handleGroupIconUpload = async (event: React.ChangeEvent<HTMLInputElement>, group: string) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsUploadingIcon(true);
+    try {
+      const body = new FormData();
+      body.append('icon', file);
+      const result = await uploadSeriesIcon(body).unwrap();
+      const nextData = (prev: any) => group === '__series__'
+        ? { ...prev, coverImage: result.publicUrl }
+        : { ...prev, groupIcons: { ...(prev.groupIcons || {}), [group]: result.publicUrl } };
+      const nextFields = group === '__series__'
+        ? { coverImage: result.publicUrl }
+        : { groupIcons: { ...((formData.groupIcons as any) || {}), [group]: result.publicUrl } };
+
+      // Existing series: persist the replacement immediately so uploading a
+      // second icon patches the same field instead of waiting for full Save.
+      if (!isNew && id) {
+        await updateSeries({ id, body: nextFields }).unwrap();
+      }
+      setFormData(nextData);
+    } catch (error: any) {
+      alert(error?.data?.message || 'Failed to upload series icon');
+    } finally {
+      setIsUploadingIcon(false);
+      event.target.value = '';
+    }
+  };
+
+  const uniqueGroups = Array.from(new Set(
+    (formData.tests || []).map((test: any) => String(test.group || '').trim()).filter(Boolean)
+  ));
+
   const handleAddTest = () => {
     setFormData({
       ...formData,
@@ -608,6 +648,55 @@ export function TestSeriesEditor() {
                     placeholder="e.g. gk, ssc, lucent"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Series Icon</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-lg border border-zinc-800 bg-zinc-950 flex items-center justify-center overflow-hidden">
+                    {formData.coverImage ? (
+                      <img
+                        src={formData.coverImage.startsWith('http') ? formData.coverImage : `${window.location.protocol}//${window.location.hostname}:5000${formData.coverImage}`}
+                        alt="Series icon preview"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : <span className="text-[10px] text-zinc-600">No icon</span>}
+                  </div>
+                  <label className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+                    {isUploadingIcon ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {isUploadingIcon ? 'Uploading...' : 'Upload icon'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleIconUpload} disabled={isUploadingIcon} className="hidden" />
+                  </label>
+                  <span className="text-[11px] text-zinc-500">PNG/JPG/WEBP, max 5 MB. Saved securely in Cloudflare R2.</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Group Icons</label>
+                {uniqueGroups.length ? (
+                  <div className="space-y-2">
+                    {uniqueGroups.map((group: string) => {
+                      const icon = formData.groupIcons?.[group];
+                      return (
+                        <div key={group} className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-2">
+                          <div className="w-12 h-12 rounded-md border border-zinc-800 flex items-center justify-center overflow-hidden">
+                            {icon ? (
+                              <img
+                                src={icon.startsWith('http') ? icon : `${window.location.protocol}//${window.location.hostname}:5000${icon}`}
+                                alt={`${group} icon preview`}
+                                className="w-full h-full object-contain"
+                              />
+                            ) : <span className="text-[9px] text-zinc-600">No icon</span>}
+                          </div>
+                          <span className="flex-1 text-xs font-semibold text-zinc-200">{group}</span>
+                          <label className="cursor-pointer inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-[11px] font-bold text-white">
+                            <Upload className="w-3.5 h-3.5" />
+                            Set icon
+                            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => handleGroupIconUpload(e, group)} disabled={isUploadingIcon} className="hidden" />
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : <p className="text-[11px] text-zinc-500">Add tests with groups to set group-specific icons.</p>}
               </div>
               <div>
                 <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Description</label>

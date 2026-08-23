@@ -24,6 +24,26 @@ export const r2Client = new S3Client({
 
 const BUCKET = () => process.env.R2_BUCKET_NAME || "examroot";
 
+function getPublicBaseUrl() {
+  const raw = (process.env.R2_PUBLIC_URL || "").trim().replace(/\/$/, "");
+  if (!raw) throw new Error("R2_PUBLIC_URL is missing. Use the bucket's public https://pub-<token>.r2.dev URL or a custom domain.");
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("R2_PUBLIC_URL is invalid. Use the bucket's public https://pub-<token>.r2.dev URL or a custom domain.");
+  }
+
+  const accountId = process.env.R2_ACCOUNT_ID || "";
+  const bucketHost = `${BUCKET()}.${accountId}.r2.dev`;
+  if (parsed.protocol !== "https:" || parsed.hostname === bucketHost || parsed.hostname === `${accountId}.r2.dev`) {
+    throw new Error("R2_PUBLIC_URL is not a public bucket URL. In Cloudflare R2, enable Public access and set the generated https://pub-<token>.r2.dev URL (or a custom domain).");
+  }
+
+  return raw;
+}
+
 /**
  * Generate a presigned PUT URL so the client can upload directly to R2.
  *
@@ -41,13 +61,23 @@ export async function getPresignedUploadUrl(key, contentType, expiresIn = 300) {
     });
 
     const uploadUrl  = await getSignedUrl(r2Client, command, { expiresIn });
-    const publicUrl  = `${(process.env.R2_PUBLIC_URL || "").replace(/\/$/, "")}/${key}`;
+    const publicUrl  = `${getPublicBaseUrl()}/${key}`;
 
     return { uploadUrl, publicUrl };
   } catch (error) {
     console.error("Error generating presigned URL:", error);
     throw new Error(`Failed to generate presigned URL: ${error.message}`);
   }
+}
+
+export async function putObjectToR2(key, body, contentType) {
+  await r2Client.send(new PutObjectCommand({
+    Bucket: BUCKET(),
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  }));
+  return `${getPublicBaseUrl()}/${key}`;
 }
 
 /**
