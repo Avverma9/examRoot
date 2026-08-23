@@ -6,8 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchTestSeries } from '../../store/slices/testSeriesSlice'
 import { useRouter } from 'expo-router'
+import { resolveMediaUrl } from '../../config/app.config'
 
-const LUCENT_LOGO = require('../../../assets/lucent.png')
 const FILTERS = ['All', 'Free', 'Paid']
 
 export default function TestSeriesScreen() {
@@ -94,7 +94,13 @@ export default function TestSeriesScreen() {
             activeOpacity={0.85}
           >
             <View style={styles.cardTop}>
-              <Image source={LUCENT_LOGO} style={styles.coverImage} resizeMode="contain" />
+              {item.coverImage || item.thumbnail ? (
+                <Image
+                  source={{ uri: resolveMediaUrl(item.coverImage || item.thumbnail) }}
+                  style={styles.coverImage}
+                  resizeMode="contain"
+                />
+              ) : <Feather name="book-open" size={40} color="#8B5CF6" />}
 
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>

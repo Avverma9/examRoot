@@ -12,30 +12,49 @@ import { createOrder, clearCurrentOrder } from '../store/slices/paymentSlice'
 import { getProgressStatusBatch, getRecentProgress } from '../services/progressApi'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { resolveMediaUrl } from '../config/app.config'
 
 // ── Subject / topic config — matched by keyword against the free-text group name ────
-const LUCENT_LOGO = require('../../assets/lucent.png')
-
-const TOPIC_REGISTRY = [
-  { match: /geograph/i,            icon: 'globe',       bg: '#fff', fg: '#1D8FCC', asset: require('../../assets/geography.png') },
-  { match: /ecolog|environment/i,  icon: 'feather',      bg: '#fff', fg: '#3B8F2E', asset: require('../../assets/ecology.png') },
-  { match: /econom/i,              icon: 'trending-up', bg: '#fff', fg: '#D89B2E', asset: require('../../assets/economy.png') },
-  { match: /histor/i,              icon: 'clock',        bg: '#fff', fg: '#6D5CDE', asset: require('../../assets/history.png') },
-  { match: /polity|constitution/i, icon: 'shield',       bg: '#fff', fg: '#C2622C', asset: require('../../assets/indian-constitution.png') },
-  { match: /science\s*(?:&|and)\s*technology|science.*technology/i, icon: 'zap', bg: '#fff', fg: '#B4820F', asset: require('../../assets/Science & technology.png') },
-  { match: /physics/i,              icon: 'zap',          bg: '#fff', fg: '#2563EB', asset: require('../../assets/Physics.png') },
-  { match: /chemistry/i,            icon: 'flask',        bg: '#fff', fg: '#7C3AED', asset: require('../../assets/chemistry.png') },
-  { match: /biology/i,              icon: 'heart',        bg: '#fff', fg: '#059669', asset: require('../../assets/biology.png') },
+/* Legacy topic styles retained only as a migration reference; icons now come from server data.
+const LEGACY_TOPIC_REGISTRY = [
+  { match: /geograph/i,            icon: 'globe',       bg: '#fff', fg: '#1D8FCC' },
+  { match: /ecolog|environment/i,  icon: 'feather',      bg: '#fff', fg: '#3B8F2E' },
+  { match: /econom/i,              icon: 'trending-up', bg: '#fff', fg: '#D89B2E' },
+  { match: /histor/i,              icon: 'clock',        bg: '#fff', fg: '#6D5CDE' },
+  { match: /polity|constitution/i, icon: 'shield',       bg: '#fff', fg: '#C2622C' },
+  { match: /science\s*(?:&|and)\s*technology|science.*technology/i, icon: 'zap', bg: '#fff', fg: '#B4820F' },
+  { match: /physics/i,              icon: 'zap',          bg: '#fff', fg: '#2563EB' },
+  { match: /chemistry/i,            icon: 'flask',        bg: '#fff', fg: '#7C3AED' },
+  { match: /biology/i,              icon: 'heart',        bg: '#fff', fg: '#059669' },
   { match: /computer| కంప్యూటर/i,   icon: 'monitor',      bg: '#fff', fg: '#0891B2', asset: require('../../assets/computer.png') },
-  { match: /sports?| खेल/i,         icon: 'award',         bg: '#fff', fg: '#EA580C', asset: require('../../assets/sports.png') },
-  { match: /arts?\s*(?:&|and)\s*culture|culture/i, icon: 'pen-tool', bg: '#fff', fg: '#DB2777', asset: require('../../assets/arts & culture.png') },
-  { match: /miscellaneous|general| विविध/i, icon: 'grid', bg: '#fff', fg: '#64748B', asset: require('../../assets/miscellaneous.png') },
+  { match: /sports?| खेल/i,         icon: 'award',         bg: '#fff', fg: '#EA580C' },
+  { match: /arts?\s*(?:&|and)\s*culture|culture/i, icon: 'pen-tool', bg: '#fff', fg: '#DB2777' },
+  { match: /miscellaneous|general| विविध/i, icon: 'grid', bg: '#fff', fg: '#64748B' },
   { match: /science/i,             icon: 'zap',          bg: '#FAEEDA', fg: '#B4820F' },
   { match: /math/i,                icon: 'percent',      bg: '#FBEAF0', fg: '#C24E7C' },
   { match: /reason/i,              icon: 'cpu',          bg: '#E1F5EE', fg: '#12967A' },
   { match: /english/i,             icon: 'book-open',    bg: '#FCEBEB', fg: '#C43E3E' },
 ]
-const DEFAULT_TOPIC_STYLE = { icon: 'grid', bg: '#f8f8f8', fg: '#D89B2E', asset: null }
+*/
+const TOPIC_REGISTRY = [
+  { match: /geograph/i, icon: 'globe', bg: '#fff', fg: '#1D8FCC' },
+  { match: /ecolog|environment/i, icon: 'feather', bg: '#fff', fg: '#3B8F2E' },
+  { match: /econom/i, icon: 'trending-up', bg: '#fff', fg: '#D89B2E' },
+  { match: /histor/i, icon: 'clock', bg: '#fff', fg: '#6D5CDE' },
+  { match: /polity|constitution/i, icon: 'shield', bg: '#fff', fg: '#C2622C' },
+  { match: /science/i, icon: 'zap', bg: '#FAEEDA', fg: '#B4820F' },
+  { match: /physics/i, icon: 'zap', bg: '#fff', fg: '#2563EB' },
+  { match: /chemistry/i, icon: 'flask', bg: '#fff', fg: '#7C3AED' },
+  { match: /biology/i, icon: 'heart', bg: '#fff', fg: '#059669' },
+  { match: /computer/i, icon: 'monitor', bg: '#fff', fg: '#0891B2' },
+  { match: /sports?/i, icon: 'award', bg: '#fff', fg: '#EA580C' },
+  { match: /arts?|culture/i, icon: 'pen-tool', bg: '#fff', fg: '#DB2777' },
+  { match: /miscellaneous|general/i, icon: 'grid', bg: '#fff', fg: '#64748B' },
+  { match: /math/i, icon: 'percent', bg: '#FBEAF0', fg: '#C24E7C' },
+  { match: /reason/i, icon: 'cpu', bg: '#E1F5EE', fg: '#12967A' },
+  { match: /english/i, icon: 'book-open', bg: '#FCEBEB', fg: '#C43E3E' },
+]
+const DEFAULT_TOPIC_STYLE = { icon: 'grid', bg: '#f8f8f8', fg: '#D89B2E' }
 const getTopicStyle = (name) => TOPIC_REGISTRY.find(t => t.match.test(name)) || DEFAULT_TOPIC_STYLE
 
 // ── Responsive grid helpers ──────────────────────────────────────────────────
@@ -271,6 +290,7 @@ export default function TestSeriesDetail() {
   // ── Subject tile (grid cell) ───────────────────────────────────────────────
   const renderGroupTile = (item) => {
     const st        = getTopicStyle(item.title)
+    const customIcon = series.groupIcons?.[item.title]
     const freeCount = item.data.filter(t => t.isFree).length
     return (
       <TouchableOpacity
@@ -288,9 +308,9 @@ export default function TestSeriesDetail() {
           className="items-center justify-center"
           style={{ height: 100, backgroundColor: st.bg }}
         >
-          {st.asset ? (
+          {customIcon ? (
             <Image
-              source={st.asset}
+              source={{ uri: resolveMediaUrl(customIcon) }}
               style={{ width: 76, height: 76 }}
               resizeMode="contain"
             />
@@ -423,11 +443,13 @@ export default function TestSeriesDetail() {
     <View>
       <View style={{ marginBottom: -48, zIndex: 2 }} className="flex-row items-center px-3">
         <View style={[SHADOW_LG, { transform: [{ rotate: '-8deg' }] }]}>
-          <Image
-            source={LUCENT_LOGO}
-            style={{ width: 88, height: 116, borderRadius: 8 }}
-            resizeMode="contain"
-          />
+          {series.coverImage || series.thumbnail ? (
+            <Image
+              source={{ uri: resolveMediaUrl(series.coverImage || series.thumbnail) }}
+              style={{ width: 88, height: 116, borderRadius: 8 }}
+              resizeMode="contain"
+            />
+          ) : <Feather name="book-open" size={48} color="#8B5CF6" />}
         </View>
 
         <View className="flex-1 ml-3 mr-2">
@@ -645,10 +667,10 @@ export default function TestSeriesDetail() {
                 className="w-16 h-16 rounded-xl items-center justify-center mr-3"
                 style={{ backgroundColor: getTopicStyle(activeGroup).bg }}
               >
-                {getTopicStyle(activeGroup).asset ? (
+                {series.groupIcons?.[activeGroup] ? (
                   <Image
-                    source={getTopicStyle(activeGroup).asset}
-                    style={{ width: 56, height: 56 }}
+                    source={{ uri: resolveMediaUrl(series.groupIcons[activeGroup]) }}
+                    style={{ width: 76, height: 76 }}
                     resizeMode="contain"
                   />
                 ) : (

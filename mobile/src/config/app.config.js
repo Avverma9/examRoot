@@ -63,6 +63,11 @@ export const API_URLS = {
   ROOT: API_CONFIG.BASE_URL,
 };
 
+export const resolveMediaUrl = (value) => {
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : `${API_CONFIG.BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
+};
+
 // Google OAuth Configuration
 export const GOOGLE_AUTH = {
   ANDROID_CLIENT_ID: extraConfig?.googleAuth?.androidClientId || PRODUCTION_CONFIG.GOOGLE_ANDROID_CLIENT_ID,
